@@ -1,11 +1,11 @@
 export function debugLog(message: string) {
     if (process.env.DEBUG_MODE === 'true') {
-        console.log(message);
+        console.log('[DEBUG] ' + message);
     }
 }
 
 export function debugError(message: string) {
     if (process.env.DEBUG_MODE === 'true') {
-        console.error(message);
+        console.error('[DEBUG ERROR] ' + message);
     }
 }

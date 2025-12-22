@@ -2,12 +2,12 @@ import { BrowserWindow } from 'electron';
 import { is } from '@electron-toolkit/utils';
 import { join } from 'path';
 
-let overlayInstance: BrowserWindow | null = null;
+let loadingInstance: BrowserWindow | null = null;
 let parentWindow: BrowserWindow | null = null;
 
-export function createOverlay(parent: BrowserWindow) {
+export function createLoading(parent: BrowserWindow) {
     parentWindow = parent;
-    overlayInstance = new BrowserWindow({
+    loadingInstance = new BrowserWindow({
         width: parent.getBounds().width,
         height: parent.getBounds().height,
         show: false,
@@ -24,46 +24,46 @@ export function createOverlay(parent: BrowserWindow) {
     });
 
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-        overlayInstance.loadURL(
-            `${process.env['ELECTRON_RENDERER_URL']}/src/windows/overlay/overlay.html`
+        loadingInstance.loadURL(
+            `${process.env['ELECTRON_RENDERER_URL']}/src/windows/loading/loading.html`
         );
     } else {
-        overlayInstance.loadFile(
-            join(__dirname, '../../renderer/src/windows/overlay/overlay.html')
+        loadingInstance.loadFile(
+            join(__dirname, '../../renderer/src/windows/loading/loading.html')
         );
     }
 
-    overlayInstance.webContents.on('did-finish-load', async () => {
+    loadingInstance.webContents.on('did-finish-load', async () => {
         try {
             const screenshot = await parent.webContents.capturePage();
             const dataUrl = screenshot.toDataURL();
 
-            overlayInstance?.webContents.send('background-image', dataUrl);
+            loadingInstance?.webContents.send('background-image', dataUrl);
 
-            if (process.env.OVERLAY === 'true') {
-                overlayInstance?.show();
+            if (process.env.LOADING === 'true') {
+                loadingInstance?.show();
             }
         } catch (error) {
             console.error('Error capturando screenshot:', error);
-            if (process.env.OVERLAY === 'true') {
-                overlayInstance?.show();
+            if (process.env.LOADING === 'true') {
+                loadingInstance?.show();
             }
         }
     });
 
-    return overlayInstance;
+    return loadingInstance;
 }
 
-export function toggleOverlay() {
-    if (overlayInstance) {
-        if (overlayInstance.isVisible()) {
-            overlayInstance.hide();
+export function toggleLoading() {
+    if (loadingInstance) {
+        if (loadingInstance.isVisible()) {
+            loadingInstance.hide();
         } else {
             if (parentWindow) {
                 const bounds = parentWindow.getBounds();
-                overlayInstance.setBounds(bounds);
+                loadingInstance.setBounds(bounds);
             }
-            overlayInstance.show();
+            loadingInstance.show();
         }
     }
 }
