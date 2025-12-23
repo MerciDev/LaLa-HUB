@@ -4,9 +4,133 @@
     box-sizing: border-box;
 }
 
-body {
-    background-color: var(--black);
+html,
+body,
+#root,
+.app {
     width: 100%;
     height: 100%;
+}
+
+body {
+    overflow: hidden;
+    padding: 10px;
+}
+
+.app {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.header {
+    width: 100%;
+    height: 56px;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Icon Options Containers */
+.mainOptions,
+.socialOptions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+    height: 56px;
+
+    padding: 0 7px;
+
+    /* Animation Logic */
+    width: fit-content;
+    min-width: 56px;
+    max-width: 56px;
+
+    transition: max-width 1s ease 0.2s, padding 1s ease 0.2s;
+    /* Padding 1s synced */
+
+    overflow-x: hidden;
+    overflow-y: hidden;
+    cursor: pointer;
+
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+/* Expanded State (Hover or Class) */
+.mainOptions:hover,
+.mainOptions.expanded,
+.socialOptions:hover,
+.socialOptions.expanded {
+    max-width: 30vw;
+    padding-left: 12px;
+    padding-right: 12px;
+    overflow-x: auto;
+
+    transition: max-width 1s ease 0s, padding 1s ease 0s;
+    /* Padding 1s synced */
+}
+
+/* Scrollbar Hiding */
+.mainOptions::-webkit-scrollbar,
+.socialOptions::-webkit-scrollbar {
+    display: none;
+}
+
+/* Specific Alignment */
+.mainOptions {
+    justify-content: flex-start;
+}
+
+.socialOptions {
+    direction: rtl;
+    justify-content: flex-start;
+}
+
+/* Icon Buttons */
+.icon-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    font-size: 24px;
+    background: transparent;
+    border: none;
+    margin: 0;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.icon-button:hover {
+    transform: scale(1.1);
+}
+
+.icon-button:active {
+    transform: scale(0.95);
+}
+
+/* Info Island */
+.infoIsland {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 20px 20px;
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    max-width: 50%;
+    transition: all 1s ease;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* Content */
+.content {
+    width: 100%;
+    flex: 1;
     overflow: hidden;
 }

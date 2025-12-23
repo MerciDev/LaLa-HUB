@@ -1,8 +1,12 @@
-import { ElectronAPI } from '@electron-toolkit/preload'
+import { AppAction } from '../shared/types'
+
+export interface API {
+  onMainMessage: (callback: (action: AppAction) => void) => void
+  offMainMessage: () => void
+}
 
 declare global {
   interface Window {
-    electron: ElectronAPI
-    api: unknown
+    api: API
   }
 }
