@@ -1,12 +1,13 @@
 import { BrowserWindow } from 'electron';
 import { is } from '@electron-toolkit/utils';
 import { join } from 'path';
+import { debugLog } from '../../debug/debug';
 
 let overlayInstance: BrowserWindow | null = null;
-let parentWindow: BrowserWindow | null = null;
+let mainApp: BrowserWindow | null = null;
 
 export function createOverlay(parent: BrowserWindow) {
-    parentWindow = parent;
+    mainApp = parent;
     overlayInstance = new BrowserWindow({
         width: parent.getBounds().width,
         height: parent.getBounds().height,
@@ -15,7 +16,6 @@ export function createOverlay(parent: BrowserWindow) {
         resizable: false,
         alwaysOnTop: true,
         transparent: true,
-        parent: parent,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -41,12 +41,12 @@ export function createOverlay(parent: BrowserWindow) {
             overlayInstance?.webContents.send('background-image', dataUrl);
 
             if (process.env.OVERLAY === 'true') {
-                overlayInstance?.show();
+                overlayInstance?.showInactive();
             }
         } catch (error) {
             console.error('Error capturando screenshot:', error);
             if (process.env.OVERLAY === 'true') {
-                overlayInstance?.show();
+                overlayInstance?.showInactive();
             }
         }
     });
@@ -59,11 +59,11 @@ export function toggleOverlay() {
         if (overlayInstance.isVisible()) {
             overlayInstance.hide();
         } else {
-            if (parentWindow) {
-                const bounds = parentWindow.getBounds();
+            if (mainApp) {
+                const bounds = mainApp.getBounds();
                 overlayInstance.setBounds(bounds);
             }
-            overlayInstance.show();
+            overlayInstance.showInactive();
         }
     }
 }

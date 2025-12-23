@@ -6,11 +6,11 @@ function MainApp(): React.JSX.Element {
     const [infoText, setInfoText] = useState('')
 
     // State
-    const [mainIcons, setMainIcons] = useState<IconOption[]>([{ id: 'home', icon: 'mdi:home', label: 'Inicio' }])
+    const [mainIcons, setMainIcons] = useState<IconOption[]>([])
     const [mainExpanded, setMainExpanded] = useState(false)
     const mainOptionsRef = useRef<HTMLDivElement>(null)
 
-    const [socialIcons, setSocialIcons] = useState<IconOption[]>([{ id: 'profile', icon: 'mdi:account', label: 'Perfil' }])
+    const [socialIcons, setSocialIcons] = useState<IconOption[]>([])
     const [socialExpanded, setSocialExpanded] = useState(false)
     const socialOptionsRef = useRef<HTMLDivElement>(null)
 
@@ -30,6 +30,18 @@ function MainApp(): React.JSX.Element {
             socialOptionsRef.current.scrollLeft = 0
         }
     }, [socialExpanded])
+
+    // Info Island Animation
+    useEffect(() => {
+        if (infoText !== displayText) {
+            setTextOpacity(0)
+            const timeout = setTimeout(() => {
+                setDisplayText(infoText)
+                setTextOpacity(1)
+            }, 300)
+            return () => clearTimeout(timeout)
+        }
+    }, [infoText, displayText])
 
     // API Handlers
     useEffect(() => {
@@ -64,18 +76,6 @@ function MainApp(): React.JSX.Element {
         }
     }, [])
 
-    // Info Island Animation
-    useEffect(() => {
-        if (infoText !== displayText) {
-            setTextOpacity(0)
-            const timeout = setTimeout(() => {
-                setDisplayText(infoText)
-                setTextOpacity(1)
-            }, 300)
-            return () => clearTimeout(timeout)
-        }
-    }, [infoText, displayText])
-
     return (
         <div className='app dot-background'>
             <div className="header">
@@ -88,10 +88,9 @@ function MainApp(): React.JSX.Element {
                             key={icon.id}
                             className="icon-button"
                             title={icon.label}
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                console.log(`Clicked: ${icon.label}`)
-                            }}
+                            onMouseEnter={() => icon.onMouseEnter && window.api.mainOptionControl(icon.onMouseEnter)}
+                            onMouseLeave={() => icon.onMouseLeave && window.api.mainOptionControl(icon.onMouseLeave)}
+                            onClick={() => icon.onClick && window.api.mainOptionControl(icon.onClick)}
                         >
                             <Icon icon={icon.icon} />
                         </button>
@@ -119,10 +118,9 @@ function MainApp(): React.JSX.Element {
                             key={icon.id}
                             className="icon-button"
                             title={icon.label}
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                console.log(`Clicked: ${icon.label}`)
-                            }}
+                            onMouseEnter={() => icon.onMouseEnter && window.api.mainOptionControl(icon.onMouseEnter)}
+                            onMouseLeave={() => icon.onMouseLeave && window.api.mainOptionControl(icon.onMouseLeave)}
+                            onClick={() => icon.onClick && window.api.mainOptionControl(icon.onClick)}
                         >
                             <Icon icon={icon.icon} />
                         </button>

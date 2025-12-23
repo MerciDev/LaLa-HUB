@@ -2,7 +2,9 @@ export interface IconOption {
     id: string
     icon: string
     label: string
-    onClick?: string // ID de la acción a ejecutar
+    onClick?: string
+    onMouseEnter?: string
+    onMouseLeave?: string
 }
 
 export type AppAction =

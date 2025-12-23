@@ -47,8 +47,8 @@ body {
     min-width: 56px;
     max-width: 56px;
 
-    transition: max-width 1s ease 0.2s, padding 1s ease 0.2s;
-    /* Padding 1s synced */
+    transition: max-width 0.5s ease 0.2s, padding 0.5s ease 0.2s;
+    /* Padding 0.5s synced */
 
     overflow-x: hidden;
     overflow-y: hidden;
@@ -68,8 +68,8 @@ body {
     padding-right: 12px;
     overflow-x: auto;
 
-    transition: max-width 1s ease 0s, padding 1s ease 0s;
-    /* Padding 1s synced */
+    transition: max-width 0.5s ease 0s, padding 0.5s ease 0s;
+    /* Padding 0.5s synced */
 }
 
 /* Scrollbar Hiding */

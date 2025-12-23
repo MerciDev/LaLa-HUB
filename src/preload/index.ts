@@ -10,6 +10,10 @@ const api = {
   offMainMessage: () => {
     ipcRenderer.removeAllListeners('dispatch-action')
   },
+
+  mainOptionControl: (actionId: string) => {
+    ipcRenderer.send('main-option-control', actionId)
+  },
 }
 
 // Use `contextBridge` APIs to expose APIs to

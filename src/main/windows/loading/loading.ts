@@ -3,10 +3,10 @@ import { is } from '@electron-toolkit/utils';
 import { join } from 'path';
 
 let loadingInstance: BrowserWindow | null = null;
-let parentWindow: BrowserWindow | null = null;
+let mainApp: BrowserWindow | null = null;
 
 export function createLoading(parent: BrowserWindow) {
-    parentWindow = parent;
+    mainApp = parent;
     loadingInstance = new BrowserWindow({
         width: parent.getBounds().width,
         height: parent.getBounds().height,
@@ -15,7 +15,6 @@ export function createLoading(parent: BrowserWindow) {
         resizable: false,
         alwaysOnTop: true,
         transparent: true,
-        parent: parent,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -41,12 +40,12 @@ export function createLoading(parent: BrowserWindow) {
             loadingInstance?.webContents.send('background-image', dataUrl);
 
             if (process.env.LOADING === 'true') {
-                loadingInstance?.show();
+                loadingInstance?.showInactive();
             }
         } catch (error) {
             console.error('Error capturando screenshot:', error);
             if (process.env.LOADING === 'true') {
-                loadingInstance?.show();
+                loadingInstance?.showInactive();
             }
         }
     });
@@ -59,11 +58,11 @@ export function toggleLoading() {
         if (loadingInstance.isVisible()) {
             loadingInstance.hide();
         } else {
-            if (parentWindow) {
-                const bounds = parentWindow.getBounds();
+            if (mainApp) {
+                const bounds = mainApp.getBounds();
                 loadingInstance.setBounds(bounds);
             }
-            loadingInstance.show();
+            loadingInstance.showInactive();
         }
     }
 }
