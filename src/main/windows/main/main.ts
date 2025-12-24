@@ -1,6 +1,5 @@
 import { appWindow } from '../../index'
-import { IconOption } from '../../../shared/types'
-import { BrowserWindow } from 'electron'
+import { IconOption, HomeGrid, HomeSlot } from '../../../shared/types'
 
 export function changeInfoIsland(text: string): void {
     appWindow?.webContents.send('dispatch-action', { type: 'CHANGE_INFO_ISLAND', payload: text })
@@ -116,4 +115,68 @@ export function mainOptionControl(actionId: string): void {
         },
     }
     actionMap[actionId]?.()
+}
+
+// - - - Grid Control Functions - - - //
+
+export function updateGridConfig(config: Partial<Omit<HomeGrid, 'items'>>): void {
+    appWindow?.webContents.send('dispatch-action', { type: 'UPDATE_GRID_CONFIG', payload: config })
+}
+
+export function setGridItems(items: HomeSlot[]): void {
+    appWindow?.webContents.send('dispatch-action', { type: 'SET_GRID_ITEMS', payload: items })
+}
+
+export function addGridItem(item: HomeSlot): void {
+    appWindow?.webContents.send('dispatch-action', { type: 'ADD_GRID_ITEM', payload: item })
+}
+
+export function removeGridItem(itemId: string): void {
+    appWindow?.webContents.send('dispatch-action', { type: 'REMOVE_GRID_ITEM', payload: itemId })
+}
+
+export function gridItemControl(actionId: string, item: HomeSlot): void {
+    const actionMap: Record<string, () => void> = {
+        'mouse-enter-grid-item': () => {
+            changeInfoIsland(item.label)
+            expandInfoIsland()
+        },
+        'mouse-leave-grid-item': () => {
+            changeInfoIsland('')
+            collapseInfoIsland()
+        },
+    }
+
+    // Si no encuentra la acción exacta, podría ser una dinámica (TODO: Implementar lógica dinámica si id contiene prefijos)
+    if (actionMap[actionId]) {
+        actionMap[actionId]()
+    } else {
+        console.log(`Grid Action received: ${actionId}`)
+    }
+}
+
+// - - - Movement Control Functions - - - //
+
+export let currentSection = 'grid'
+export let selectedElement: any = null
+
+export function setSection(section: string): void {
+    currentSection = section
+    console.log(`[Main] Section set to: ${currentSection}`)
+}
+
+export function getSection(): string {
+    return currentSection
+}
+
+export function setSelectedElement(item: any): void {
+    selectedElement = item
+}
+
+export function getSelectedItem(): any {
+    return selectedElement
+}
+
+export function setSelectedSectionItem(section: string, index: number): void {
+    appWindow?.webContents.send('dispatch-action', { type: 'SET_SELECTED_INDEX', payload: { section, index } })
 }

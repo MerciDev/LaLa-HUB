@@ -1,6 +1,8 @@
 :root {
-    --white: #fff;
-    --black: #000;
+    --island-white: #f8f8f8;
+    --home-light-gray: #e8e8e8;
+    --home-gray: #d8d8d8;
+    --home-blue: #0077ff;
 }
 
 .island {
@@ -11,7 +13,7 @@
     gap: 13%;
     color: #090909;
     border-radius: 2em;
-    background: #f8f8f8;
+    background: var(--island-white);
     border: 1px solid #e8e8e8;
     transition: all .3s;
     box-shadow: 6px 6px 12px #c5c5c5,

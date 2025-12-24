@@ -1,10 +1,11 @@
-import { app, BrowserWindow, globalShortcut, screen, ipcMain } from 'electron'
+import { app, BrowserWindow, globalShortcut, screen, ipcMain, Input } from 'electron'
 import { join } from 'path'
-import { debugLog, debugError } from './debug/debug'
+import { debugLog, debugError } from './utils/debug'
 import * as overlay from './windows/overlay/overlay'
 import * as loading from './windows/loading/loading'
 import * as mainApp from './windows/main/main'
-import { keymaps, createDebouncedToggle } from './keymaps/keymaps'
+import * as keymaps from './keymaps/keymaps'
+import { HomeSlot } from '../shared/types'
 
 export let appWindow: BrowserWindow | null = null
 export let overlayWindow: BrowserWindow | null = null
@@ -32,24 +33,41 @@ function createWindow(): void {
   appWindow.loadURL(
     `${process.env['ELECTRON_RENDERER_URL']}/src/windows/main/main.html`
   );
+
+  // Handle Input Events for Movement
+  appWindow.webContents.on('before-input-event', (event, input: Input) => {
+    if (input.type !== 'keyDown') return
+
+    for (const [action, key] of Object.entries(keymaps.keymaps)) {
+      if (key === input.key) {
+        event.preventDefault()
+        event.preventDefault()
+        appWindow?.webContents.send('movement-action', mainApp.currentSection, action)
+      }
+    }
+  })
+
   overlayWindow = overlay.createOverlay(appWindow)
   loadingWindow = loading.createLoading(appWindow)
 }
 
-export const debouncedToggleOverlay = createDebouncedToggle(overlay.toggleOverlay);
-export const debouncedToggleLoading = createDebouncedToggle(loading.toggleLoading);
+export const debouncedToggleOverlay = keymaps.createDebouncedToggle(overlay.toggleOverlay);
+export const debouncedToggleLoading = keymaps.createDebouncedToggle(loading.toggleLoading);
 
 async function main(): Promise<void> {
+  // Load Keymaps
+  keymaps.loadKeymaps()
+
   process.env.DEBUG_MODE = 'true'
   process.env.WINDOWED_BORDERLESS = 'false'
   process.env.OVERLAY = 'false'
   process.env.LOADING = 'false'
   await app.whenReady()
 
-  globalShortcut.register(keymaps.overlay, () => {
+  globalShortcut.register(keymaps.keymaps.overlay, () => {
     debouncedToggleOverlay();
   })
-  globalShortcut.register(keymaps.loading, () => {
+  globalShortcut.register(keymaps.keymaps.loading, () => {
     debouncedToggleLoading();
   })
   createWindow()
@@ -106,9 +124,25 @@ async function main(): Promise<void> {
     })
   })
 
-  // Handle icon click actions from renderer
+  // Handle icon actions from renderer
   ipcMain.on('main-option-control', (_, actionId: string) => {
     mainApp.mainOptionControl(actionId)
+  })
+
+  // Handle grid item interactions from renderer
+  ipcMain.on('grid-item-control', (_, actionId: string, item: HomeSlot) => {
+    mainApp.gridItemControl(actionId, item)
+  })
+
+  // Handle movement control from renderer (selection updates)
+  ipcMain.on('movement-control', (_, action: string, data?: any) => {
+    if (action === 'SELECTION_CHANGED') {
+      mainApp.setSelectedElement(data)
+      debugLog(`New Selection: ${data ? data.label : 'None'}, Section: ${mainApp.getSection()}`)
+    } else if (action === 'SET_SECTION') {
+      mainApp.setSection(data)
+      debugLog(`New Section: ${data}, Item: ${mainApp.getSelectedItem()}`)
+    }
   })
 
 }

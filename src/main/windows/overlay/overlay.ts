@@ -1,7 +1,6 @@
 import { BrowserWindow } from 'electron';
 import { is } from '@electron-toolkit/utils';
 import { join } from 'path';
-import { debugLog } from '../../debug/debug';
 
 let overlayInstance: BrowserWindow | null = null;
 let mainApp: BrowserWindow | null = null;
@@ -63,7 +62,7 @@ export function toggleOverlay() {
                 const bounds = mainApp.getBounds();
                 overlayInstance.setBounds(bounds);
             }
-            overlayInstance.showInactive();
+            overlayInstance.show();
         }
     }
 }

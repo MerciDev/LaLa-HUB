@@ -15,3 +15,49 @@ export type AppAction =
     | { type: 'ADD_SOCIAL_ICON'; payload: IconOption }
     | { type: 'TOGGLE_MAIN_OPTIONS' }
     | { type: 'TOGGLE_SOCIAL_OPTIONS' }
+    // Grid Actions
+    | { type: 'UPDATE_GRID_CONFIG'; payload: Partial<Omit<HomeGrid, 'items'>> }
+    | { type: 'SET_GRID_ITEMS'; payload: HomeSlot[] }
+    | { type: 'ADD_GRID_ITEM'; payload: HomeSlot }
+    | { type: 'REMOVE_GRID_ITEM'; payload: string } // ID del item a eliminar
+    | { type: 'SET_SELECTED_INDEX'; payload: { section: string; index: number } }
+
+export interface Emulator {
+    id: string
+    name: string
+    path: string
+}
+
+export interface Console {
+    id: string
+    name: string
+    emulated?: boolean
+    emulator?: Emulator
+}
+
+export interface Game {
+    id: string
+    name: string
+    console?: Console
+}
+
+export interface HomeSlot {
+    id: string
+    icon: string
+    label: string
+    onClick?: string
+    onMouseEnter?: string
+    onMouseLeave?: string
+    game?: Game
+    position?: number
+    scale?: { x: number, y: number }
+    page?: number
+}
+
+export interface HomeGrid {
+    rows: number
+    cols: number
+    gap: number
+    aspectRatio: number
+    items: HomeSlot[]
+}

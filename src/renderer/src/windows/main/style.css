@@ -42,13 +42,11 @@ body {
 
     padding: 0 7px;
 
-    /* Animation Logic */
     width: fit-content;
     min-width: 56px;
     max-width: 56px;
 
     transition: max-width 0.5s ease 0.2s, padding 0.5s ease 0.2s;
-    /* Padding 0.5s synced */
 
     overflow-x: hidden;
     overflow-y: hidden;
@@ -58,7 +56,6 @@ body {
     -ms-overflow-style: none;
 }
 
-/* Expanded State (Hover or Class) */
 .mainOptions:hover,
 .mainOptions.expanded,
 .socialOptions:hover,
@@ -69,16 +66,13 @@ body {
     overflow-x: auto;
 
     transition: max-width 0.5s ease 0s, padding 0.5s ease 0s;
-    /* Padding 0.5s synced */
 }
 
-/* Scrollbar Hiding */
 .mainOptions::-webkit-scrollbar,
 .socialOptions::-webkit-scrollbar {
     display: none;
 }
 
-/* Specific Alignment */
 .mainOptions {
     justify-content: flex-start;
 }
@@ -99,13 +93,16 @@ body {
     font-size: 24px;
     background: transparent;
     border: none;
+    border-radius: 16px;
     margin: 0;
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, background-color 0.5s ease;
 }
 
 .icon-button:hover {
     transform: scale(1.1);
+    background-color: var(--home-gray);
+    outline: 2px solid var(--home-blue);
 }
 
 .icon-button:active {
@@ -123,7 +120,7 @@ body {
     height: 56px;
     min-width: 56px;
     max-width: 50%;
-    transition: all 1s ease;
+    transition: all 0.5s ease;
     overflow: hidden;
     white-space: nowrap;
 }
@@ -133,4 +130,36 @@ body {
     width: 100%;
     flex: 1;
     overflow: hidden;
+}
+
+.homeSlot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: whitesmoke;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.5s ease;
+}
+
+.homeSlot.selected {
+    transform: scale(1.025);
+    outline: 4px solid var(--home-blue);
+    background-color: var(--home-gray);
+}
+
+.fullSlot {
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.5s ease;
+}
+
+.fullSlot:active {
+    transform: scale(0.95);
+}
+
+.slotDot {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background-color: var(--home-light-gray);
 }

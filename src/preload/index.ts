@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { AppAction } from '../shared/types'
+import { AppAction, HomeSlot } from '../shared/types'
 
 // Custom APIs for renderer
 const api = {
@@ -13,6 +13,23 @@ const api = {
 
   mainOptionControl: (actionId: string) => {
     ipcRenderer.send('main-option-control', actionId)
+  },
+
+  gridItemControl: (actionId: string, item: HomeSlot) => {
+    ipcRenderer.send('grid-item-control', actionId, item)
+  },
+
+  movementControl: {
+    send: (action: string, data?: any) => {
+      ipcRenderer.send('movement-control', action, data)
+    },
+    onAction: (callback: (section: string, action: string) => void) => {
+      const subscription = (_, section, action) => callback(section, action)
+      ipcRenderer.on('movement-action', subscription)
+      return () => {
+        ipcRenderer.removeListener('movement-action', subscription)
+      }
+    }
   },
 }
 
