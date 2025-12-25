@@ -26,6 +26,7 @@ export interface Emulator {
     id: string
     name: string
     path: string
+    args: string
 }
 
 export interface Console {
@@ -39,6 +40,9 @@ export interface Game {
     id: string
     name: string
     console?: Console
+    emulator?: Emulator
+    path?: string
+    args?: string
 }
 
 export interface HomeSlot {

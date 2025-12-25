@@ -23,18 +23,12 @@ function MainApp(): React.JSX.Element {
         cols: 6,
         aspectRatio: 1,
         gap: 10,
-        items: [
-            {
-                id: 'example-game',
-                icon: 'mdi:controller',
-                label: 'Example Game',
-                position: 7,
-                onClick: 'click-example-game',
-                onMouseEnter: 'mouse-enter-grid-item',
-                onMouseLeave: 'mouse-leave-grid-item'
-            }
-        ]
+        items: []
     })
+
+    // Staircase Animation State
+    const [visibleSlots, setVisibleSlots] = useState<Set<number>>(new Set())
+    const [animationComplete, setAnimationComplete] = useState(false)
 
     // Scroll Resets
     useEffect(() => {
@@ -92,6 +86,36 @@ function MainApp(): React.JSX.Element {
 
         return () => observer.disconnect()
     }, [homeGrid])
+
+    // Staircase Animation Effect
+    useEffect(() => {
+        if (animationComplete) return
+
+        const { rows, cols } = homeGrid
+        const maxWave = (rows - 1) + (cols - 1) // Maximum diagonal wave
+
+        // Animate each wave
+        for (let wave = 0; wave <= maxWave; wave++) {
+            setTimeout(() => {
+                setVisibleSlots(prev => {
+                    const newSet = new Set(prev)
+                    // Add all positions in this diagonal wave
+                    for (let row = 0; row < rows; row++) {
+                        const col = wave - row
+                        if (col >= 0 && col < cols) {
+                            newSet.add(row * cols + col)
+                        }
+                    }
+                    return newSet
+                })
+
+                // Mark animation as complete after last wave
+                if (wave === maxWave) {
+                    setAnimationComplete(true)
+                }
+            }, wave * 100) // 50ms between each wave
+        }
+    }, [homeGrid.rows, homeGrid.cols, animationComplete])
 
     // API Handlers
     useEffect(() => {
@@ -284,6 +308,11 @@ function MainApp(): React.JSX.Element {
                             <div
                                 key={index}
                                 className={`homeSlot ${item ? 'fullSlot' : 'emptySlot'} ${selectedSlotIndex === index ? 'selected' : ''}`}
+                                style={{
+                                    opacity: visibleSlots.has(index) ? 1 : 0,
+                                    transform: visibleSlots.has(index) ? 'scale(1)' : 'scale(0.8)',
+                                    transition: 'opacity 0.3s ease-out, transform 0.3s ease-out'
+                                }}
                                 title={item?.label}
                                 onClick={() => {
                                     setSelectedSlotIndex(index)

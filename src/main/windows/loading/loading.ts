@@ -3,14 +3,13 @@ import { is } from '@electron-toolkit/utils';
 import { join } from 'path';
 
 let loadingInstance: BrowserWindow | null = null;
-let mainApp: BrowserWindow | null = null;
 
 export function createLoading(parent: BrowserWindow) {
-    mainApp = parent;
     loadingInstance = new BrowserWindow({
         width: parent.getBounds().width,
         height: parent.getBounds().height,
         show: false,
+        fullscreen: true,
         frame: false,
         resizable: false,
         alwaysOnTop: true,
@@ -58,10 +57,7 @@ export function toggleLoading() {
         if (loadingInstance.isVisible()) {
             loadingInstance.hide();
         } else {
-            if (mainApp) {
-                const bounds = mainApp.getBounds();
-                loadingInstance.setBounds(bounds);
-            }
+            loadingInstance.setFullScreen(true);
             loadingInstance.showInactive();
         }
     }

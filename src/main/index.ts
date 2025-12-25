@@ -6,6 +6,7 @@ import * as loading from './windows/loading/loading'
 import * as mainApp from './windows/main/main'
 import * as keymaps from './keymaps/keymaps'
 import { HomeSlot } from '../shared/types'
+import { addSlot, loadSlots } from './utils/storage'
 
 export let appWindow: BrowserWindow | null = null
 export let overlayWindow: BrowserWindow | null = null
@@ -122,6 +123,32 @@ async function main(): Promise<void> {
       onMouseEnter: 'mouse-enter-trophies',
       onMouseLeave: 'mouse-leave-trophies'
     })
+
+    // Add Twilight Princess slot (will only add if not exists, or update if exists)
+    addSlot({
+      id: 'twilight-princess-hd-slot',
+      icon: 'mdi:controller',
+      label: 'The Legend of Zelda -Twilight Princess HD',
+      position: 7,
+      onClick: 'run-game',
+      onMouseEnter: 'mouse-enter-grid-item',
+      onMouseLeave: 'mouse-leave-grid-item',
+      game: {
+        id: 'twilight-princess-hd',
+        name: 'The Legend of Zelda -Twilight Princess HD',
+        path: 'E:\\Emulation\\roms\\wiiu\\Legend of Zelda, The - Twilight Princess HD (Europe) (En,Fr,De,Es,It) (Rev 2).wux',
+        emulator: {
+          id: 'cemu',
+          name: 'Cemu',
+          path: 'C:\\Users\\mercp\\Downloads\\cemu-2.6-windows-x64\\Cemu_2.6\\Cemu.exe',
+          args: '-g {roms}'
+        }
+      }
+    })
+
+    // Load and set all slots from storage
+    const savedSlots = loadSlots()
+    mainApp.setGridItems(savedSlots)
   })
 
   // Handle icon actions from renderer

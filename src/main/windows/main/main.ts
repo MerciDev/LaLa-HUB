@@ -1,5 +1,8 @@
 import { appWindow } from '../../index'
 import { IconOption, HomeGrid, HomeSlot } from '../../../shared/types'
+import { spawn } from 'child_process'
+import { debugLog } from '../../utils/debug'
+import { toggleLoading } from '../loading/loading'
 
 export function changeInfoIsland(text: string): void {
     appWindow?.webContents.send('dispatch-action', { type: 'CHANGE_INFO_ISLAND', payload: text })
@@ -145,9 +148,53 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
             changeInfoIsland('')
             collapseInfoIsland()
         },
+        'run-game': () => {
+            let gamePath = item.game?.path
+            let gameArgs = item.game?.args
+            let gameName = item.game?.name
+            let gameEmulator = item.game?.emulator
+
+            // Is an emulated game
+            if (gameEmulator) {
+                debugLog(`Running emulated game: ${gameEmulator.path}`)
+                let emulatorArgs = (gameEmulator.args || '').replace('{roms}', `"${gamePath || ''}"`)
+
+                const gameProcess = spawn(gameEmulator.path, emulatorArgs.split(' '), {
+                    shell: true,
+                    detached: true,
+                    stdio: 'ignore'
+                });
+            }
+            // Is a direct game
+            else {
+                debugLog(`Running game: ${gamePath}`)
+
+                const gameProcess = spawn((gamePath || ''), (gameArgs || '').split(' '), {
+                    shell: true,
+                    detached: true,
+                    stdio: 'ignore'
+                });
+            }
+            toggleLoading()
+            appWindow?.hide()
+            debugLog(`Activating window and sending keys to: ${gameName}`)
+            require('child_process').exec(
+                `powershell -Command "$wsh = New-Object -ComObject WScript.Shell; $result = $wsh.AppActivate('${gameEmulator ? gameEmulator.name : gameName}'); Write-Output $result; Start-Sleep -Milliseconds 500; $wsh.SendKeys('%+a')"`,
+                (error: Error | null, stdout: string, stderr: string) => {
+                    if (error) {
+                        console.error('PowerShell error:', error)
+                    }
+                    debugLog(`AppActivate result: ${stdout.trim()}`)
+                    if (stderr) console.error('PowerShell stderr:', stderr)
+                }
+            )
+            setTimeout(() => {
+                toggleLoading()
+            }, 5000);
+
+        },
     }
 
-    // Si no encuentra la acción exacta, podría ser una dinámica (TODO: Implementar lógica dinámica si id contiene prefijos)
     if (actionMap[actionId]) {
         actionMap[actionId]()
     } else {

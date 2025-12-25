@@ -2,11 +2,10 @@ import { app } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
 import { debugError, debugLog } from './debug'
+import { HomeSlot } from '../../shared/types'
 
-// 1. Obtener la ruta base (Ej: /Users/marco/Library/Application Support/LaLa-HUB)
 export const USER_DATA_PATH = app.getPath('userData')
 
-// 2. Función para asegurar que una carpeta existe
 export function ensureDirectory(dirName: string): string {
     const dirPath = path.join(USER_DATA_PATH, dirName)
 
@@ -23,7 +22,6 @@ export function checkFileExists(folder: string, fileName: string): boolean {
     return fs.existsSync(filePath)
 }
 
-// 3. Guardar un archivo JSON
 export function saveJson(folder: string, fileName: string, data: any): void {
     const dirPath = ensureDirectory(folder)
     const filePath = path.join(dirPath, `${fileName}.json`)
@@ -36,7 +34,6 @@ export function saveJson(folder: string, fileName: string, data: any): void {
     }
 }
 
-// 4. Leer un archivo JSON
 export function readJson<T>(folder: string, fileName: string): T | null {
     const filePath = path.join(USER_DATA_PATH, folder, `${fileName}.json`)
 
@@ -50,5 +47,50 @@ export function readJson<T>(folder: string, fileName: string): T | null {
     } catch (error) {
         debugError(`[Storage] Error leyendo ${fileName}: ${error}`)
         return null
+    }
+}
+
+const SLOTS_FOLDER = 'data'
+const SLOTS_FILE = 'slots'
+
+export function saveSlots(slots: HomeSlot[]): void {
+    saveJson(SLOTS_FOLDER, SLOTS_FILE, slots)
+    debugLog(`[Storage] ${slots.length} slots guardados`)
+}
+
+export function loadSlots(): HomeSlot[] {
+    const slots = readJson<HomeSlot[]>(SLOTS_FOLDER, SLOTS_FILE)
+    if (slots) {
+        debugLog(`[Storage] ${slots.length} slots cargados`)
+        return slots
+    }
+    debugLog('[Storage] No se encontraron slots guardados, retornando array vacío')
+    return []
+}
+
+export function addSlot(slot: HomeSlot): void {
+    const slots = loadSlots()
+    const existingIndex = slots.findIndex(s => s.id === slot.id)
+
+    if (existingIndex >= 0) {
+        slots[existingIndex] = slot
+        debugLog(`[Storage] Slot actualizado: ${slot.id}`)
+    } else {
+        slots.push(slot)
+        debugLog(`[Storage] Slot agregado: ${slot.id}`)
+    }
+
+    saveSlots(slots)
+}
+
+export function removeSlot(slotId: string): void {
+    const slots = loadSlots()
+    const filteredSlots = slots.filter(s => s.id !== slotId)
+
+    if (filteredSlots.length < slots.length) {
+        saveSlots(filteredSlots)
+        debugLog(`[Storage] Slot eliminado: ${slotId}`)
+    } else {
+        debugLog(`[Storage] Slot no encontrado: ${slotId}`)
     }
 }
