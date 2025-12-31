@@ -40,10 +40,33 @@ function createWindow(): void {
     if (input.type !== 'keyDown') return
 
     for (const [action, key] of Object.entries(keymaps.keymaps)) {
-      if (key === input.key) {
+      if (key.toLowerCase() === input.key.toLowerCase()) {
         event.preventDefault()
-        event.preventDefault()
-        appWindow?.webContents.send('movement-action', mainApp.currentSection, action)
+        if (action === 'nextPage') {
+          mainApp.handlePageChange('next')
+        } else if (action === 'prevPage') {
+          mainApp.handlePageChange('prev')
+        } else if (action === 'contextMenu') {
+          if (mainApp.isContextMenuVisible) {
+            mainApp.toggleContextMenu(false)
+            mainApp.setSection('grid')
+          } else {
+            // Only open if in grid section and an element is selected (optional check)
+            if (mainApp.currentSection === 'grid') { // && mainApp.selectedElement
+              mainApp.toggleContextMenu(true)
+              mainApp.setSection('context-menu')
+            }
+          }
+        } else if (action === 'back') {
+          if (mainApp.isContextMenuVisible) {
+            mainApp.toggleContextMenu(false)
+            mainApp.setSection('grid')
+          } else {
+            appWindow?.webContents.send('movement-action', mainApp.currentSection, action)
+          }
+        } else {
+          appWindow?.webContents.send('movement-action', mainApp.currentSection, action)
+        }
       }
     }
   })
@@ -51,6 +74,21 @@ function createWindow(): void {
   overlayWindow = overlay.createOverlay(appWindow)
   loadingWindow = loading.createLoading(appWindow)
 }
+
+// Handle interaction from renderer's context menu control
+ipcMain.on('context-menu-control', (_, action: string, data?: any) => {
+  if (action === 'toggle') {
+    mainApp.toggleContextMenu(data)
+  } else if (action === 'add') {
+    mainApp.addContextOption(data)
+  } else if (action === 'remove') {
+    mainApp.removeContextOption(data)
+  } else if (action === 'set') {
+    mainApp.setContextOptions(data)
+  } else if (action === 'execute') {
+    mainApp.executeContextAction(data)
+  }
+})
 
 export const debouncedToggleOverlay = keymaps.createDebouncedToggle(overlay.toggleOverlay);
 export const debouncedToggleLoading = keymaps.createDebouncedToggle(loading.toggleLoading);
@@ -149,6 +187,14 @@ async function main(): Promise<void> {
     // Load and set all slots from storage
     const savedSlots = loadSlots()
     mainApp.setGridItems(savedSlots)
+    mainApp.setTotalPages(3)
+
+    // Set default context options
+    mainApp.setContextOptions([
+      { id: '1', label: 'Opcion 1' },
+      { id: '2', label: 'Opcion 2' },
+      { id: '3', label: 'Opcion 3' }
+    ])
   })
 
   // Handle icon actions from renderer
@@ -169,6 +215,10 @@ async function main(): Promise<void> {
     } else if (action === 'SET_SECTION') {
       mainApp.setSection(data)
       debugLog(`New Section: ${data}, Item: ${mainApp.getSelectedItem()}`)
+    } else if (action === 'SET_TOTAL_PAGES') {
+      mainApp.setTotalPages(data)
+    } else if (action === 'PAGE_ACTION') {
+      mainApp.handlePageChange(data)
     }
   })
 

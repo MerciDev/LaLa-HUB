@@ -21,6 +21,19 @@ export type AppAction =
     | { type: 'ADD_GRID_ITEM'; payload: HomeSlot }
     | { type: 'REMOVE_GRID_ITEM'; payload: string } // ID del item a eliminar
     | { type: 'SET_SELECTED_INDEX'; payload: { section: string; index: number } }
+    | { type: 'SET_GRID_PAGE'; payload: number }
+    // Context Menu Actions
+    | { type: 'TOGGLE_CONTEXT_MENU'; payload: boolean } // state
+    | { type: 'SET_CONTEXT_OPTIONS'; payload: ContextOption[] }
+    | { type: 'ADD_CONTEXT_OPTION'; payload: ContextOption }
+    | { type: 'REMOVE_CONTEXT_OPTION'; payload: string }
+
+export interface ContextOption {
+    id: string
+    label: string
+    icon: string
+    action?: string
+}
 
 export interface Emulator {
     id: string

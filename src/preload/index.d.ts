@@ -9,6 +9,10 @@ export interface API {
     send: (action: string, data?: any) => void
     onAction: (callback: (section: string, action: string) => void) => () => void
   }
+  contextMenuControl: {
+    send: (action: string, data?: any) => void
+    onAction: (callback: (action: string, data?: any) => void) => () => void
+  }
 }
 
 declare global {

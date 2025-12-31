@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Icon } from '@iconify/react'
-import { AppAction, HomeGrid, IconOption } from '../../../../shared/types'
+import { AppAction, HomeGrid, IconOption, ContextOption } from '../../../../shared/types'
 
 function MainApp(): React.JSX.Element {
     const [infoText, setInfoText] = useState('')
@@ -9,10 +9,16 @@ function MainApp(): React.JSX.Element {
     const [mainIcons, setMainIcons] = useState<IconOption[]>([])
     const [mainExpanded, setMainExpanded] = useState(false)
     const mainOptionsRef = useRef<HTMLDivElement>(null)
+    const pendingSelectionRef = useRef<number | null>(null)
 
     const [socialIcons, setSocialIcons] = useState<IconOption[]>([])
     const [socialExpanded, setSocialExpanded] = useState(false)
     const socialOptionsRef = useRef<HTMLDivElement>(null)
+
+    // Context Menu State
+    const [contextMenuVisible, setContextMenuVisible] = useState(false)
+    const [contextOptions, setContextOptions] = useState<ContextOption[]>([])
+    const [contextMenuSelectedIndex, setContextMenuSelectedIndex] = useState(0)
 
     const [displayText, setDisplayText] = useState('')
     const [islandWidth, setIslandWidth] = useState<string>('56px')
@@ -25,6 +31,10 @@ function MainApp(): React.JSX.Element {
         gap: 10,
         items: []
     })
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(0)
+    const [direction, setDirection] = useState<'next' | 'prev'>('next')
 
     // Staircase Animation State
     const [visibleSlots, setVisibleSlots] = useState<Set<number>>(new Set())
@@ -113,9 +123,27 @@ function MainApp(): React.JSX.Element {
                 if (wave === maxWave) {
                     setAnimationComplete(true)
                 }
-            }, wave * 100) // 50ms between each wave
+            }, wave * 25) // 25ms between each wave
         }
-    }, [homeGrid.rows, homeGrid.cols, animationComplete])
+    }, [homeGrid.rows, homeGrid.cols, animationComplete, currentPage])
+
+    // Add Game Modal
+    const [addGameModalVisible, setAddGameModalVisible] = useState(false)
+    const [addGameSelectedIndex, setAddGameSelectedIndex] = useState(0)
+
+    const handleContextOptionClick = (option: ContextOption) => {
+        if (option.label === 'Add' || option.action === 'ADD_GAME') {
+            setAddGameModalVisible(true)
+            setAddGameSelectedIndex(0) // Reset to first input
+            setContextMenuVisible(false)
+            setSelectedSlotIndex(null) // Deselect grid item
+            setInfoText('Add Game')
+            setIslandWidth('50%')
+            window.api.movementControl.send('SET_SECTION', 'add-game-modal')
+        } else if (option.action) {
+            window.api.contextMenuControl.send('execute', option.action)
+        }
+    }
 
     // API Handlers
     useEffect(() => {
@@ -161,6 +189,32 @@ function MainApp(): React.JSX.Element {
                         setSelectedSlotIndex(action.payload.index)
                     }
                     break
+                case 'SET_GRID_PAGE':
+                    setDirection(action.payload > currentPage ? 'next' : 'prev')
+                    setVisibleSlots(new Set()) // Reset visibility
+                    setCurrentPage(action.payload)
+                    setAnimationComplete(false) // Trigger animation reset
+
+                    // Apply pending selection if page changed via boundary
+                    if (pendingSelectionRef.current !== null) {
+                        setSelectedSlotIndex(pendingSelectionRef.current)
+                        pendingSelectionRef.current = null
+                    }
+                    break
+
+                // Context Menu Actions
+                case 'TOGGLE_CONTEXT_MENU':
+                    setContextMenuVisible(action.payload)
+                    break
+                case 'SET_CONTEXT_OPTIONS':
+                    setContextOptions(action.payload)
+                    break
+                case 'ADD_CONTEXT_OPTION':
+                    setContextOptions(prev => [...prev, action.payload])
+                    break
+                case 'REMOVE_CONTEXT_OPTION':
+                    setContextOptions(prev => prev.filter(o => o.id !== action.payload))
+                    break
             }
         })
 
@@ -191,52 +245,142 @@ function MainApp(): React.JSX.Element {
 
     useEffect(() => {
         const handleMovementAction = (section: string, action: string) => {
-            if (section !== 'grid') return
-            const { rows, cols } = homeGrid
-            const totalSlots = rows * cols
+            if (section === 'grid') {
+                const { rows, cols } = homeGrid
+                const totalSlots = rows * cols
 
-            // Default selection if none
-            if (selectedSlotIndex === null) {
-                if (['up', 'down', 'left', 'right'].includes(action)) {
-                    setSelectedSlotIndex(0)
-                }
-                return
-            }
-
-            let nextIndex = selectedSlotIndex
-
-            switch (action) {
-                case 'right':
-                    if ((selectedSlotIndex + 1) % cols !== 0) nextIndex++
-                    break
-                case 'left':
-                    if (selectedSlotIndex % cols !== 0) nextIndex--
-                    break
-                case 'down':
-                    if (selectedSlotIndex + cols < totalSlots) nextIndex += cols
-                    break
-                case 'up':
-                    if (selectedSlotIndex - cols >= 0) nextIndex -= cols
-                    break
-                case 'back':
-                    setSelectedSlotIndex(null)
-                    break
-                case 'select':
-                    if (selectedSlotItem && selectedSlotItem.onClick) {
-                        window.api.gridItemControl(selectedSlotItem.onClick, selectedSlotItem)
+                // Default selection if none
+                if (selectedSlotIndex === null) {
+                    if (['up', 'down', 'left', 'right'].includes(action)) {
+                        setSelectedSlotIndex(0)
                     }
-                    break
-            }
+                    return
+                }
 
-            if (nextIndex !== selectedSlotIndex) {
-                setSelectedSlotIndex(nextIndex)
+                let nextIndex = selectedSlotIndex
+
+                switch (action) {
+                    case 'right':
+                        if ((selectedSlotIndex + 1) % cols === 0) {
+                            const row = Math.floor(selectedSlotIndex / cols)
+                            pendingSelectionRef.current = row * cols
+                            window.api.movementControl.send('PAGE_ACTION', 'next')
+                        } else if ((selectedSlotIndex + 1) % cols !== 0) nextIndex++
+                        break
+                    case 'left':
+                        if (selectedSlotIndex % cols === 0) {
+                            const row = Math.floor(selectedSlotIndex / cols)
+                            pendingSelectionRef.current = row * cols + cols - 1
+                            window.api.movementControl.send('PAGE_ACTION', 'prev')
+                        } else if (selectedSlotIndex % cols !== 0) nextIndex--
+                        break
+                    case 'down':
+                        if (selectedSlotIndex + cols < totalSlots) nextIndex += cols
+                        break
+                    case 'up':
+                        if (selectedSlotIndex - cols >= 0) nextIndex -= cols
+                        break
+                    case 'back':
+                        setSelectedSlotIndex(null)
+                        break
+                    case 'select':
+                        if (selectedSlotItem && selectedSlotItem.onClick) {
+                            window.api.gridItemControl(selectedSlotItem.onClick, selectedSlotItem)
+                        }
+                        break
+                }
+
+                if (nextIndex !== selectedSlotIndex) {
+                    setSelectedSlotIndex(nextIndex)
+                }
+            } else if (section === 'context-menu') {
+                if (contextOptions.length === 0) return
+
+                switch (action) {
+                    case 'right':
+                        setContextMenuSelectedIndex(prev => (prev + 1) % contextOptions.length)
+                        break
+                    case 'left':
+                        setContextMenuSelectedIndex(prev => (prev - 1 + contextOptions.length) % contextOptions.length)
+                        break
+                    case 'select':
+                        const selectedOption = contextOptions[contextMenuSelectedIndex]
+                        if (selectedOption) {
+                            if (selectedOption.label === 'Add' || selectedOption.action === 'ADD_GAME') {
+                                setAddGameModalVisible(true)
+                                setAddGameSelectedIndex(0)
+                                setContextMenuVisible(false)
+                                setSelectedSlotIndex(null)
+                                setInfoText('Add Game')
+                                setIslandWidth('50%')
+                                window.api.movementControl.send('SET_SECTION', 'add-game-modal')
+                            } else if (selectedOption.action) {
+                                window.api.contextMenuControl.send('execute', selectedOption.action)
+                            }
+                        }
+                        break
+                }
+            } else if (section === 'add-game-modal') {
+                /*
+                  Map Index:
+                  0: Game Name
+                  1: Game Path
+                  2: Browse Button
+                  3: Console
+                  4: Is Emulated
+                  5: Cancel
+                  6: Save
+                */
+                switch (action) {
+                    case 'down':
+                        if (addGameSelectedIndex === 0) setAddGameSelectedIndex(1)
+                        else if (addGameSelectedIndex === 1) setAddGameSelectedIndex(3)
+                        else if (addGameSelectedIndex === 2) setAddGameSelectedIndex(4) // From Browse to Checkbox
+                        else if (addGameSelectedIndex === 3) setAddGameSelectedIndex(5) // From Console to Cancel
+                        else if (addGameSelectedIndex === 4) setAddGameSelectedIndex(6) // From Checkbox to Save
+                        break
+                    case 'up':
+                        if (addGameSelectedIndex === 1) setAddGameSelectedIndex(0)
+                        else if (addGameSelectedIndex === 2) setAddGameSelectedIndex(0)
+                        else if (addGameSelectedIndex === 3) setAddGameSelectedIndex(1)
+                        else if (addGameSelectedIndex === 4) setAddGameSelectedIndex(2) // From Checkbox to Browse
+                        else if (addGameSelectedIndex === 5) setAddGameSelectedIndex(3) // From Cancel to Console
+                        else if (addGameSelectedIndex === 6) setAddGameSelectedIndex(4) // From Save to Checkbox
+                        break
+                    case 'right':
+                        if (addGameSelectedIndex === 1) setAddGameSelectedIndex(2) // Path -> Browse
+                        else if (addGameSelectedIndex === 3) setAddGameSelectedIndex(4) // Console -> Checkbox
+                        else if (addGameSelectedIndex === 5) setAddGameSelectedIndex(6) // Cancel -> Save
+                        break
+                    case 'left':
+                        if (addGameSelectedIndex === 2) setAddGameSelectedIndex(1) // Browse -> Path
+                        else if (addGameSelectedIndex === 4) setAddGameSelectedIndex(3) // Checkbox -> Console
+                        else if (addGameSelectedIndex === 6) setAddGameSelectedIndex(5) // Save -> Cancel
+                        break
+                    case 'back':
+                    case 'escape': // Support escape key too if valid action
+                        setAddGameModalVisible(false)
+                        setInfoText('')
+                        setIslandWidth('56px')
+                        window.api.movementControl.send('SET_SECTION', 'grid')
+                        break
+                    case 'select':
+                        if (addGameSelectedIndex === 5) { // Cancel
+                            setAddGameModalVisible(false)
+                            setInfoText('')
+                            setIslandWidth('56px')
+                            window.api.movementControl.send('SET_SECTION', 'grid')
+                        }
+                        // Handle other selects like Save or Browse here later
+                        break
+                }
             }
         }
 
         const removeListener = window.api.movementControl.onAction((section, action) => handleMovementAction(section, action))
         return () => removeListener()
 
-    }, [homeGrid.rows, homeGrid.cols, selectedSlotIndex, selectedSlotItem])
+    }, [homeGrid.rows, homeGrid.cols, selectedSlotIndex, selectedSlotItem, contextOptions, contextMenuSelectedIndex, addGameSelectedIndex])
 
     return (
         <div className='app dot-background'>
@@ -302,7 +446,7 @@ function MainApp(): React.JSX.Element {
                     alignContent: 'center'
                 }}>
                     {Array.from({ length: homeGrid.rows * homeGrid.cols }).map((_, index) => {
-                        const item = homeGrid.items.find(i => i.position === index)
+                        const item = homeGrid.items.find(i => i.position === index && (i.page ?? 0) === currentPage)
 
                         return (
                             <div
@@ -310,8 +454,12 @@ function MainApp(): React.JSX.Element {
                                 className={`homeSlot ${item ? 'fullSlot' : 'emptySlot'} ${selectedSlotIndex === index ? 'selected' : ''}`}
                                 style={{
                                     opacity: visibleSlots.has(index) ? 1 : 0,
-                                    transform: visibleSlots.has(index) ? 'scale(1)' : 'scale(0.8)',
-                                    transition: 'opacity 0.3s ease-out, transform 0.3s ease-out'
+                                    transform: !animationComplete
+                                        ? (visibleSlots.has(index) ? 'scale(1) translateX(0)' : `scale(0.8) translateX(${direction === 'next' ? '100px' : '-100px'})`)
+                                        : undefined,
+                                    transition: !animationComplete
+                                        ? 'opacity 0.3s ease-out, transform 0.3s ease-out'
+                                        : undefined
                                 }}
                                 title={item?.label}
                                 onClick={() => {
@@ -336,7 +484,81 @@ function MainApp(): React.JSX.Element {
                     })}
                 </div>
             </div>
-        </div>
+            <div className={`contextMenu island ${contextMenuVisible ? 'visible' : ''}`}>
+                {contextOptions.map((option, index) => (
+                    <div
+                        key={option.id}
+                        className={`contextOption ${index === contextMenuSelectedIndex ? 'selected' : ''}`}
+                        onClick={() => handleContextOptionClick(option)}
+                    >
+                        <Icon icon={option.icon} width="24" height="24" style={{ marginRight: '8px' }} />
+                        {option.label}
+                    </div>
+                ))}
+            </div>
+            <div className={`modal-addGame island ${addGameModalVisible ? 'visible' : ''}`}>
+                <div className="modalContent">
+                    <input
+                        type="text"
+                        className={`input-field ${addGameSelectedIndex === 0 ? 'focused' : ''}`}
+                        placeholder="Game Name"
+                        style={{ outline: addGameSelectedIndex === 0 ? '2px solid var(--home-blue)' : 'none' }}
+                    />
+
+                    <div className="pathContainer">
+                        <input
+                            type="text"
+                            className={`input-field ${addGameSelectedIndex === 1 ? 'focused' : ''}`}
+                            placeholder="Game Path"
+                            style={{ outline: addGameSelectedIndex === 1 ? '2px solid var(--home-blue)' : 'none' }}
+                        />
+                        <button
+                            className={`btn btn-secondary ${addGameSelectedIndex === 2 ? 'focused' : ''}`}
+                            style={{ outline: addGameSelectedIndex === 2 ? '2px solid var(--home-blue)' : 'none' }}
+                        >
+                            Browse
+                        </button>
+                    </div>
+
+                    <div className="consoleContainer">
+                        <input
+                            type="text"
+                            className={`input-field ${addGameSelectedIndex === 3 ? 'focused' : ''}`}
+                            placeholder="Console"
+                            style={{ outline: addGameSelectedIndex === 3 ? '2px solid var(--home-blue)' : 'none' }}
+                        />
+                        <label
+                            className={`checkbox-field ${addGameSelectedIndex === 4 ? 'focused' : ''}`}
+                            style={{ outline: addGameSelectedIndex === 4 ? '2px solid var(--home-blue)' : 'none', padding: '5px', borderRadius: '8px' }}
+                        >
+                            <input type="checkbox" />
+                            <span>Is Emulated</span>
+                        </label>
+                    </div>
+
+                    <div className="buttonContainer">
+                        <button
+                            className={`btn btn-secondary ${addGameSelectedIndex === 5 ? 'focused' : ''}`}
+                            onClick={() => {
+                                setAddGameModalVisible(false)
+                                setInfoText('')
+                                setIslandWidth('56px')
+                                window.api.movementControl.send('SET_SECTION', 'grid')
+                            }}
+                            style={{ outline: addGameSelectedIndex === 5 ? '2px solid var(--home-blue)' : 'none' }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            className={`btn btn-primary ${addGameSelectedIndex === 6 ? 'focused' : ''}`}
+                            style={{ outline: addGameSelectedIndex === 6 ? '2px solid var(--home-blue)' : 'none' }}
+                        >
+                            Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div >
     )
 }
 

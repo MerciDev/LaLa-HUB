@@ -1,6 +1,7 @@
 import { BrowserWindow } from 'electron';
 import { is } from '@electron-toolkit/utils';
 import { join } from 'path';
+import { debugLog } from '../../utils/debug';
 
 let loadingInstance: BrowserWindow | null = null;
 
@@ -9,7 +10,6 @@ export function createLoading(parent: BrowserWindow) {
         width: parent.getBounds().width,
         height: parent.getBounds().height,
         show: false,
-        fullscreen: true,
         frame: false,
         resizable: false,
         alwaysOnTop: true,

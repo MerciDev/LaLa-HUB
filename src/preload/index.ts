@@ -31,6 +31,19 @@ const api = {
       }
     }
   },
+
+  contextMenuControl: {
+    send: (action: string, data?: any) => {
+      ipcRenderer.send('context-menu-control', action, data)
+    },
+    onAction: (callback: (action: string, data?: any) => void) => {
+      const subscription = (_, action, data) => callback(action, data)
+      ipcRenderer.on('context-menu-action', subscription)
+      return () => {
+        ipcRenderer.removeListener('context-menu-action', subscription)
+      }
+    }
+  }
 }
 
 // Use `contextBridge` APIs to expose APIs to

@@ -206,6 +206,29 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
 
 export let currentSection = 'grid'
 export let selectedElement: any = null
+export let currentPage = 0
+export let totalPages = 0
+
+export function setTotalPages(pages: number): void {
+    totalPages = pages
+    console.log(`[Main] Total pages set to: ${totalPages}`)
+}
+
+export function setCurrentPage(page: number): void {
+    if (page >= 0 && page < totalPages) {
+        currentPage = page
+        appWindow?.webContents.send('dispatch-action', { type: 'SET_GRID_PAGE', payload: currentPage })
+        console.log(`[Main] Current page set to: ${currentPage}`)
+    }
+}
+
+export function handlePageChange(direction: 'next' | 'prev'): void {
+    if (direction === 'next' && currentPage < totalPages - 1) {
+        setCurrentPage(currentPage + 1)
+    } else if (direction === 'prev' && currentPage > 0) {
+        setCurrentPage(currentPage - 1)
+    }
+}
 
 export function setSection(section: string): void {
     currentSection = section
@@ -222,6 +245,60 @@ export function setSelectedElement(item: any): void {
 
 export function getSelectedItem(): any {
     return selectedElement
+}
+
+export let isContextMenuVisible = false
+export let contextOptions: any[] = []
+
+export function toggleContextMenu(show?: boolean): void {
+    if (show !== undefined) {
+        isContextMenuVisible = show
+    } else {
+        isContextMenuVisible = !isContextMenuVisible
+    }
+
+    if (isContextMenuVisible) {
+        if (selectedElement && selectedElement.game) {
+            setContextOptions([
+                { id: 'info', label: 'Get Info', icon: 'mynaui:info-circle', action: 'get-info' }
+            ])
+        } else {
+            setContextOptions([
+                { id: 'add', label: 'Add', icon: 'mynaui:plus-square', action: 'add-game' }
+            ])
+        }
+    }
+
+    appWindow?.webContents.send('dispatch-action', { type: 'TOGGLE_CONTEXT_MENU', payload: isContextMenuVisible })
+    console.log(`[Main] Context Menu visible: ${isContextMenuVisible}`)
+}
+
+export function executeContextAction(action: string): void {
+    if (action === 'get-info') {
+        debugLog(JSON.stringify(selectedElement, null, 2))
+        changeInfoIsland('Info sent to debug log')
+        setTimeout(() => changeInfoIsland(''), 2000)
+    } else if (action === 'add-game') {
+        mainOptionControl('click-add')
+    }
+    // Close menu after action
+    toggleContextMenu(false)
+    setSection('grid')
+}
+
+export function setContextOptions(options: any[]): void {
+    contextOptions = options
+    appWindow?.webContents.send('dispatch-action', { type: 'SET_CONTEXT_OPTIONS', payload: options })
+}
+
+export function addContextOption(option: any): void {
+    contextOptions.push(option)
+    appWindow?.webContents.send('dispatch-action', { type: 'ADD_CONTEXT_OPTION', payload: option })
+}
+
+export function removeContextOption(id: string): void {
+    contextOptions = contextOptions.filter(o => o.id !== id)
+    appWindow?.webContents.send('dispatch-action', { type: 'REMOVE_CONTEXT_OPTION', payload: id })
 }
 
 export function setSelectedSectionItem(section: string, index: number): void {

@@ -12,6 +12,8 @@ export const keymaps = {
     down: 'ArrowDown',
     select: 'Enter',
     back: 'Escape',
+    nextPage: 'E',
+    prevPage: 'Q',
 
     // Gamepad
     gamepadA: 'A',
