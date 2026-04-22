@@ -1,7 +1,6 @@
 import { BrowserWindow } from 'electron';
 import { is } from '@electron-toolkit/utils';
 import { join } from 'path';
-import { debugLog } from '../../utils/debug';
 
 let loadingInstance: BrowserWindow | null = null;
 
@@ -52,13 +51,19 @@ export function createLoading(parent: BrowserWindow) {
     return loadingInstance;
 }
 
-export function toggleLoading() {
+export function toggleLoading(item?: any) {
     if (loadingInstance) {
         if (loadingInstance.isVisible()) {
             loadingInstance.hide();
         } else {
+            if (item) {
+                loadingInstance.webContents.send('set-loading-data', item);
+            }
+            loadingInstance.setAlwaysOnTop(true, 'screen-saver', 2);
+            loadingInstance.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
             loadingInstance.setFullScreen(true);
-            loadingInstance.showInactive();
+            loadingInstance.show();
+            loadingInstance.focus();
         }
     }
 }

@@ -1,8 +1,49 @@
-import { appWindow } from '../../index'
-import { IconOption, HomeGrid, HomeSlot } from '../../../shared/types'
+import { IconOption, HomeGrid, HomeSlot, ContextOption } from '../../../shared/types'
 import { spawn } from 'child_process'
 import { debugLog } from '../../utils/debug'
 import { toggleLoading } from '../loading/loading'
+import { startPlaySession, formatPlaytime } from '../../utils/playtime'
+
+let isLaunching = false
+
+function parseArgs(input: string): string[] {
+    const args: string[] = []
+    let current = ''
+    let inQuote = false
+    let quoteChar = ''
+
+    for (const char of input) {
+        if ((char === '"' || char === "'") && !inQuote) {
+            inQuote = true
+            quoteChar = char
+        } else if (char === quoteChar && inQuote) {
+            inQuote = false
+            quoteChar = ''
+        } else if (char === ' ' && !inQuote) {
+            if (current) {
+                args.push(current)
+                current = ''
+            }
+        } else {
+            current += char
+        }
+    }
+    if (current) args.push(current)
+    return args
+}
+
+let appWindow: any = null // Local reference to avoid circular import issues
+
+export function setAppWindow(win: any): void {
+    appWindow = win
+}
+
+export function showMainWindow(): void {
+    if (appWindow) {
+        appWindow.show()
+        appWindow.focus()
+    }
+}
 
 export function changeInfoIsland(text: string): void {
     appWindow?.webContents.send('dispatch-action', { type: 'CHANGE_INFO_ISLAND', payload: text })
@@ -40,8 +81,14 @@ export function mainOptionControl(actionId: string): void {
     const actionMap: Record<string, () => void> = {
         // Home
         'click-home': () => {
+            debugLog('[Main] Home icon clicked, sending GO_HOME to renderer')
             expandInfoIsland()
             changeInfoIsland('Inicio')
+            
+            // Dispatch consolidated reset to renderer
+            appWindow?.webContents.send('dispatch-action', { type: 'GO_HOME' })
+            
+            setSection('grid')
         },
         'mouse-enter-home': () => {
             expandInfoIsland()
@@ -55,6 +102,7 @@ export function mainOptionControl(actionId: string): void {
         'click-settings': () => {
             expandInfoIsland()
             changeInfoIsland('Configuración')
+            appWindow?.webContents.send('dispatch-action', { type: 'OPEN_SETTINGS' })
         },
         'mouse-enter-settings': () => {
             expandInfoIsland()
@@ -141,7 +189,11 @@ export function removeGridItem(itemId: string): void {
 export function gridItemControl(actionId: string, item: HomeSlot): void {
     const actionMap: Record<string, () => void> = {
         'mouse-enter-grid-item': () => {
-            changeInfoIsland(item.label)
+            const minutes = item.game?.playtimeMinutes ?? 0
+            const label = minutes > 0
+                ? `${item.label}  ·  ${formatPlaytime(minutes)}`
+                : item.label
+            changeInfoIsland(label)
             expandInfoIsland()
         },
         'mouse-leave-grid-item': () => {
@@ -149,48 +201,118 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
             collapseInfoIsland()
         },
         'run-game': () => {
+            if (isLaunching) {
+                debugLog(`[Launch] Duplicate call blocked`)
+                return
+            }
+            isLaunching = true
+
             let gamePath = item.game?.path
             let gameArgs = item.game?.args
             let gameName = item.game?.name
             let gameEmulator = item.game?.emulator
+            let retroarchCore = item.game?.retroarchCore
 
-            // Is an emulated game
-            if (gameEmulator) {
-                debugLog(`Running emulated game: ${gameEmulator.path}`)
-                let emulatorArgs = (gameEmulator.args || '').replace('{roms}', `"${gamePath || ''}"`)
+            let gameProcess: any = null
 
-                const gameProcess = spawn(gameEmulator.path, emulatorArgs.split(' '), {
-                    shell: true,
-                    detached: true,
-                    stdio: 'ignore'
-                });
-            }
-            // Is a direct game
-            else {
-                debugLog(`Running game: ${gamePath}`)
+            // 1. Is a RetroArch game (using specific Core)
+            if (retroarchCore) {
+                const { loadRetroArchSettings } = require('../../utils/settings')
+                const raSettings = loadRetroArchSettings()
 
-                const gameProcess = spawn((gamePath || ''), (gameArgs || '').split(' '), {
-                    shell: true,
-                    detached: true,
-                    stdio: 'ignore'
-                });
-            }
-            toggleLoading()
-            appWindow?.hide()
-            debugLog(`Activating window and sending keys to: ${gameName}`)
-            require('child_process').exec(
-                `powershell -Command "$wsh = New-Object -ComObject WScript.Shell; $result = $wsh.AppActivate('${gameEmulator ? gameEmulator.name : gameName}'); Write-Output $result; Start-Sleep -Milliseconds 500; $wsh.SendKeys('%+a')"`,
-                (error: Error | null, stdout: string, stderr: string) => {
-                    if (error) {
-                        console.error('PowerShell error:', error)
-                    }
-                    debugLog(`AppActivate result: ${stdout.trim()}`)
-                    if (stderr) console.error('PowerShell stderr:', stderr)
+                if (raSettings && raSettings.path && raSettings.coresPath) {
+                    const { join } = require('path')
+                    const fullCorePath = join(raSettings.coresPath, retroarchCore)
+                    debugLog(`Launching via RetroArch: ${raSettings.path} with core: ${retroarchCore}`)
+
+                    // RetroArch command: -L [core_path] [rom_path]
+                    gameProcess = spawn(raSettings.path, ['-L', `"${fullCorePath}"`, `"${gamePath || ''}"`], {
+                        shell: true,
+                        detached: true,
+                        stdio: 'ignore'
+                    })
+                } else {
+                    console.error('[Launch] RetroArch path not configured or settings missing')
                 }
-            )
+            }
+            // 2. Is an emulated game (External Emulator)
+            else if (gameEmulator) {
+                const { existsSync } = require('fs')
+
+                if (!gameEmulator?.path) {
+                    console.error(`[Launch] Error: No emulator configured for "${gameName}"`)
+                    return
+                }
+                if (!existsSync(gameEmulator.path)) {
+                    console.error(`[Launch] Error: Emulator not found at "${gameEmulator.path}"`)
+                    return
+                }
+                if (!gamePath || !existsSync(gamePath)) {
+                    console.error(`[Launch] Error: Game file not found at "${gamePath}"`)
+                    return
+                }
+
+                debugLog(`Running game: ${gamePath} with emulator: ${gameEmulator.path}`)
+                const quotedPath = gamePath.includes(' ') ? `"${gamePath}"` : gamePath
+                const emulatorArgs = (gameArgs || '-f -g {roms}').replace(/{roms}/g, quotedPath).replace(/{rom}/g, quotedPath)
+                debugLog(`Emulator args: ${emulatorArgs}`)
+
+                const fullCommand = `"${gameEmulator.path}" ${emulatorArgs}`
+                gameProcess = spawn(fullCommand, [], {
+                    shell: true,
+                    detached: true,
+                    stdio: 'ignore'
+                })
+            }
+            // 3. Native game (direct .exe without emulator)
+            else if (gamePath) {
+                const { existsSync } = require('fs')
+
+                if (!existsSync(gamePath)) {
+                    console.error(`[Launch] Error: Game executable not found at "${gamePath}"`)
+                    return
+                }
+
+                debugLog(`Running native game: ${gamePath}`)
+                gameProcess = spawn(gamePath, (gameArgs || '').split(' '), {
+                    shell: true,
+                    detached: true,
+                    stdio: 'ignore'
+                })
+            }
+
+            if (!gameProcess) {
+                isLaunching = false
+                return
+            }
+
+            debugLog(`[Launch] Starting launch sequence for: ${gameName}`)
+            toggleLoading(item)
+
             setTimeout(() => {
-                toggleLoading()
-            }, 5000);
+                appWindow?.hide()
+
+                const loadingTimeout = setTimeout(() => toggleLoading(), 10000)
+
+                startPlaySession(item.id, gameProcess)
+
+                import('../../utils/windowManager').then(({ focusWindowAndSendKeys }) => {
+                    const targetTitle = gameEmulator ? gameEmulator.name : (gameName || '')
+                    const keysToSend = item.game?.launchKeys || '%+a'
+
+                    focusWindowAndSendKeys(targetTitle, keysToSend, 30, 1000, (success) => {
+                        clearTimeout(loadingTimeout)
+                        if (success) {
+                            debugLog(`[Launch] Window found, closing loading in 1s`)
+                            setTimeout(() => toggleLoading(), 1000)
+                        } else {
+                            debugLog(`[Launch] Window "${targetTitle}" was not found, closing loading anyway`)
+                            toggleLoading()
+                        }
+                        isLaunching = false
+                    }, gameProcess.pid)
+                })
+            }, 500)
 
         },
     }
@@ -248,7 +370,7 @@ export function getSelectedItem(): any {
 }
 
 export let isContextMenuVisible = false
-export let contextOptions: any[] = []
+export let contextOptions: ContextOption[] = []
 
 export function toggleContextMenu(show?: boolean): void {
     if (show !== undefined) {
@@ -259,12 +381,18 @@ export function toggleContextMenu(show?: boolean): void {
 
     if (isContextMenuVisible) {
         if (selectedElement && selectedElement.game) {
+            const playtime = selectedElement.game.playtimeMinutes ?? 0
+            const playtimeStr = playtime > 0 ? formatPlaytime(playtime) : 'No jugado'
             setContextOptions([
-                { id: 'info', label: 'Get Info', icon: 'mynaui:info-circle', action: 'get-info' }
+                { id: 'info',   label: playtimeStr,  icon: 'mynaui:clock',                action: '' },
+                { id: 'edit',   label: 'Editar',      icon: 'mynaui:edit',                 action: 'EDIT_GAME' },
+                { id: 'move',   label: 'Mover',       icon: 'mynaui:arrow-up-down-left-right', action: 'MOVE_GAME' },
+                { id: 'resize', label: 'Tamaño',      icon: 'mynaui:expand',               action: 'RESIZE_GAME' },
+                { id: 'remove', label: 'Eliminar',    icon: 'mynaui:trash',                action: 'REMOVE_GAME' }
             ])
         } else {
             setContextOptions([
-                { id: 'add', label: 'Add', icon: 'mynaui:plus-square', action: 'add-game' }
+                { id: 'add', label: 'Add Game', icon: 'mynaui:plus-square', action: 'ADD_GAME' }
             ])
         }
     }
@@ -274,24 +402,33 @@ export function toggleContextMenu(show?: boolean): void {
 }
 
 export function executeContextAction(action: string): void {
-    if (action === 'get-info') {
+    if (action === 'EDIT_GAME' && selectedElement) {
+        // Dispatch to renderer — it will open AddGameModal in edit mode
+        appWindow?.webContents.send('dispatch-action', { type: 'OPEN_EDIT_GAME', payload: selectedElement })
+        toggleContextMenu(false)
+        return // Do NOT call setSection('grid'); let OPEN_EDIT_GAME handle the new section
+    } else if (action === 'REMOVE_GAME' && selectedElement) {
+        const { removeSlot, loadSlots } = require('../../utils/storage')
+        removeSlot(selectedElement.id)
+        const slots = loadSlots()
+        setGridItems(slots)
+        debugLog(`[Context] Removed game slot: ${selectedElement.id}`)
+    } else if (action === 'get-info') {
         debugLog(JSON.stringify(selectedElement, null, 2))
-        changeInfoIsland('Info sent to debug log')
+        changeInfoIsland('Info enviada al debug log')
         setTimeout(() => changeInfoIsland(''), 2000)
-    } else if (action === 'add-game') {
-        mainOptionControl('click-add')
     }
-    // Close menu after action
+    // Close menu after action and return to grid for standard actions
     toggleContextMenu(false)
     setSection('grid')
 }
 
-export function setContextOptions(options: any[]): void {
+export function setContextOptions(options: ContextOption[]): void {
     contextOptions = options
     appWindow?.webContents.send('dispatch-action', { type: 'SET_CONTEXT_OPTIONS', payload: options })
 }
 
-export function addContextOption(option: any): void {
+export function addContextOption(option: ContextOption): void {
     contextOptions.push(option)
     appWindow?.webContents.send('dispatch-action', { type: 'ADD_CONTEXT_OPTION', payload: option })
 }

@@ -69,18 +69,23 @@ export function loadSlots(): HomeSlot[] {
 }
 
 export function addSlot(slot: HomeSlot): void {
-    const slots = loadSlots()
-    const existingIndex = slots.findIndex(s => s.id === slot.id)
+    addMultipleSlots([slot])
+}
 
-    if (existingIndex >= 0) {
-        slots[existingIndex] = slot
-        debugLog(`[Storage] Slot actualizado: ${slot.id}`)
-    } else {
-        slots.push(slot)
-        debugLog(`[Storage] Slot agregado: ${slot.id}`)
+export function addMultipleSlots(newSlots: HomeSlot[]): void {
+    const slots = loadSlots()
+    
+    for (const slot of newSlots) {
+        const existingIndex = slots.findIndex(s => s.id === slot.id)
+        if (existingIndex >= 0) {
+            slots[existingIndex] = slot
+        } else {
+            slots.push(slot)
+        }
     }
 
     saveSlots(slots)
+    debugLog(`[Storage] Procesados ${newSlots.length} slots (batch)`)
 }
 
 export function removeSlot(slotId: string): void {

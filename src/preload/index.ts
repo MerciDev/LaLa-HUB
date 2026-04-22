@@ -11,6 +11,18 @@ const api = {
     ipcRenderer.removeAllListeners('dispatch-action')
   },
 
+  onLoadingBg: (callback: (dataUrl: string) => void) => {
+    const fn = (_, dataUrl) => callback(dataUrl)
+    ipcRenderer.on('background-image', fn)
+    return () => ipcRenderer.removeListener('background-image', fn)
+  },
+
+  onLoadingData: (callback: (item: HomeSlot) => void) => {
+    const fn = (_, item) => callback(item)
+    ipcRenderer.on('set-loading-data', fn)
+    return () => ipcRenderer.removeListener('set-loading-data', fn)
+  },
+
   mainOptionControl: (actionId: string) => {
     ipcRenderer.send('main-option-control', actionId)
   },
@@ -22,6 +34,9 @@ const api = {
   movementControl: {
     send: (action: string, data?: any) => {
       ipcRenderer.send('movement-control', action, data)
+    },
+    setInputFocused: (focused: boolean) => {
+      ipcRenderer.send('set-input-focused', focused)
     },
     onAction: (callback: (section: string, action: string) => void) => {
       const subscription = (_, section, action) => callback(section, action)
@@ -43,6 +58,78 @@ const api = {
         ipcRenderer.removeListener('context-menu-action', subscription)
       }
     }
+  },
+
+  gamepadControl: {
+    sendInput: (button: string) => {
+      ipcRenderer.send('gamepad-input', button)
+    }
+  },
+
+  /**
+   * Opens a native file picker dialog.
+   * @param options  Electron OpenDialogOptions (filters, title, etc.)
+   * @returns The selected file path, or null if cancelled.
+   */
+  browseFile: (options: Electron.OpenDialogOptions = {}): Promise<string | null> =>
+    ipcRenderer.invoke('browse-file', options),
+
+  /** CRUD operations on persisted game slots. */
+  slots: {
+    add: (slot: import('../shared/types').HomeSlot): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('slot-add', slot),
+    addMultiple: (slots: import('../shared/types').HomeSlot[]): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('slot-add-multiple', slots),
+    remove: (slotId: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('slot-remove', slotId)
+  },
+
+  /** Emulator management (used by Settings panel). */
+  emulators: {
+    getAll: (): Promise<import('../shared/types').Emulator[]> =>
+      ipcRenderer.invoke('emulators-get'),
+    save: (emulator: import('../shared/types').Emulator): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('emulator-save', emulator),
+    remove: (id: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('emulator-remove', id)
+  },
+
+  /** Playtime queries (read-only from renderer side). */
+  playtime: {
+    get: (slotId: string): Promise<{ minutes: number; formatted: string }> =>
+      ipcRenderer.invoke('playtime-get', slotId),
+    getAll: (): Promise<Array<{ slotId: string; name: string; minutes: number; formatted: string }>> =>
+      ipcRenderer.invoke('playtime-get-all')
+  },
+
+  /** Artwork management — copies image into app data and returns a media:// URL. */
+  artwork: {
+    import: (srcPath: string): Promise<{ success: boolean; url: string | null; localPath?: string }> =>
+      ipcRenderer.invoke('artwork-import', srcPath)
+  },
+
+  /** Keymap management — read and save key bindings. */
+  keymaps: {
+    getAll: (): Promise<Record<string, string>> =>
+      ipcRenderer.invoke('keymaps-get'),
+    save: (keymaps: Record<string, string>): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('keymaps-save', keymaps)
+  },
+  
+  /** Scanner for automatic ROM discovery. */
+  scanner: {
+    scan: (config: { path: string, emulator: import('../shared/types').Emulator, extensions: string[], recursive: boolean }): Promise<{ success: boolean, slots?: HomeSlot[], error?: string }> =>
+      ipcRenderer.invoke('scanner-scan', config)
+  },
+
+  /** RetroArch native support. */
+  retroarch: {
+    getSettings: (): Promise<import('../shared/types').RetroArchSettings> =>
+      ipcRenderer.invoke('retroarch-get-settings'),
+    saveSettings: (settings: import('../shared/types').RetroArchSettings): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('retroarch-save-settings', settings),
+    getCores: (): Promise<Array<{ filename: string; name: string }>> =>
+      ipcRenderer.invoke('retroarch-get-cores')
   }
 }
 

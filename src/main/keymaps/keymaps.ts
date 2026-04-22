@@ -4,8 +4,9 @@ export const keymaps = {
 
     // Keyboard
     overlay: 'Control+X',
-    loading: 'Control+L',
     contextMenu: 'Shift',
+    openMain: 'Home',
+    openSocial: 'Insert',
     right: 'ArrowRight',
     left: 'ArrowLeft',
     up: 'ArrowUp',
@@ -48,9 +49,10 @@ export function createDebouncedToggle(toggleFn: () => void, cooldownMs = 300) {
 
 export function loadKeymaps(): void {
     if (!checkFileExists('config', 'keymaps')) {
+        // First run: persist the defaults so the user can edit the file
         saveJson('config', 'keymaps', keymaps);
     }
-    saveJson('config', 'keymaps', keymaps);
+    // Load saved keymaps (may include user customisations) and merge into defaults
     const keymapsData = readJson('config', 'keymaps');
     if (keymapsData) {
         Object.assign(keymaps, keymapsData);

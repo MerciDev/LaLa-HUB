@@ -27,6 +27,15 @@ export type AppAction =
     | { type: 'SET_CONTEXT_OPTIONS'; payload: ContextOption[] }
     | { type: 'ADD_CONTEXT_OPTION'; payload: ContextOption }
     | { type: 'REMOVE_CONTEXT_OPTION'; payload: string }
+    // UI Panels
+    | { type: 'OPEN_SETTINGS' }
+    | { type: 'CLOSE_SETTINGS' }
+    | { type: 'OPEN_EDIT_GAME'; payload: HomeSlot }
+    // Grid Edit Modes
+    | { type: 'ENTER_MOVE_MODE'; payload: HomeSlot }
+    | { type: 'EXIT_MOVE_MODE' }
+    | { type: 'ENTER_RESIZE_MODE'; payload: HomeSlot }
+    | { type: 'EXIT_RESIZE_MODE' }
 
 export interface ContextOption {
     id: string
@@ -39,7 +48,18 @@ export interface Emulator {
     id: string
     name: string
     path: string
+    /** Argument template, use {roms} as placeholder for the ROM path. */
     args: string
+}
+
+export interface RetroArchSettings {
+    path?: string
+    coresPath?: string
+}
+
+export interface AppSettings {
+    emulators: Emulator[]
+    retroarch?: RetroArchSettings
 }
 
 export interface Console {
@@ -56,17 +76,30 @@ export interface Game {
     emulator?: Emulator
     path?: string
     args?: string
+    /** Accumulated playtime in minutes */
+    playtimeMinutes?: number
+    /** Keys to send after launching (e.g. for fullscreen, overlays). */
+    launchKeys?: string
+    /** Specific RetroArch core to use (e.g. 'snes9x_libretro.dll') */
+    retroarchCore?: string
 }
 
 export interface HomeSlot {
     id: string
     icon: string
+    squareImage?: string
+    thumbImage?: string
+    backgroundImage?: string
     label: string
     onClick?: string
     onMouseEnter?: string
     onMouseLeave?: string
     game?: Game
     position?: number
+    /** How many columns this slot spans (default 1) */
+    colSpan?: number
+    /** How many rows this slot spans (default 1) */
+    rowSpan?: number
     scale?: { x: number, y: number }
     page?: number
 }
@@ -77,4 +110,11 @@ export interface HomeGrid {
     gap: number
     aspectRatio: number
     items: HomeSlot[]
+}
+
+export interface GridSettings {
+    rows: number
+    cols: number
+    gap: number
+    aspectRatio: number
 }

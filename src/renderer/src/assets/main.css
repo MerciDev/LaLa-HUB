@@ -1,128 +1,166 @@
 :root {
-    --island-white: #f8f8f8;
-    --home-light-gray: #e8e8e8;
-    --home-gray: #d8d8d8;
-    --home-blue: #0077ff;
+  --island-white: #f8f8f8;
+  --home-light-gray: #e8e8e8;
+  --home-gray: #d8d8d8;
+  --home-blue: #0077ff;
 }
 
 .island {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    gap: 13%;
-    color: #090909;
-    border-radius: 2em;
-    background: var(--island-white);
-    border: 1px solid #e8e8e8;
-    transition: all .3s;
-    box-shadow: 6px 6px 12px #c5c5c5,
-        -6px -6px 12px #ffffff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 13%;
+  color: #090909;
+  border-radius: 2em;
+  background: var(--island-white);
+  border: 1px solid #e8e8e8;
+  transition: all 0.3s;
+  box-shadow:
+    6px 6px 12px #c5c5c5,
+    -6px -6px 12px #ffffff;
 }
 
 .dot-background {
-    width: 100%;
-    height: 100%;
-    background-color: #fff;
-    background-image: radial-gradient(rgba(171, 171, 171, 0.171) 2px, transparent 0);
-    background-size: 30px 30px;
-    background-position: -5px -5px;
+  width: 100%;
+  height: 100%;
+  background-color: #fff;
+  background-image: radial-gradient(rgba(171, 171, 171, 0.171) 2px, transparent 0);
+  background-size: 30px 30px;
+  background-position: -5px -5px;
 }
 
 /* --- COMPONENTES REUTILIZABLES (UI KIT) --- */
 .input-field {
-    width: 100%;
-    height: 45px;
-    background: #e0e0e0;
-    border: 1px solid #d0d0d0;
-    border-radius: 12px;
-    padding: 0 16px;
-    color: #333;
-    font-size: 16px;
-    outline: none;
-    transition: all 0.3s ease;
+  width: 100%;
+  height: 45px;
+  background: #e0e0e0;
+  border: 1px solid #d0d0d0;
+  border-radius: 12px;
+  padding: 0 16px;
+  color: #333;
+  font-size: 16px;
+  outline: none;
+  transition: all 0.3s ease;
 }
 
-.input-field:focus {
-    background: #fff;
-    border-color: var(--home-blue);
-    box-shadow: 0 0 0 3px rgba(0, 119, 255, 0.2);
+.input-field:focus,
+.input-field.focused {
+  background: #fff;
+  border-color: var(--home-blue);
+  box-shadow: 0 0 0 3px rgba(0, 119, 255, 0.2);
 }
 
 .input-field::placeholder {
-    color: #888;
+  color: #888;
 }
 
 .btn {
-    height: 45px;
-    padding: 0 30px;
-    border-radius: 12px;
-    border: none;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+  height: 45px;
+  padding: 0 30px;
+  border-radius: 12px;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .btn-primary {
-    background: var(--home-blue);
-    color: white;
-    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+  background: var(--home-blue);
+  color: white;
+  box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
 }
 
 .btn-secondary {
-    background: var(--home-light-gray);
-    color: #333;
+  background: var(--home-light-gray);
+  color: #333;
 }
 
 .btn-secondary:hover {
-    background: #d0d0d0;
-    transform: translateY(-2px);
+  background: #d0d0d0;
+  transform: translateY(-2px);
 }
 
 /* Checkbox Style */
 .checkbox-field {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #333;
-    cursor: pointer;
-    user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #333;
+  cursor: pointer;
+  user-select: none;
 }
 
-.checkbox-field input[type="checkbox"] {
-    appearance: none;
-    width: 20px;
-    height: 20px;
-    border: 2px solid #bbb;
-    border-radius: 6px;
-    background: transparent;
-    cursor: pointer;
-    position: relative;
-    transition: all 0.2s ease;
+.checkbox-field input[type='checkbox'] {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #bbb;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
 }
 
-.checkbox-field input[type="checkbox"]:checked {
-    background: var(--home-blue);
-    border-color: var(--home-blue);
+.checkbox-field input[type='checkbox']:checked {
+  background: var(--home-blue);
+  border-color: var(--home-blue);
 }
 
-.checkbox-field input[type="checkbox"]:checked::after {
-    content: '✓';
-    position: absolute;
-    color: white;
-    font-size: 14px;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+.checkbox-field input[type='checkbox']:checked::after {
+  content: '✓';
+  position: absolute;
+  color: white;
+  font-size: 14px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Focused state for gamepad / keyboard navigation */
+.btn.focused {
+  outline: 2px solid var(--home-blue);
+  box-shadow: 0 0 0 3px rgba(0, 119, 255, 0.2);
+}
+
+.checkbox-field.focused {
+  outline: 2px solid var(--home-blue);
+  box-shadow: 0 0 0 3px rgba(0, 119, 255, 0.2);
+  padding: 5px;
+  border-radius: 8px;
+}
+
+/* Grid slot image */
+.item {
+  font-size: 3rem;
+  color: #333;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slot-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+/* Context menu icon spacing */
+.context-icon {
+  margin-right: 8px;
 }

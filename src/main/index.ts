@@ -1,4 +1,9 @@
-import { app, BrowserWindow, globalShortcut, screen, ipcMain, Input } from 'electron'
+import { app, BrowserWindow, globalShortcut, screen, ipcMain, Input, protocol } from 'electron'
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }
+])
+
 import { join } from 'path'
 import { debugLog, debugError } from './utils/debug'
 import * as overlay from './windows/overlay/overlay'
@@ -6,11 +11,49 @@ import * as loading from './windows/loading/loading'
 import * as mainApp from './windows/main/main'
 import * as keymaps from './keymaps/keymaps'
 import { HomeSlot } from '../shared/types'
-import { addSlot, loadSlots } from './utils/storage'
+import { loadSlots } from './utils/storage'
+import { processGameSlots } from './utils/gameMetadata'
+import { registerFileDialogHandlers } from './handlers/fileDialogHandler'
+import { registerSlotHandlers } from './handlers/slotHandler'
+import { registerEmulatorHandlers } from './handlers/emulatorHandler'
+import { registerPlaytimeHandlers } from './handlers/playtimeHandler'
+import { registerArtworkHandlers } from './handlers/artworkHandler'
+import { registerScannerHandlers } from './handlers/scannerHandler'
+import { registerRetroArchHandlers } from './handlers/retroarchHandler'
+import { registerKeymapHandlers } from './handlers/keymapHandler'
+import { initDiscordRPC, setActivity } from './utils/discord'
 
 export let appWindow: BrowserWindow | null = null
 export let overlayWindow: BrowserWindow | null = null
 export let loadingWindow: BrowserWindow | null = null
+
+let isRendererInputFocused = false
+
+/** Checks if an Electron input event matches a keymap string (e.g. 'Control+X', 'ArrowUp', etc.) */
+function isKeyMatch(input: Input, target: string): boolean {
+  if (!target) return false
+  const parts = target.split('+').map(p => p.trim().toLowerCase())
+  const keyPart = parts.pop()
+  if (!keyPart) return false
+
+  let matchKey = input.key.toLowerCase()
+  if (matchKey === ' ') matchKey = 'space'
+  if (keyPart !== matchKey) return false
+
+  let hasControl = parts.includes('control') || parts.includes('ctrl')
+  let hasAlt = parts.includes('alt')
+  let hasShift = parts.includes('shift')
+  let hasMeta = parts.includes('meta') || parts.includes('cmd')
+
+  // If the key itself is a modifier, inherently consider it active if the event has it
+  if (keyPart === 'shift') hasShift = true
+  if (keyPart === 'control' || keyPart === 'ctrl') hasControl = true
+  if (keyPart === 'alt') hasAlt = true
+  if (keyPart === 'meta' || keyPart === 'cmd') hasMeta = true
+  
+  return hasControl === input.control && hasAlt === input.alt && 
+         hasShift === input.shift && hasMeta === input.meta
+}
 
 function createWindow(): void {
   const primaryDisplay = screen.getPrimaryDisplay()
@@ -29,6 +72,8 @@ function createWindow(): void {
     }
   })
 
+  mainApp.setAppWindow(appWindow)
+
   debugLog('Main Window created.')
 
   appWindow.loadURL(
@@ -40,23 +85,21 @@ function createWindow(): void {
     if (input.type !== 'keyDown') return
 
     for (const [action, key] of Object.entries(keymaps.keymaps)) {
-      if (key.toLowerCase() === input.key.toLowerCase()) {
+      if (isKeyMatch(input, key)) {
+
+        // If the user focuses an input in the renderer, DO NOT preempt navigation keystrokes like 'e' or 'q'
+        // that are standard typed keys, EXCEPT for 'back'/'Escape' to unfocus or basic enter
+        if (isRendererInputFocused) {
+          if (action !== 'back' && action !== 'select') break
+        }
+
         event.preventDefault()
         if (action === 'nextPage') {
           mainApp.handlePageChange('next')
         } else if (action === 'prevPage') {
           mainApp.handlePageChange('prev')
         } else if (action === 'contextMenu') {
-          if (mainApp.isContextMenuVisible) {
-            mainApp.toggleContextMenu(false)
-            mainApp.setSection('grid')
-          } else {
-            // Only open if in grid section and an element is selected (optional check)
-            if (mainApp.currentSection === 'grid') { // && mainApp.selectedElement
-              mainApp.toggleContextMenu(true)
-              mainApp.setSection('context-menu')
-            }
-          }
+          debouncedToggleContextMenu()
         } else if (action === 'back') {
           if (mainApp.isContextMenuVisible) {
             mainApp.toggleContextMenu(false)
@@ -67,9 +110,11 @@ function createWindow(): void {
         } else {
           appWindow?.webContents.send('movement-action', mainApp.currentSection, action)
         }
+        break // ← stop processing other keymaps for the same keypress
       }
     }
   })
+
 
   overlayWindow = overlay.createOverlay(appWindow)
   loadingWindow = loading.createLoading(appWindow)
@@ -78,7 +123,7 @@ function createWindow(): void {
 // Handle interaction from renderer's context menu control
 ipcMain.on('context-menu-control', (_, action: string, data?: any) => {
   if (action === 'toggle') {
-    mainApp.toggleContextMenu(data)
+    debouncedToggleContextMenu() // Let it toggle; usually data is undefined for toggle from renderer anyway
   } else if (action === 'add') {
     mainApp.addContextOption(data)
   } else if (action === 'remove') {
@@ -93,25 +138,101 @@ ipcMain.on('context-menu-control', (_, action: string, data?: any) => {
 export const debouncedToggleOverlay = keymaps.createDebouncedToggle(overlay.toggleOverlay);
 export const debouncedToggleLoading = keymaps.createDebouncedToggle(loading.toggleLoading);
 
+const performToggleContextMenu = (show?: boolean) => {
+  if (show !== undefined) {
+    if (show) {
+      mainApp.toggleContextMenu(true)
+      mainApp.setSection('context-menu')
+    } else {
+      mainApp.toggleContextMenu(false)
+      mainApp.setSection('grid')
+    }
+  } else {
+    if (mainApp.isContextMenuVisible) {
+      mainApp.toggleContextMenu(false)
+      mainApp.setSection('grid')
+    } else {
+      // Allow opening as long as we aren't in a focused input (already checked in handler)
+      mainApp.toggleContextMenu(true)
+      mainApp.setSection('context-menu')
+    }
+  }
+}
+const debouncedToggleContextMenu = keymaps.createDebouncedToggle(performToggleContextMenu)
+
+/**
+ * Unregisters all current shortcuts and re-registers them from the live keymaps object.
+ * Used to ensure control changes are applied immediately without restarting the app.
+ */
+export function refreshGlobalShortcuts(): void {
+  globalShortcut.unregisterAll()
+  
+  const currentKeymaps = keymaps.keymaps
+  
+  if (currentKeymaps.overlay) {
+    globalShortcut.register(currentKeymaps.overlay, () => {
+      debouncedToggleOverlay()
+    })
+    debugLog(`[Shortcuts] Overlay key registered: ${currentKeymaps.overlay}`)
+  }
+
+  if (currentKeymaps.loading) {
+    globalShortcut.register(currentKeymaps.loading, () => {
+      debouncedToggleLoading()
+    })
+    debugLog(`[Shortcuts] Loading key registered: ${currentKeymaps.loading}`)
+  }
+
+  debugLog('[Shortcuts] Global shortcuts refreshed.')
+}
+
 async function main(): Promise<void> {
   // Load Keymaps
   keymaps.loadKeymaps()
 
-  process.env.DEBUG_MODE = 'true'
-  process.env.WINDOWED_BORDERLESS = 'false'
-  process.env.OVERLAY = 'false'
-  process.env.LOADING = 'false'
+  // Start Discord RPC
+  initDiscordRPC()
+
+  // Default env flags (overridden by .env or external configuration in production)
+  process.env.DEBUG_MODE ??= 'true'
+  process.env.WINDOWED_BORDERLESS ??= 'false'
+  process.env.OVERLAY ??= 'false'
+  process.env.LOADING ??= 'false'
+
+  // Register IPC handler modules
+  registerFileDialogHandlers()
+  registerSlotHandlers()
+  registerEmulatorHandlers()
+  registerPlaytimeHandlers()
+  registerArtworkHandlers()
+  registerScannerHandlers()
+  registerRetroArchHandlers()
+  registerKeymapHandlers(refreshGlobalShortcuts)
+
   await app.whenReady()
 
-  globalShortcut.register(keymaps.keymaps.overlay, () => {
-    debouncedToggleOverlay();
+  // Register 'media://' protocol to serve locally cached game images
+  protocol.registerFileProtocol('media', (request, callback) => {
+    const url = request.url.replace('media://', '')
+    const decodedUrl = decodeURI(url)
+    try {
+      // media://games/z/file.webp  ─>  <userData>/resources/games/z/file.webp
+      const resourcePath = join(app.getPath('userData'), 'resources', decodedUrl)
+      return callback({ path: resourcePath })
+    } catch (error) {
+      console.error('[Protocol] Failed to resolve media URL:', error)
+      return callback({ error: -6 })
+    }
   })
-  globalShortcut.register(keymaps.keymaps.loading, () => {
-    debouncedToggleLoading();
-  })
+
+  refreshGlobalShortcuts()
   createWindow()
 
   appWindow?.webContents.on('did-finish-load', () => {
+    // Force reset state on boot
+    mainApp.toggleContextMenu(false)
+    mainApp.setSection('grid')
+
     mainApp.addMainIcon({
       id: 'home',
       icon: 'mynaui:home-solid',
@@ -162,38 +283,21 @@ async function main(): Promise<void> {
       onMouseLeave: 'mouse-leave-trophies'
     })
 
-    // Add Twilight Princess slot (will only add if not exists, or update if exists)
-    addSlot({
-      id: 'twilight-princess-hd-slot',
-      icon: 'mdi:controller',
-      label: 'The Legend of Zelda -Twilight Princess HD',
-      position: 7,
-      onClick: 'run-game',
-      onMouseEnter: 'mouse-enter-grid-item',
-      onMouseLeave: 'mouse-leave-grid-item',
-      game: {
-        id: 'twilight-princess-hd',
-        name: 'The Legend of Zelda -Twilight Princess HD',
-        path: 'E:\\Emulation\\roms\\wiiu\\Legend of Zelda, The - Twilight Princess HD (Europe) (En,Fr,De,Es,It) (Rev 2).wux',
-        emulator: {
-          id: 'cemu',
-          name: 'Cemu',
-          path: 'C:\\Users\\mercp\\Downloads\\cemu-2.6-windows-x64\\Cemu_2.6\\Cemu.exe',
-          args: '-g {roms}'
-        }
-      }
-    })
-
     // Load and set all slots from storage
     const savedSlots = loadSlots()
     mainApp.setGridItems(savedSlots)
     mainApp.setTotalPages(3)
 
+    // Fetch metadata & images in the background; update the grid when ready
+    processGameSlots(savedSlots).then((updatedSlots) => {
+      mainApp.setGridItems(updatedSlots)
+    })
+
     // Set default context options
     mainApp.setContextOptions([
-      { id: '1', label: 'Opcion 1' },
-      { id: '2', label: 'Opcion 2' },
-      { id: '3', label: 'Opcion 3' }
+      { id: '1', label: 'Opcion 1', icon: 'mynaui:circle' },
+      { id: '2', label: 'Opcion 2', icon: 'mynaui:circle' },
+      { id: '3', label: 'Opcion 3', icon: 'mynaui:circle' }
     ])
   })
 
@@ -222,6 +326,54 @@ async function main(): Promise<void> {
     }
   })
 
+  // Handle focus state from renderer
+  ipcMain.on('set-input-focused', (_, focused: boolean) => {
+    isRendererInputFocused = focused
+  })
+
+  // Handle gamepad input
+
+  ipcMain.on('gamepad-input', (_, button: string) => {
+    debugLog(`Received gamepad input: ${button}`)
+    const action = Object.entries(keymaps.keymaps).find(([_, value]) => value === button)?.[0]
+    if (!action) return
+
+    let logicAction = action
+    switch (action) {
+      case 'gamepadA': logicAction = 'select'; break
+      case 'gamepadB': logicAction = 'back'; break
+      case 'gamepadLB': logicAction = 'prevPage'; break
+      case 'gamepadRB': logicAction = 'nextPage'; break
+      case 'gamepadUp': logicAction = 'up'; break
+      case 'gamepadDown': logicAction = 'down'; break
+      case 'gamepadLeft': logicAction = 'left'; break
+      case 'gamepadRight': logicAction = 'right'; break
+      case 'gamepadStart': logicAction = 'contextMenu'; break
+      case 'gamepadX': logicAction = 'overlay'; break
+    }
+
+    if (logicAction === 'overlay') {
+      debouncedToggleOverlay()
+      return
+    }
+
+    if (logicAction === 'nextPage') {
+      mainApp.handlePageChange('next')
+    } else if (logicAction === 'prevPage') {
+      mainApp.handlePageChange('prev')
+    } else if (logicAction === 'contextMenu') {
+      debouncedToggleContextMenu()
+    } else if (logicAction === 'back') {
+      if (mainApp.isContextMenuVisible) {
+        mainApp.toggleContextMenu(false)
+        mainApp.setSection('grid')
+      } else {
+        appWindow?.webContents.send('movement-action', mainApp.currentSection, logicAction)
+      }
+    } else {
+      appWindow?.webContents.send('movement-action', mainApp.currentSection, logicAction)
+    }
+  })
 }
 main().catch((error) => {
   debugError(error)
