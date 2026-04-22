@@ -256,3 +256,29 @@ body {
     transform: translateX(100%);
   }
 }
+
+/* Escape hint */
+.escape-hint {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
+  text-align: center;
+  letter-spacing: 0.5px;
+  animation: fadeInSlow 2s ease 1.5s both;
+}
+
+.escape-hint kbd {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 5px;
+  padding: 1px 7px;
+  font-size: 0.72rem;
+  font-family: inherit;
+  color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+@keyframes fadeInSlow {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

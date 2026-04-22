@@ -82,6 +82,8 @@ export interface Game {
     launchKeys?: string
     /** Specific RetroArch core to use (e.g. 'snes9x_libretro.dll') */
     retroarchCore?: string
+    /** Optional: specific process name to wait for on macOS/Win (e.g. 'java' for Minecraft) */
+    processName?: string
 }
 
 export interface HomeSlot {

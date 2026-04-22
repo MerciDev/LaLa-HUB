@@ -136,6 +136,11 @@ const api = {
   overlayControl: {
     close: () => ipcRenderer.send('overlay-close'),
     showMain: () => ipcRenderer.send('overlay-show-main')
+  },
+
+  /** Loading screen control — allows the loading window to dismiss itself */
+  loadingControl: {
+    dismiss: () => ipcRenderer.send('loading-dismiss')
   }
 }
 

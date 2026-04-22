@@ -1,8 +1,17 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, screen, ipcMain } from 'electron';
 import { is } from '@electron-toolkit/utils';
 import { join } from 'path';
 
 let loadingInstance: BrowserWindow | null = null;
+
+/** Called once from createLoading — registers the dismiss IPC handler. */
+function registerIPC(): void {
+    // Allow the loading renderer to dismiss itself (e.g. user presses Escape)
+    ipcMain.on('loading-dismiss', () => {
+        hideLoading()
+    })
+}
+let ipcRegistered = false
 
 export function createLoading(parent: BrowserWindow) {
     loadingInstance = new BrowserWindow({
@@ -13,6 +22,8 @@ export function createLoading(parent: BrowserWindow) {
         resizable: false,
         alwaysOnTop: true,
         transparent: true,
+        // On macOS, skipTaskbar avoids the loading window appearing in the Dock
+        skipTaskbar: true,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -34,7 +45,6 @@ export function createLoading(parent: BrowserWindow) {
         try {
             const screenshot = await parent.webContents.capturePage();
             const dataUrl = screenshot.toDataURL();
-
             loadingInstance?.webContents.send('background-image', dataUrl);
 
             if (process.env.LOADING === 'true') {
@@ -48,22 +58,55 @@ export function createLoading(parent: BrowserWindow) {
         }
     });
 
+    // Register IPC once
+    if (!ipcRegistered) {
+        registerIPC()
+        ipcRegistered = true
+    }
+
     return loadingInstance;
 }
 
-export function toggleLoading(item?: any) {
-    if (loadingInstance) {
-        if (loadingInstance.isVisible()) {
-            loadingInstance.hide();
-        } else {
-            if (item) {
-                loadingInstance.webContents.send('set-loading-data', item);
-            }
-            loadingInstance.setAlwaysOnTop(true, 'screen-saver', 2);
-            loadingInstance.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-            loadingInstance.setFullScreen(true);
-            loadingInstance.show();
-            loadingInstance.focus();
-        }
+/**
+ * Shows the loading screen covering the entire primary display.
+ * Uses setBounds instead of setFullScreen to avoid macOS's animated
+ * fullscreen transition, which temporarily breaks alwaysOnTop.
+ */
+export function showLoading(item?: any): void {
+    if (!loadingInstance) return;
+    if (loadingInstance.isVisible()) return; // already shown
+
+    if (item) {
+        loadingInstance.webContents.send('set-loading-data', item);
+    }
+
+    // Cover the full primary display without entering macOS fullscreen mode
+    const { bounds } = screen.getPrimaryDisplay();
+    loadingInstance.setBounds(bounds);
+    loadingInstance.setAlwaysOnTop(true, 'screen-saver', 2);
+    loadingInstance.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    loadingInstance.show();
+    loadingInstance.focus();
+}
+
+/**
+ * Hides the loading screen.
+ */
+export function hideLoading(): void {
+    if (!loadingInstance) return;
+    if (!loadingInstance.isVisible()) return; // already hidden
+    loadingInstance.hide();
+}
+
+/**
+ * Legacy toggle kept for compatibility with the keyboard shortcut binding.
+ * Prefer showLoading / hideLoading for explicit control.
+ */
+export function toggleLoading(item?: any): void {
+    if (!loadingInstance) return;
+    if (loadingInstance.isVisible()) {
+        hideLoading();
+    } else {
+        showLoading(item);
     }
 }

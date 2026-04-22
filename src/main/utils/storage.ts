@@ -72,6 +72,28 @@ export function addSlot(slot: HomeSlot): void {
     addMultipleSlots([slot])
 }
 
+function findNextAvailablePosition(slots: HomeSlot[], cols = 6, rows = 4): { position: number, page: number } {
+    let page = 0
+    while (true) {
+        const occupied = new Set<number>()
+        for (const s of slots) {
+            if (s.page === page && s.position !== undefined) {
+                const cs = s.colSpan || 1
+                const rs = s.rowSpan || 1
+                for (let r = 0; r < rs; r++) {
+                    for (let c = 0; c < cs; c++) {
+                        occupied.add(s.position + r * cols + c)
+                    }
+                }
+            }
+        }
+        for (let i = 0; i < (cols * rows); i++) {
+            if (!occupied.has(i)) return { position: i, page }
+        }
+        page++ // All cells full on this page, try next one
+    }
+}
+
 export function addMultipleSlots(newSlots: HomeSlot[]): void {
     const slots = loadSlots()
     
@@ -80,6 +102,13 @@ export function addMultipleSlots(newSlots: HomeSlot[]): void {
         if (existingIndex >= 0) {
             slots[existingIndex] = slot
         } else {
+            // Assign position if missing (new slots)
+            if (slot.position === undefined || slot.page === undefined) {
+                const nextPos = findNextAvailablePosition(slots)
+                slot.position = nextPos.position
+                slot.page = nextPos.page
+                debugLog(`[Storage] Auto-posicionado slot '${slot.label}' en Pag:${slot.page} Pos:${slot.position}`)
+            }
             slots.push(slot)
         }
     }

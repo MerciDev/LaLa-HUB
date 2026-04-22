@@ -14,9 +14,18 @@ function LoadingApp(): React.JSX.Element {
             setGameData(item)
         })
 
+        // Allow user to dismiss loading screen manually with Escape
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                ;(window as any).api?.loadingControl?.dismiss()
+            }
+        }
+        window.addEventListener('keydown', onKeyDown)
+
         return () => {
             if (removeBgListener) removeBgListener()
             if (removeLoadingDataListener) removeLoadingDataListener()
+            window.removeEventListener('keydown', onKeyDown)
         }
     }, [])
 
@@ -78,8 +87,8 @@ function LoadingApp(): React.JSX.Element {
                         <h1 className="game-title">{gameData?.label || 'Cargando Juego...'}</h1>
                         
                         <div className="meta-info">
-                            {gameData?.game?.platform && (
-                                <span className="platform-tag">{gameData.game.platform.name}</span>
+                            {gameData?.game?.console && (
+                                <span className="platform-tag">{gameData.game.console.name}</span>
                             )}
                             
                             {gameData?.game?.playtimeMinutes !== undefined && gameData.game.playtimeMinutes > 0 && (
@@ -94,6 +103,10 @@ function LoadingApp(): React.JSX.Element {
 
                 <div className="loader-bar-container">
                     <div className="loader-bar"></div>
+                </div>
+
+                <div className="escape-hint">
+                    Pulsa <kbd>ESC</kbd> para cancelar
                 </div>
             </div>
         </div>

@@ -1,7 +1,7 @@
 import { IconOption, HomeGrid, HomeSlot, ContextOption } from '../../../shared/types'
 import { spawn } from 'child_process'
 import { debugLog } from '../../utils/debug'
-import { toggleLoading } from '../loading/loading'
+import { showLoading, hideLoading, toggleLoading } from '../loading/loading'
 import { startPlaySession, formatPlaytime } from '../../utils/playtime'
 
 let isLaunching = false
@@ -264,7 +264,7 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
                     stdio: 'ignore'
                 })
             }
-            // 3. Native game (direct .exe without emulator)
+            // 3. Native game (direct .exe / .app without emulator)
             else if (gamePath) {
                 const { existsSync } = require('fs')
 
@@ -274,11 +274,23 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
                 }
 
                 debugLog(`Running native game: ${gamePath}`)
-                gameProcess = spawn(gamePath, (gameArgs || '').split(' '), {
-                    shell: true,
-                    detached: true,
-                    stdio: 'ignore'
-                })
+
+                // On macOS, .app bundles must be opened with the 'open' command
+                if (process.platform === 'darwin' && gamePath.endsWith('.app')) {
+                    const extraArgs = (gameArgs || '').trim()
+                    const openCmd = extraArgs ? `open "${gamePath}" --args ${extraArgs}` : `open "${gamePath}"`
+                    gameProcess = spawn(openCmd, [], {
+                        shell: true,
+                        detached: true,
+                        stdio: 'ignore'
+                    })
+                } else {
+                    gameProcess = spawn(gamePath, (gameArgs || '').split(' '), {
+                        shell: true,
+                        detached: true,
+                        stdio: 'ignore'
+                    })
+                }
             }
 
             if (!gameProcess) {
@@ -287,32 +299,44 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
             }
 
             debugLog(`[Launch] Starting launch sequence for: ${gameName}`)
-            toggleLoading(item)
 
-            setTimeout(() => {
-                appWindow?.hide()
+            // 1. Hide the main app window IMMEDIATELY so it doesn't flash in front.
+            // 2. Show loading AFTER hiding — avoids the race where loading appears but main window is still on top.
+            appWindow?.hide()
+            showLoading(item)
 
-                const loadingTimeout = setTimeout(() => toggleLoading(), 10000)
+            // Safety timeout: hide loading after 90s if process detection never succeeds
+            const loadingTimeout = setTimeout(() => {
+                debugLog(`[Launch] Safety timeout reached — hiding loading screen`)
+                hideLoading()
+                isLaunching = false
+            }, 90000)
 
-                startPlaySession(item.id, gameProcess)
+            startPlaySession(item.id, gameProcess)
 
-                import('../../utils/windowManager').then(({ focusWindowAndSendKeys }) => {
-                    const targetTitle = gameEmulator ? gameEmulator.name : (gameName || '')
-                    const keysToSend = item.game?.launchKeys || '%+a'
+            import('../../utils/windowManager').then(({ focusWindowAndSendKeys }) => {
+                // On macOS, use the .app bundle name as the process name (more reliable)
+                let targetTitle = gameEmulator ? gameEmulator.name : (gameName || '')
+                if (process.platform === 'darwin' && gamePath?.endsWith('.app')) {
+                    const bundleName = gamePath.split('/').pop()?.replace(/\.app$/, '') || targetTitle
+                    targetTitle = bundleName
+                    debugLog(`[Launch] Mac: using bundle name "${bundleName}" as process target`)
+                }
+                const keysToSend = item.game?.launchKeys || '%+a'
 
-                    focusWindowAndSendKeys(targetTitle, keysToSend, 30, 1000, (success) => {
-                        clearTimeout(loadingTimeout)
-                        if (success) {
-                            debugLog(`[Launch] Window found, closing loading in 1s`)
-                            setTimeout(() => toggleLoading(), 1000)
-                        } else {
-                            debugLog(`[Launch] Window "${targetTitle}" was not found, closing loading anyway`)
-                            toggleLoading()
-                        }
-                        isLaunching = false
-                    }, gameProcess.pid)
-                })
-            }, 500)
+                // 60 attempts × 1500ms = 90s — enough for heavy launchers like Minecraft
+                focusWindowAndSendKeys(targetTitle, keysToSend, 60, 1500, (success) => {
+                    clearTimeout(loadingTimeout)
+                    if (success) {
+                        debugLog(`[Launch] Window found — hiding loading in 1.5s`)
+                        setTimeout(() => hideLoading(), 1500)
+                    } else {
+                        debugLog(`[Launch] Window "${targetTitle}" not found within timeout — hiding loading`)
+                        hideLoading()
+                    }
+                    isLaunching = false
+                }, gameProcess.pid, item.game?.processName)
+            })
 
         },
     }

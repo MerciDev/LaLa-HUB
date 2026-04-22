@@ -12,9 +12,9 @@
 /* ── Themes — identical to main app ────────────────────── */
 :root, [data-theme='dark'] {
   --bg-base:        #0a0c10;
-  --bg-surface:     rgba(14, 17, 26, 0.92);
-  --bg-elevated:    rgba(22, 27, 42, 0.96);
-  --bg-hover:       rgba(255, 255, 255, 0.07);
+  --bg-surface:     rgba(14, 17, 26, 0.7);
+  --bg-elevated:    rgba(22, 27, 42, 0.82);
+  --bg-hover:       rgba(255, 255, 255, 0.08);
 
   --accent:         #3a86ff;
   --accent-glow:    rgba(58, 134, 255, 0.35);
@@ -27,7 +27,7 @@
   --border:         rgba(255, 255, 255, 0.08);
   --border-active:  rgba(58, 134, 255, 0.55);
 
-  --blur: saturate(180%) blur(28px);
+  --blur: blur(24px) saturate(160%);
 }
 
 [data-theme='platinum'] {
@@ -348,8 +348,8 @@ body {
   cursor: pointer;
   position: relative;
   flex-shrink: 0;
-  border: 1.5px solid var(--border);
-  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--text-muted);
   transition:
     background 0.15s ease,
@@ -371,8 +371,13 @@ body {
 .ov-bar-item.focused:not(.active) {
   border-color: var(--border-active);
   color: var(--accent-bright);
-  transform: translateY(-5px) scale(1.08);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+  transform: scale(1.15);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.45);
+}
+
+.ov-bar-item.active .ov-bar-item__label {
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 .ov-bar-item__icon {

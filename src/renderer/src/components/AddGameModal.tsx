@@ -8,6 +8,7 @@ interface AddGameForm {
     name: string
     path: string
     emulatorId: string
+    processName: string
     squareImage: string
     backgroundImage: string
     logoImage: string
@@ -18,7 +19,7 @@ interface AddGameForm {
 }
 
 const EMPTY_FORM: AddGameForm = { 
-    name: '', path: '', emulatorId: '', 
+    name: '', path: '', emulatorId: '', processName: '',
     squareImage: '', backgroundImage: '', logoImage: '', 
     coverImage: '', verticalImage: '', horizontalImage: '', iconImage: '' 
 }
@@ -83,6 +84,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 name: editSlot.label,
                 path: editSlot.game?.path ?? '',
                 emulatorId: editSlot.game?.emulator?.id ?? '',
+                processName: editSlot.game?.processName ?? '',
                 squareImage: editSlot.squareImage ?? '',
                 backgroundImage: editSlot.backgroundImage ?? '',
                 logoImage: editSlot.logoImage ?? '',
@@ -117,14 +119,15 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     // ── Auto-focus inputs when content area is focused ──
     useEffect(() => {
         if (!visible) return
-        if (focusArea === 'content' && tab === 'general') {
             if (contentIndex === 0) document.getElementById('ag-name')?.focus()
             if (contentIndex === 1) document.getElementById('ag-path')?.focus()
             if (contentIndex === 2) document.getElementById('ag-emu')?.focus()
+            if (contentIndex === 3) document.getElementById('ag-process')?.focus()
         } else {
             document.getElementById('ag-name')?.blur()
             document.getElementById('ag-path')?.blur()
             document.getElementById('ag-emu')?.blur()
+            document.getElementById('ag-process')?.blur()
         }
     }, [focusArea, contentIndex, tab, visible])
 
@@ -166,7 +169,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 bodyEl.scrollTo({ top: 0, behavior: 'smooth' })
             } else {
                 const id = tab === 'general' 
-                    ? (contentIndex === 0 ? 'ag-name' : contentIndex === 1 ? 'ag-path' : 'ag-emu')
+                    ? (contentIndex === 0 ? 'ag-name' : contentIndex === 1 ? 'ag-path' : contentIndex === 2 ? 'ag-emu' : 'ag-process')
                     : (contentIndex === 0 ? 'ag-media-target' : contentIndex === 1 ? 'ag-artwork-btn' : contentIndex === 2 ? 'ag-remove-btn' : `ag-api-btn-${contentIndex - 3}`)
                 
                 const el = document.getElementById(id)
@@ -260,7 +263,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
 
                 // Tab 1: General Info (Linear List)
                 if (ct === 'general') {
-                    const maxItems = 3
+                    const maxItems = 4
                     if (action === 'up') {
                         if (cIdx > 0) { sfx.navigate(); setContentIndex(p => p - 1) }
                         else { sfx.navigate(); setFocusArea('nav') }
@@ -271,7 +274,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                         sfx.navigate(); setFocusArea('nav')
                     } else if (action === 'select') {
                         // Focus the native input explicitly
-                        const ids = ['ag-name', 'ag-path', 'ag-emu']
+                        const ids = ['ag-name', 'ag-path', 'ag-emu', 'ag-process']
                         document.getElementById(ids[cIdx])?.focus()
                     }
                 // Tab 2: Multimedia (Grid Layout)
@@ -356,7 +359,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                     sfx.navigate()
                     setFocusArea('content')
                     // Return to last item: index 2 + (length - 1)
-                    const lastIdx = ct === 'general' ? 2 : Math.max(0, 1 + r.current.apiImages.length)
+                    const lastIdx = ct === 'general' ? 3 : Math.max(0, 1 + r.current.apiImages.length)
                     setContentIndex(lastIdx)
                 } else if (action === 'left') {
                     if (fIdx > 0) { sfx.navigate(); setFooterIndex(fIdx - 1) }
@@ -369,7 +372,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 } else if (action === 'back') {
                     sfx.navigate()
                     setFocusArea('content')
-                    setContentIndex(ct === 'general' ? 2 : 0)
+                    setContentIndex(ct === 'general' ? 3 : 0)
                 }
             }
         }
@@ -386,7 +389,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
             title: isRom ? 'Seleccionar ROM' : 'Seleccionar Ejecutable',
             filters: isRom
                 ? [{ name: 'ROMs', extensions: ['iso', 'wux', 'nsp', 'xci', 'rvz', 'wbfs', 'gcm', 'cue', 'chd', 'nro', 'nes', 'sfc'] }, { name: 'Todos', extensions: ['*'] }]
-                : [{ name: 'Ejecutables', extensions: ['exe'] }, { name: 'Todos', extensions: ['*'] }]
+                : [{ name: 'Ejecutables', extensions: ['exe', 'app', 'sh'] }, { name: 'Todos', extensions: ['*'] }]
         })
         if (path) setForm(prev => ({ ...prev, path, name: prev.name || path.split('\\').pop()?.replace(/\.[^/.]+$/, '') || '' }))
     }, [])
@@ -433,6 +436,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                     name: f.name.trim(),
                     path: f.path.trim(),
                     emulator: selectedEmulator,
+                    processName: f.processName.trim(),
                     playtimeMinutes: slot?.game?.playtimeMinutes ?? 0
                 }
             }
@@ -558,6 +562,26 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                             </select>
                         </div>
                         {isFocused('content', 2) && <div className="ag-field-hint">A para editar</div>}
+                    </div>
+
+                    {/* Process Name */}
+                    <div
+                        className={`ag-field-row ${isFocused('content', 3) ? 'ag-field-row--focused' : ''}`}
+                        onClick={() => { setFocusArea('content'); setContentIndex(3) }}
+                    >
+                        <Icon icon="mynaui:search" className="ag-field-icon" />
+                        <div className="ag-field-body">
+                            <div className="ag-field-label">Nombre del Proceso (Opcional)</div>
+                            <input
+                                id="ag-process"
+                                className="ag-field-input"
+                                value={form.processName}
+                                onChange={e => setForm(p => ({ ...p, processName: e.target.value }))}
+                                placeholder="Ej. java, Minecraft, etc."
+                                disabled={isSaving}
+                            />
+                        </div>
+                        {isFocused('content', 3) && <div className="ag-field-hint">A para editar</div>}
                     </div>
                 </div>
             )}
