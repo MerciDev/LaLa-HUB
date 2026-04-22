@@ -1,13 +1,13 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, screen } from 'electron';
 import { is } from '@electron-toolkit/utils';
 import { join } from 'path';
+import { getCurrentSessionData, formatPlaytime } from '../../utils/playtime';
 
 let overlayInstance: BrowserWindow | null = null;
 let mainApp: BrowserWindow | null = null;
 
 export function createOverlay(parent: BrowserWindow) {
     mainApp = parent;
-    const { screen } = require('electron');
     const { width, height } = screen.getPrimaryDisplay().bounds;
 
     overlayInstance = new BrowserWindow({
@@ -64,7 +64,6 @@ export function toggleOverlay() {
         }, 400);
     } else {
         // Ensure bounds cover full primary screen (game may be fullscreen)
-        const { screen } = require('electron');
         const { bounds } = screen.getPrimaryDisplay();
         overlayInstance.setBounds(bounds);
 
@@ -72,9 +71,8 @@ export function toggleOverlay() {
         overlayInstance.setAlwaysOnTop(true, 'screen-saver', 1);
         overlayInstance.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
-        const { getCurrentSessionData, formatPlaytime } = require('../utils/playtime');
         const activeSession = getCurrentSessionData();
-        let gameData = null;
+        let gameData: any = null;
         if (activeSession) {
             const { slot, session } = activeSession;
             const currentElapsedMinutes = Math.round((Date.now() - session.startTime) / 1000 / 60);
@@ -82,7 +80,7 @@ export function toggleOverlay() {
             gameData = {
                 id: slot.id,
                 label: slot.label,
-                console: slot.game?.platform?.name || 'PC',
+                console: slot.game?.console?.name || 'PC',
                 playtimeStr: formatPlaytime(totalMinutes),
                 imageUrl: slot.squareImage || slot.thumbImage || null
             };

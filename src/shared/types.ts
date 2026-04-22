@@ -90,6 +90,11 @@ export interface HomeSlot {
     squareImage?: string
     thumbImage?: string
     backgroundImage?: string
+    logoImage?: string
+    coverImage?: string
+    verticalImage?: string
+    horizontalImage?: string
+    iconImage?: string
     label: string
     onClick?: string
     onMouseEnter?: string

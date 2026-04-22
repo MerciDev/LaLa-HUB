@@ -1119,8 +1119,12 @@ select:focus {
 }
 
 .cp-btn--focused {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  border-color: var(--accent) !important;
+  background: rgba(58, 134, 255, 0.12) !important;
+  box-shadow: 0 0 10px rgba(58, 134, 255, 0.3);
+  transform: scale(1.02);
+  color: var(--text-primary) !important;
+  z-index: 2;
 }
 
 .cp-btn--primary {
@@ -1442,4 +1446,302 @@ select:focus {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+/* ═══════════════════════════════════════════════════════
+   ADD GAME MODAL — Field Rows (General Tab)
+   ═══════════════════════════════════════════════════════ */
+.ag-field-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  margin-bottom: 8px;
+}
+
+.ag-field-row:hover {
+  background: var(--bg-elevated);
+  border-color: rgba(255,255,255,0.12);
+}
+
+.ag-field-row--focused {
+  border-color: var(--accent) !important;
+  background: rgba(58, 134, 255, 0.08) !important;
+  box-shadow: 0 0 0 2px rgba(58, 134, 255, 0.25);
+}
+
+.ag-field-icon {
+  font-size: 20px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: color 0.18s;
+}
+
+.ag-field-row--focused .ag-field-icon {
+  color: var(--accent);
+}
+
+.ag-field-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ag-field-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.ag-field-row--focused .ag-field-label {
+  color: var(--accent-bright);
+}
+
+.ag-field-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0;
+  pointer-events: none; /* keyboard only — native focus is set programmatically */
+}
+
+/* When a native input is focused by the OS, allow pointer events */
+.ag-field-input:focus {
+  pointer-events: auto;
+}
+
+.ag-field-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.ag-field-input option {
+  background: #111827;
+}
+
+.ag-field-hint {
+  font-size: 10px;
+  color: var(--accent);
+  background: rgba(58, 134, 255, 0.12);
+  border-radius: 6px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ADD GAME MODAL — Media Tab
+   ═══════════════════════════════════════════════════════ */
+.ag-media {
+  gap: 20px;
+}
+
+.ag-media-top {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.ag-media-preview {
+  width: 100px;
+  height: 100px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ag-media-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ag-media-browse {
+  width: 100%;
+}
+
+/* ── API Image Grid ── */
+.ag-api-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.ag-api-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  outline: none;
+  width: 100%;
+}
+
+.ag-api-card:hover {
+  background: var(--bg-elevated);
+  transform: translateY(-2px);
+}
+
+.ag-api-card--focused {
+  border-color: var(--accent) !important;
+  background: rgba(58, 134, 255, 0.12) !important;
+  box-shadow: 0 0 0 3px rgba(58, 134, 255, 0.3), 0 8px 25px rgba(0,0,0,0.4);
+  transform: translateY(-4px) scale(1.02);
+  z-index: 2;
+}
+
+.ag-api-card--active {
+  border-color: var(--accent);
+  background: rgba(58, 134, 255, 0.1);
+}
+
+.ag-api-card--active::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 2px solid var(--accent);
+  pointer-events: none;
+}
+
+.ag-api-card-img-wrap {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ag-api-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ag-api-card-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+  letter-spacing: 0.04em;
+}
+
+.ag-api-card--focused .ag-api-card-label {
+  color: var(--accent-bright);
+}
+
+.ag-api-card-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 16px;
+  color: var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+
+/* --- Custom Select (Console Style) --- */
+.ag-custom-select {
+  position: relative;
+  width: 220px;
+  user-select: none;
+}
+
+.ag-custom-select__value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.ag-field-row--focused .ag-custom-select__value {
+  border-color: rgba(58, 134, 255, 0.4);
+}
+
+.ag-field-row--menu-open .ag-custom-select__value {
+  background: rgba(58, 134, 255, 0.1);
+  border-color: var(--accent) !important;
+}
+
+.ag-custom-select__dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: rgba(20, 25, 35, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 6px;
+  z-index: 100;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ag-custom-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+}
+
+.ag-custom-select__option.active {
+  background: rgba(58, 134, 255, 0.15);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.ag-custom-select__option.active svg {
+  color: var(--accent);
+  font-size: 16px;
+}
+
+.ag-media-content {
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.ag-media-content--dimmed {
+  opacity: 0.2;
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+
 

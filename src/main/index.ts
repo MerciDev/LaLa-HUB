@@ -138,9 +138,24 @@ ipcMain.on('context-menu-control', (_, action: string, data?: any) => {
 export const debouncedToggleOverlay = keymaps.createDebouncedToggle(overlay.toggleOverlay);
 export const debouncedToggleLoading = keymaps.createDebouncedToggle(loading.toggleLoading);
 
+// Sync overlay state when closed from renderer (background click)
+ipcMain.on('overlay-close', () => {
+  if (overlayWindow?.isVisible()) {
+    overlay.toggleOverlay()
+  }
+})
+
+ipcMain.on('overlay-show-main', () => {
+  mainApp.showMainWindow()
+  if (overlayWindow?.isVisible()) {
+    overlay.toggleOverlay()
+  }
+})
+
 const performToggleContextMenu = (show?: boolean) => {
   if (show !== undefined) {
     if (show) {
+      if (mainApp.currentSection !== 'grid' && !mainApp.isContextMenuVisible) return
       mainApp.toggleContextMenu(true)
       mainApp.setSection('context-menu')
     } else {
@@ -152,7 +167,7 @@ const performToggleContextMenu = (show?: boolean) => {
       mainApp.toggleContextMenu(false)
       mainApp.setSection('grid')
     } else {
-      // Allow opening as long as we aren't in a focused input (already checked in handler)
+      if (mainApp.currentSection !== 'grid') return
       mainApp.toggleContextMenu(true)
       mainApp.setSection('context-menu')
     }

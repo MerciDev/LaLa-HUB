@@ -4,7 +4,7 @@ import './style.css'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type SectionId = 'home' | 'social' | 'trophies' | 'settings' | 'power'
+type SectionId = 'home' | 'game' | 'social' | 'trophies' | 'settings' | 'power'
 type Theme = 'dark' | 'platinum' | 'midnight'
 
 interface Friend {
@@ -40,6 +40,7 @@ const THEMES: { id: Theme; label: string }[] = [
 
 const SECTIONS: { id: SectionId; icon: string; label: string; badge?: true }[] = [
   { id: 'home',     icon: 'mynaui:home-solid', label: 'Inicio'  },
+  { id: 'game',     icon: 'mynaui:controller', label: 'Juego'   },
   { id: 'social',   icon: 'mynaui:users',      label: 'Social', badge: true },
   { id: 'trophies', icon: 'mynaui:trophy',     label: 'Logros'  },
   { id: 'settings', icon: 'mynaui:cog-six',    label: 'Ajustes' },
@@ -48,7 +49,8 @@ const SECTIONS: { id: SectionId; icon: string; label: string; badge?: true }[] =
 
 function panelCount(s: SectionId): number {
   switch (s) {
-    case 'home':     return 4
+    case 'home':     return 0 // Directly opens app, no panel
+    case 'game':     return 1 // Showing at least the current game or empty message
     case 'social':   return FRIENDS.length
     case 'trophies': return ACHIEVEMENTS.length
     case 'settings': return 3
@@ -128,7 +130,7 @@ export default function OverlayApp(): React.JSX.Element {
     if (closingRef.current) return
     closingRef.current = true
     setVisible(false); setSection(null); setInPanel(false)
-    ;(window as any).api?.send?.('dispatch-action', { type: 'OVERLAY_CLOSING' })
+    ;(window as any).api?.overlayControl?.close()
     setTimeout(() => { closingRef.current = false }, 400)
   }, [])
 
@@ -174,15 +176,19 @@ export default function OverlayApp(): React.JSX.Element {
       // ── On bar ───────────────────────────────────────────────────────────
       switch (e.key) {
         case 'ArrowLeft':
+          if (section) break 
           setBarIdx(i => Math.max(0, i - 1))
-          // Don't auto-close panel — user navigates bar while panel is open
           break
         case 'ArrowRight':
+          if (section) break
           setBarIdx(i => Math.min(SECTIONS.length - 1, i + 1))
           break
-        case 'Enter':
-        case 'ArrowUp': {
+        case 'Enter': {
           const targetId = SECTIONS[barIdx].id
+          if (targetId === 'home') {
+            ;(window as any).api?.overlayControl?.showMain()
+            return
+          }
           if (section === targetId && count > 0) {
             // Panel already open for this item → enter it
             setInPanel(true); setPanelIdx(0)
@@ -192,9 +198,7 @@ export default function OverlayApp(): React.JSX.Element {
           }
           break
         }
-        case 'ArrowDown':
-          closePanel()
-          break
+
         case 'Escape':
         case 'Backspace':
           if (section) closePanel()
@@ -209,9 +213,9 @@ export default function OverlayApp(): React.JSX.Element {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div id="overlay-root">
+    <div id="overlay-root" onClick={dismiss}>
       {/* Top Left: Game Info Dashboard */}
-      <div className={`ov-top-left${visible ? ' visible' : ''}`}>
+      <div className={`ov-top-left${visible ? ' visible' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="ov-game-hud__art">
           {activeGame?.imageUrl ? <img src={activeGame.imageUrl} alt="" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit'}} /> : <Icon icon="mynaui:gamepad" />}
         </div>
@@ -232,7 +236,7 @@ export default function OverlayApp(): React.JSX.Element {
       </div>
 
       {/* Top Right: Clock & Date */}
-      <div className={`ov-top-right${visible ? ' visible' : ''}`}>
+      <div className={`ov-top-right${visible ? ' visible' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="ov-bar__clock">{time}</div>
         <div className="ov-bar__date">{date}</div>
       </div>
@@ -242,11 +246,11 @@ export default function OverlayApp(): React.JSX.Element {
         Both are flex children in a column, so the panel always
         appears immediately above the island — no stray positioning.
       */}
-      <div className="ov-island-col">
+      <div className="ov-island-col" onClick={(e) => e.stopPropagation()}>
 
         {/* Active panel — only one rendered at a time */}
         <div className={`ov-panel${section ? ' visible' : ''}`}>
-          {section === 'home'     && <PanelHome     inPanel={inPanel} panelIdx={panelIdx} activeGame={activeGame} />}
+          {section === 'game'     && <PanelGame     inPanel={inPanel} panelIdx={panelIdx} activeGame={activeGame} />}
           {section === 'social'   && <PanelSocial   inPanel={inPanel} panelIdx={panelIdx} />}
           {section === 'trophies' && <PanelTrophies inPanel={inPanel} panelIdx={panelIdx} />}
           {section === 'settings' && (
@@ -268,7 +272,13 @@ export default function OverlayApp(): React.JSX.Element {
                 section === s.id ? 'active' : '',
                 !inPanel && barIdx === i ? 'focused' : '',
               ].filter(Boolean).join(' ')}
-              onClick={() => section === s.id ? closePanel() : openSection(s.id)}
+              onClick={() => {
+                if (s.id === 'home') {
+                  ;(window as any).api?.overlayControl?.showMain()
+                } else {
+                  section === s.id ? closePanel() : openSection(s.id)
+                }
+              }}
             >
               <div className="ov-bar-item__icon"><Icon icon={s.icon} /></div>
               <div className="ov-bar-item__label">{s.label}</div>
@@ -286,30 +296,50 @@ export default function OverlayApp(): React.JSX.Element {
 
 // ── Panel components ──────────────────────────────────────────────────────────
 
-function PanelHome({ inPanel, panelIdx, activeGame }: { inPanel: boolean; panelIdx: number; activeGame: any }) {
+function PanelGame({ inPanel, panelIdx, activeGame }: { inPanel: boolean; panelIdx: number; activeGame: any }) {
   const actions = [
     { icon: 'mynaui:camera',      label: 'Captura',  sub: 'Screenshot'     },
     { icon: 'mynaui:video',       label: 'Grabar',   sub: 'Iniciar grabación' },
     { icon: 'mynaui:save',        label: 'Guardar',  sub: 'Guardado rápido' },
     { icon: 'mynaui:users-group', label: 'Sala',     sub: 'Crear partido'  },
   ]
+
+  if (!activeGame) {
+    return (
+      <>
+        <div className="ov-panel__header">
+          <Icon icon="mynaui:gamepad" className="ov-panel__icon" />
+          <div className="ov-panel__title">Juego</div>
+        </div>
+        <div className="ov-panel__body" style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <Icon icon="mynaui:ghost" style={{ fontSize: 48, color: 'var(--text-muted)', marginBottom: 12, opacity: 0.5 }} />
+          <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600 }}>No hay actividad reciente</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 4 }}>Inicia un juego desde el menú principal</div>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <div className="ov-panel__header">
-        <Icon icon="mynaui:home-solid" className="ov-panel__icon" />
-        <div className="ov-panel__title">Inicio</div>
+        <Icon icon="mynaui:gamepad" className="ov-panel__icon" />
+        <div className="ov-panel__title">Sesión Actual</div>
       </div>
       <div className="ov-panel__body">
         <div className="ov-game-card">
           <div className="ov-game-card__art">
-            {activeGame?.imageUrl ? <img src={activeGame.imageUrl} alt="" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit'}} /> : <Icon icon="mynaui:gamepad" />}
+            {activeGame.imageUrl ? <img src={activeGame.imageUrl} alt="" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit'}} /> : <Icon icon="mynaui:gamepad" />}
           </div>
           <div className="ov-game-card__info">
-            <div className="ov-game-card__title">{activeGame?.label || 'LaLa Hub'}</div>
-            <div className="ov-game-card__meta">⏱ {activeGame?.playtimeStr || 'Navegando'}</div>
+            <div className="ov-game-card__title">{activeGame.label}</div>
+            <div className="ov-game-card__meta">⏱ Jugando ahora · {activeGame.playtimeStr}</div>
           </div>
           <div className="ov-game-card__actions">
-            <button className="ov-btn ov-btn--accent">
+            <button 
+              className="ov-btn ov-btn--accent"
+              onClick={() => (window as any).api?.overlayControl?.showMain()}
+            >
               <Icon icon="mynaui:play-solid" /> Continuar
             </button>
           </div>

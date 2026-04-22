@@ -21,11 +21,12 @@ interface GameMetadata {
 
 export async function fetchGameMetadata(gameId: string): Promise<GameMetadata | null> {
     return new Promise((resolve) => {
-        const request = net.request(`${API_BASE_URL}/api/games/${gameId}`)
+        const url = `${API_BASE_URL}/api/games/${gameId}`
+        const request = net.request(url)
 
         request.on('response', (response) => {
             if (response.statusCode !== 200) {
-                debugError(`[Metadata] API returned status ${response.statusCode} for game ${gameId}`)
+                // debugError(`[Metadata] API returned status ${response.statusCode} for game ${gameId}`)
                 resolve(null)
                 return
             }
@@ -51,6 +52,42 @@ export async function fetchGameMetadata(gameId: string): Promise<GameMetadata | 
             resolve(null)
         })
 
+        request.end()
+    })
+}
+
+export async function searchGameMetadata(query: string): Promise<GameMetadata | null> {
+    return new Promise((resolve) => {
+        const url = `${API_BASE_URL}/api/games/search?q=${encodeURIComponent(query)}`
+        const request = net.request(url)
+
+        request.on('response', (response) => {
+            if (response.statusCode !== 200) {
+                resolve(null)
+                return
+            }
+
+            let data = ''
+            response.on('data', (chunk) => {
+                data += chunk.toString()
+            })
+
+            response.on('end', () => {
+                try {
+                    const json = JSON.parse(data)
+                    if (json.results && json.results.length > 0) {
+                        // Take the first result as best match
+                        resolve(json.results[0] as GameMetadata)
+                    } else {
+                        resolve(null)
+                    }
+                } catch (e) {
+                    resolve(null)
+                }
+            })
+        })
+
+        request.on('error', () => resolve(null))
         request.end()
     })
 }
@@ -124,50 +161,47 @@ export async function processGameSlots(slots: HomeSlot[]): Promise<HomeSlot[]> {
     for (let i = 0; i < newSlots.length; i++) {
         const slot = newSlots[i]
 
-        // Only process slots with a game and without a squareImage
-        // OR process even if it has one? User asked to "buscar en mi api", implying we should update.
-        // But for performance, maybe check if we already have it? 
-        // The user said "descargues las imagenes... guardes las imagenes en cache".
-        // Let's check: if squareImage is set, we might assume it's done. 
-        // BUT, if the file is missing locally, we should re-download.
-        // For now, let's fetch if squareImage is missing.
+        // Only process if missing images
+        if (slot.game && (!slot.squareImage || !slot.backgroundImage)) {
+            debugLog(`[Metadata] Processing ${slot.label} (ID: ${slot.game.id})...`)
+            
+            // 1. Try to fetch by exact ID
+            let metadata = await fetchGameMetadata(slot.game.id)
 
-        if (slot.game && slot.game.id) {
-            // Only try to fetch metadata if squareImage is missing, AND if it is not a manually generated local ID
-            if ((!slot.squareImage || !slot.backgroundImage) && !slot.game.id.startsWith('game-')) {
-                debugLog(`[Metadata] Processing ${slot.game.id}...`)
-                const metadata = await fetchGameMetadata(slot.game.id)
+            // 2. Fallback: Search by name if ID lookup failed (likely UUID or manual ID)
+            if (!metadata) {
+                debugLog(`[Metadata] ID not found, searching by name: "${slot.label}"`)
+                metadata = await searchGameMetadata(slot.label)
+                
+                // If found by name, update the game ID to match API for future calls
+                if (metadata && slot.game) {
+                    debugLog(`[Metadata] Match found in API: ${metadata.id}. Rewriting slot ID.`)
+                    slot.game.id = metadata.id
+                    updated = true
+                }
+            }
 
-                if (metadata) {
-                    // Update square/thumb image if missing
-                    if (!slot.squareImage && (metadata.images.square || metadata.images.cover)) {
-                        const imageUrl = metadata.images.square || metadata.images.cover || ''
-                        const localPath = await downloadGameImage(imageUrl, slot.game.id)
-                        if (localPath) {
-                            slot.squareImage = localPath
-                            updated = true
-                            debugLog(`[Metadata] Updated slot ${slot.id} with square image`)
-                        }
-
-                        // Try to get thumbnail (convention: replace .webp with -thumb.webp)
+            if (metadata) {
+                // Update images if found
+                const imageUrl = metadata.images.square || metadata.images.cover
+                if (imageUrl && !slot.squareImage) {
+                    const localPath = await downloadGameImage(imageUrl, slot.game.id)
+                    if (localPath) {
+                        slot.squareImage = localPath
+                        updated = true
+                        
+                        // Try thumb
                         const thumbUrl = imageUrl.replace('.webp', '-thumb.webp')
                         const localThumb = await downloadGameImage(thumbUrl, slot.game.id)
-                        if (localThumb) {
-                            slot.thumbImage = localThumb
-                            updated = true
-                            debugLog(`[Metadata] Updated slot ${slot.id} with thumb image`)
-                        }
+                        if (localThumb) slot.thumbImage = localThumb
                     }
+                }
 
-                    // Update background image if missing
-                    if (!slot.backgroundImage && metadata.images.background) {
-                        const bgUrl = metadata.images.background
-                        const localBg = await downloadGameImage(bgUrl, slot.game.id + '-bg')
-                        if (localBg) {
-                            slot.backgroundImage = localBg
-                            updated = true
-                            debugLog(`[Metadata] Updated slot ${slot.id} with background image`)
-                        }
+                if (metadata.images.background && !slot.backgroundImage) {
+                    const localBg = await downloadGameImage(metadata.images.background, slot.game.id + '-bg')
+                    if (localBg) {
+                        slot.backgroundImage = localBg
+                        updated = true
                     }
                 }
             }

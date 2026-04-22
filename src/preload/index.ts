@@ -130,6 +130,12 @@ const api = {
       ipcRenderer.invoke('retroarch-save-settings', settings),
     getCores: (): Promise<Array<{ filename: string; name: string }>> =>
       ipcRenderer.invoke('retroarch-get-cores')
+  },
+  
+  /** Overlay window control */
+  overlayControl: {
+    close: () => ipcRenderer.send('overlay-close'),
+    showMain: () => ipcRenderer.send('overlay-show-main')
   }
 }
 

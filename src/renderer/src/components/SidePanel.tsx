@@ -12,11 +12,12 @@ interface ConsolePanelProps {
     visible: boolean
     tabs: ConsolePanelTab[]
     activeTab: string
-    focusArea: 'nav' | 'content'
+    focusArea: 'nav' | 'content' | 'nav_close'
     onTabChange: (tabId: string) => void
     onClose: () => void
     children: React.ReactNode
     footer?: React.ReactNode
+    titleOverride?: string
 }
 
 const SidePanel: React.FC<ConsolePanelProps> = ({
@@ -27,7 +28,8 @@ const SidePanel: React.FC<ConsolePanelProps> = ({
     onTabChange,
     onClose,
     children,
-    footer
+    footer,
+    titleOverride
 }) => {
     const activeTabData = tabs.find(t => t.id === activeTab)
 
@@ -38,7 +40,7 @@ const SidePanel: React.FC<ConsolePanelProps> = ({
             <nav className="console-panel__nav">
                 <div className="console-panel__nav-header">
                     <Icon icon="mynaui:cog-four" className="console-panel__nav-logo" />
-                    <span className="console-panel__nav-title">Ajustes</span>
+                    <span className="console-panel__nav-title">{titleOverride || 'Ajustes'}</span>
                 </div>
 
                 <ul className="console-panel__nav-list">
