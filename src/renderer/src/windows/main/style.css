@@ -1381,7 +1381,7 @@ select:focus {
   font-weight: 600;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -1526,27 +1526,21 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 14px 18px;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  margin-bottom: 8px;
-}
-
-.ag-field-row--focused {
-  background: rgba(58, 134, 255, 0.06);
-  border-color: rgba(58, 134, 255, 0.3);
-  transform: scale(1.02) translateZ(0);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  z-index: 10;
+  padding: 12px 18px;
+  margin-bottom: 12px;
+  transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
   position: relative;
+  overflow: visible;
 }
 
 .ag-field-row--focused {
+  background: rgba(255, 255, 255, 0.08) !important;
   border-color: var(--accent) !important;
-  background: rgba(58, 134, 255, 0.08) !important;
-  box-shadow: 0 0 0 2px rgba(58, 134, 255, 0.25);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 25px rgba(58, 134, 255, 0.15);
+  transform: translateX(4px) translateZ(0);
 }
 
 .ag-field-icon {
@@ -1687,6 +1681,260 @@ select:focus {
   gap: 12px;
 }
 
+/* ═══════════════════════════════════════════════════════
+   ADD GAME MODAL — Import Tab
+   ═══════════════════════════════════════════════════════ */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.ag-import-tab {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  gap: 0;
+}
+
+.ag-import-search {
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+/* Console filter tags */
+.ag-import-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.ag-import-tag {
+  padding: 4px 12px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+  outline: none;
+  font-family: inherit;
+}
+
+.ag-import-tag:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.ag-import-tag--active {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 12px rgba(58, 134, 255, 0.35);
+}
+
+/* Results grid wrapper */
+.ag-import-grid-wrap {
+  flex: 1;
+  /* Extend outward so padding of cards at edges doesn't get clipped */
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+
+/* Results grid */
+.ag-import-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  align-content: start;
+  /* Padding so box-shadow on edge cards isn't clipped */
+  padding: 8px 4px 16px 4px;
+}
+
+/* Card */
+.ag-import-card {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+  position: relative;
+  outline: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.ag-import-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.4);
+}
+
+.ag-import-card--focused {
+  border-color: var(--accent) !important;
+  background: rgba(58, 134, 255, 0.14) !important;
+  box-shadow: 
+    0 0 0 2px var(--accent), 
+    0 12px 32px rgba(0, 0, 0, 0.6),
+    0 0 20px rgba(58, 134, 255, 0.2) !important;
+  transform: translateY(-6px) scale(1.03) translateZ(0);
+  z-index: 5;
+}
+
+/* Cover area — matches 600x900 ratio */
+.ag-import-card__cover {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.ag-import-card__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ag-import-card__badges {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.ag-import-card__badge {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.ag-import-card--focused .ag-import-card__badge {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 0 15px rgba(58, 134, 255, 0.4);
+}
+
+/* No-cover placeholder */
+.ag-import-card__no-cover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(30,40,60,0.9) 0%, rgba(15,20,35,0.9) 100%);
+  gap: 4px;
+}
+
+.ag-import-card__no-cover--hidden {
+  display: none;
+}
+
+.ag-import-card__no-cover-q {
+  font-size: 48px;
+  font-weight: 900;
+  color: rgba(255,255,255,0.15);
+  line-height: 1;
+  font-style: italic;
+}
+
+.ag-import-card__no-cover-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Info area */
+.ag-import-card__info {
+  padding: 8px 9px 9px;
+  flex: 1;
+}
+
+.ag-import-card__name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.ag-import-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.ag-import-card__meta > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ag-import-card__year {
+  flex-shrink: 0;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Empty / loading state */
+.ag-import-empty {
+  grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  color: var(--text-muted);
+  gap: 12px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.ag-import-empty-icon {
+  font-size: 36px;
+  opacity: 0.3;
+}
+
 .ag-api-card {
   display: flex;
   flex-direction: column;
@@ -1792,6 +2040,11 @@ select:focus {
   border-color: rgba(58, 134, 255, 0.4);
 }
 
+.ag-field-row--menu-open {
+  z-index: 1000 !important;
+  position: relative;
+}
+
 .ag-field-row--menu-open .ag-custom-select__value {
   background: rgba(58, 134, 255, 0.1);
   border-color: var(--accent) !important;
@@ -1813,23 +2066,30 @@ select:focus {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  max-height: 250px;
+  overflow-y: auto;
 }
 
 .ag-custom-select__option {
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
   border-radius: 8px;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  transition: all 0.15s ease;
+  margin: 2px 0;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
 }
 
+.ag-custom-select__option:hover,
 .ag-custom-select__option.active {
   background: rgba(58, 134, 255, 0.15);
   color: var(--text-primary);
-  font-weight: 600;
+  border-color: rgba(58, 134, 255, 0.2);
+  transform: scale(1.02);
 }
 
 .ag-custom-select__option.active svg {

@@ -27,11 +27,12 @@ const EMPTY_FORM: AddGameForm = {
     coverImage: '', verticalImage: '', horizontalImage: '', iconImage: '' 
 }
 
-type Tab = 'general' | 'media'
+type Tab = 'import' | 'general' | 'media'
 type FocusArea = 'nav' | 'nav_save' | 'nav_close' | 'content'
 type MediaTarget = 'squareImage' | 'backgroundImage' | 'logoImage' | 'coverImage' | 'verticalImage' | 'horizontalImage' | 'iconImage'
 
 const TABS: ConsolePanelTab[] = [
+    { id: 'import', label: 'Importar', icon: 'mynaui:cloud-download', description: 'Buscar juegos en la nube' },
     { id: 'general', label: 'General', icon: 'mynaui:controller', description: 'Nombre, ruta y emulador' },
     { id: 'media', label: 'Multimedia', icon: 'mynaui:image', description: 'Carátulas y recursos visuales' },
 ]
@@ -61,6 +62,24 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     const [isEmuMenuOpen, setIsEmuMenuOpen] = useState(false)
     const [emuMenuHoverIndex, setEmuMenuHoverIndex] = useState(0)
 
+    const [importQuery, setImportQuery] = useState('')
+    const [importResults, setImportResults] = useState<any[]>([])
+    const [importLoading, setImportLoading] = useState(false)
+    const [apiConsoles, setApiConsoles] = useState<any[]>([])
+    const [apiYears, setApiYears] = useState<string[]>([])
+    const [importConsole, setImportConsole] = useState('')
+    const [importYear, setImportYear] = useState('')
+    const [importSort, setImportSort] = useState('name-asc')
+    
+    const [isConsoleMenuOpen, setIsConsoleMenuOpen] = useState(false)
+    const [consoleMenuHoverIndex, setConsoleMenuHoverIndex] = useState(0)
+    const [isYearMenuOpen, setIsYearMenuOpen] = useState(false)
+    const [yearMenuHoverIndex, setYearMenuHoverIndex] = useState(0)
+    const [isSortMenuOpen, setIsSortMenuOpen] = useState(false)
+    const [sortMenuHoverIndex, setSortMenuHoverIndex] = useState(0)
+
+    const isAMenuOpen = isTargetMenuOpen || isEmuMenuOpen || isConsoleMenuOpen || isYearMenuOpen || isSortMenuOpen
+
     const [form, setForm] = useState<AddGameForm>(EMPTY_FORM)
     const [initialForm, setInitialForm] = useState<AddGameForm>(EMPTY_FORM)
     
@@ -78,7 +97,10 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         tab, focusArea, contentIndex, contentSubIndex, visible, form, emulators, 
         apiImages, isSaving, editSlot, mediaTarget, isTargetMenuOpen, 
         menuHoverIndex, isInputEditing, isEmuMenuOpen, emuMenuHoverIndex,
-        hasAnyChanges: false
+        hasAnyChanges: false, importResults,
+        apiConsoles, importConsole, isConsoleMenuOpen, consoleMenuHoverIndex,
+        apiYears, importYear, importSort, isYearMenuOpen, yearMenuHoverIndex,
+        isSortMenuOpen, sortMenuHoverIndex
     })
     
     // Check for unsaved changes per section
@@ -108,23 +130,65 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
             tab, focusArea, contentIndex, contentSubIndex, visible, form, emulators, 
             apiImages, isSaving, editSlot, mediaTarget, isTargetMenuOpen, 
             menuHoverIndex, isInputEditing, isEmuMenuOpen, emuMenuHoverIndex,
-            hasAnyChanges
+            hasAnyChanges, importResults, apiConsoles, importConsole,
+            isConsoleMenuOpen, consoleMenuHoverIndex,
+            apiYears, importYear, importSort, isYearMenuOpen, yearMenuHoverIndex,
+            isSortMenuOpen, sortMenuHoverIndex
         }
     })
+
+    // ── Fetch Consoles ──
+    useEffect(() => {
+        if (!visible) return
+        fetch('http://localhost:3000/api/consoles?hasGames=true')
+            .then(res => res.json())
+            .then(setApiConsoles)
+            .catch(() => {})
+
+        fetch('http://localhost:3000/api/games/years')
+            .then(res => res.json())
+            .then(setApiYears)
+            .catch(() => {})
+    }, [visible])
+
+    const getGameConsoles = (res: any) => {
+        const ids = new Set<string>()
+        const primary = typeof res.console === 'string' ? res.console : res.console?.id
+        if (primary) ids.add(primary)
+        
+        if (Array.isArray(res.platforms)) {
+            res.platforms.forEach((p: any) => {
+                const pid = typeof p.console === 'string' ? p.console : p.console?.id
+                if (pid) ids.add(pid)
+            })
+        }
+
+        return Array.from(ids)
+            .map(id => {
+                const found = apiConsoles.find(c => c.id === id)
+                return found ? found.name : id.toUpperCase()
+            })
+            .sort((a, b) => a.localeCompare(b))
+    }
 
     // ── Reset state on open ──
     useEffect(() => {
         if (!visible) return
         window.api.emulators.getAll().then(setEmulators)
-        setTab('general')
+        setTab(editSlot ? 'general' : 'import')
         setFocusArea('nav')
         setContentIndex(0)
         setContentSubIndex(0)
         setApiImages([])
+        setImportQuery('')
+        setImportConsole('')
+        setImportResults([])
         setError(null)
         setIsInputEditing(false)
         setIsEmuMenuOpen(false)
         setEmuMenuHoverIndex(0)
+        setIsConsoleMenuOpen(false)
+        setConsoleMenuHoverIndex(0)
 
         if (editSlot) {
             const data = {
@@ -168,9 +232,58 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
             .catch(() => setApiImages([]))
     }, [tab, form.name])
 
+    // ── Fetch Import Results ──
+    useEffect(() => {
+        if (tab !== 'import') return
+        const timer = setTimeout(() => {
+            const q = importQuery.trim() ? encodeURIComponent(importQuery.trim()) : ''
+            setImportLoading(true)
+            fetch(`http://localhost:3000/api/games/search${q ? `?q=${q}` : ''}`)
+                .then(res => res.json())
+                .then(data => {
+                    let results = data.results || []
+                    
+                    if (importConsole) {
+                        results = results.filter((r: any) => {
+                            const target = importConsole.toLowerCase();
+                            const primaryId = (typeof r.console === 'string' ? r.console : r.console?.id)?.toLowerCase();
+                            const matchesPrimary = primaryId === target;
+                            const matchesPlatform = r.platforms?.some((p: any) => {
+                                const pId = (typeof p.console === 'string' ? p.console : p.console?.id)?.toLowerCase();
+                                return pId === target;
+                            });
+                            return matchesPrimary || matchesPlatform;
+                        })
+                    }
+
+                    if (importYear) {
+                        results = results.filter((r: any) => {
+                            if (!r.releaseDate) return false;
+                            return new Date(r.releaseDate).getFullYear().toString() === importYear;
+                        })
+                    }
+
+                    if (importSort === 'name-asc') {
+                        results.sort((a, b) => a.name.localeCompare(b.name))
+                    } else if (importSort === 'name-desc') {
+                        results.sort((a, b) => b.name.localeCompare(a.name))
+                    } else if (importSort === 'newest') {
+                        results.sort((a, b) => new Date(b.releaseDate || 0).getTime() - new Date(a.releaseDate || 0).getTime())
+                    } else if (importSort === 'oldest') {
+                        results.sort((a, b) => new Date(a.releaseDate || 0).getTime() - new Date(b.releaseDate || 0).getTime())
+                    }
+                    
+                    setImportResults(results)
+                })
+                .catch(() => setImportResults([]))
+                .finally(() => setImportLoading(false))
+        }, 300)
+        return () => clearTimeout(timer)
+    }, [tab, importQuery, importConsole, importYear, importSort])
+
     // ── Input Focus Sync (Native & Gamepad) ──
     const blurAllInputs = useCallback(() => {
-        const ids = ['ag-name', 'ag-searchid', 'ag-path', 'ag-emu', 'ag-process']
+        const ids = ['ag-name', 'ag-searchid', 'ag-path', 'ag-emu', 'ag-process', 'ag-import-query', 'ag-import-console']
         ids.forEach(id => {
             const el = document.getElementById(id)
             if (el) el.blur()
@@ -178,11 +291,16 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     }, [])
 
     const focusCurrentInput = useCallback(() => {
-        const ids = ['ag-name', 'ag-searchid', 'ag-path', 'ag-emu', 'ag-process']
-        const id = ids[contentIndex]
-        const el = document.getElementById(id)
-        if (el) el.focus()
-    }, [contentIndex])
+        if (tab === 'general') {
+            const ids = ['ag-name', 'ag-searchid', 'ag-path', 'ag-emu', 'ag-process']
+            const el = document.getElementById(ids[contentIndex])
+            if (el) el.focus()
+        } else if (tab === 'import') {
+            const ids = ['ag-import-query']
+            const el = document.getElementById(ids[contentIndex])
+            if (el) el.focus()
+        }
+    }, [contentIndex, tab])
 
     useEffect(() => {
         if (!visible) return
@@ -193,9 +311,9 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         }
     }, [isInputEditing, visible, focusCurrentInput, blurAllInputs])
 
-    // Safety: Blur if we leave the content area or general tab
+    // Safety: Blur if we leave the content area or a content tab
     useEffect(() => {
-        if (focusArea !== 'content' || tab !== 'general') {
+        if (focusArea !== 'content' || (tab !== 'general' && tab !== 'import')) {
             setIsInputEditing(false)
             blurAllInputs()
         }
@@ -209,11 +327,13 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
             if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) && target.id.startsWith('ag-')) {
                 setIsInputEditing(true)
                 setFocusArea('content')
-                if (target.id === 'ag-name') setContentIndex(0)
-                if (target.id === 'ag-searchid') setContentIndex(1)
-                if (target.id === 'ag-path') setContentIndex(2)
-                if (target.id === 'ag-emu') setContentIndex(3)
-                if (target.id === 'ag-process') setContentIndex(4)
+                if (target.id === 'ag-name') { setContentIndex(0) }
+                if (target.id === 'ag-searchid') { setContentIndex(1) }
+                if (target.id === 'ag-path') { setContentIndex(2) }
+                if (target.id === 'ag-emu') { setContentIndex(3) }
+                if (target.id === 'ag-process') { setContentIndex(4) }
+                if (target.id === 'ag-import-query') { setContentIndex(0) }
+                if (target.id === 'ag-import-console') { setContentIndex(1) }
             }
         }
         const handleFocusOut = (e: FocusEvent) => {
@@ -272,27 +392,104 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         sfx.confirm()
     }, [])
 
+    // ── Handle Import Game ──
+    const handleImportGame = useCallback((res: any) => {
+        setForm(p => ({
+            ...p,
+            name: res.name || '',
+            searchId: res.id || ''
+        }))
+        setTab('general')
+        setFocusArea('content')
+        setContentIndex(2) // saltar directo a "Ruta"
+        sfx.confirm()
+    }, [])
+
     // ── Auto-scroll into view ──
     useEffect(() => {
-        if (isTargetMenuOpen) return;
+        if (isTargetMenuOpen || isEmuMenuOpen || isConsoleMenuOpen) return;
 
         const bodyEl = document.querySelector('.console-panel__content-body')
 
         if (focusArea === 'content' && bodyEl) {
-            if ((contentIndex === 0 || contentIndex === 1) && bodyEl) {
-                bodyEl.scrollTo({ top: 0, behavior: 'smooth' })
-            } else {
-                const id = tab === 'general' 
-                    ? (contentIndex === 0 ? 'ag-name' : contentIndex === 1 ? 'ag-searchid' : contentIndex === 2 ? 'ag-path' : contentIndex === 3 ? 'ag-emu' : 'ag-process')
-                    : (contentIndex === 0 ? 'ag-media-target' : contentIndex === 1 ? 'ag-artwork-btn' : contentIndex === 2 ? 'ag-remove-btn' : `ag-api-btn-${contentIndex - 3}`)
-                
-                const el = document.getElementById(id)
-                if (el) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+            if (tab === 'import') {
+                if (contentIndex <= 3) {
+                    bodyEl.scrollTo({ top: 0, behavior: 'smooth' })
+                } else {
+                    const cardEl = document.getElementById(`ag-import-card-${contentIndex - 4}`)
+                    if (cardEl) cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
                 }
+            } else if (tab === 'general') {
+                if (contentIndex <= 1) {
+                    bodyEl.scrollTo({ top: 0, behavior: 'smooth' })
+                } else {
+                    const id = contentIndex === 2 ? 'ag-path' : contentIndex === 3 ? 'ag-emu' : 'ag-process'
+                    const el = document.getElementById(id)
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }
+            } else if (tab === 'media') {
+                const id = contentIndex === 0 ? 'ag-media-target' : contentIndex === 1 ? 'ag-artwork-btn' : contentIndex === 2 ? 'ag-remove-btn' : `ag-api-btn-${contentIndex - 3}`
+                const el = document.getElementById(id)
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
             }
         }
-    }, [contentIndex, focusArea, tab, isTargetMenuOpen])
+    }, [contentIndex, focusArea, tab, isTargetMenuOpen, isEmuMenuOpen, isConsoleMenuOpen])
+
+    // ── Auto-scroll internal dropdowns ──
+    useEffect(() => {
+        if (isConsoleMenuOpen) {
+            const el = document.getElementById(`ag-console-opt-${consoleMenuHoverIndex}`)
+            const parent = el?.parentElement
+            if (el && parent) {
+                const targetScroll = el.offsetTop - (parent.offsetHeight / 2) + (el.offsetHeight / 2)
+                parent.scrollTo({ top: targetScroll, behavior: 'smooth' })
+            }
+        }
+    }, [consoleMenuHoverIndex, isConsoleMenuOpen])
+
+    useEffect(() => {
+        if (isEmuMenuOpen) {
+            const el = document.getElementById(`ag-emu-opt-${emuMenuHoverIndex}`)
+            const parent = el?.parentElement
+            if (el && parent) {
+                const targetScroll = el.offsetTop - (parent.offsetHeight / 2) + (el.offsetHeight / 2)
+                parent.scrollTo({ top: targetScroll, behavior: 'smooth' })
+            }
+        }
+    }, [emuMenuHoverIndex, isEmuMenuOpen])
+
+    useEffect(() => {
+        if (isTargetMenuOpen) {
+            const el = document.getElementById(`ag-target-opt-${menuHoverIndex}`)
+            const parent = el?.parentElement
+            if (el && parent) {
+                const targetScroll = el.offsetTop - (parent.offsetHeight / 2) + (el.offsetHeight / 2)
+                parent.scrollTo({ top: targetScroll, behavior: 'smooth' })
+            }
+        }
+    }, [menuHoverIndex, isTargetMenuOpen])
+
+    useEffect(() => {
+        if (isYearMenuOpen) {
+            const el = document.getElementById(`ag-year-opt-${yearMenuHoverIndex}`)
+            const parent = el?.parentElement
+            if (el && parent) {
+                const targetScroll = el.offsetTop - (parent.offsetHeight / 2) + (el.offsetHeight / 2)
+                parent.scrollTo({ top: targetScroll, behavior: 'smooth' })
+            }
+        }
+    }, [yearMenuHoverIndex, isYearMenuOpen])
+
+    useEffect(() => {
+        if (isSortMenuOpen) {
+            const el = document.getElementById(`ag-sort-opt-${sortMenuHoverIndex}`)
+            const parent = el?.parentElement
+            if (el && parent) {
+                const targetScroll = el.offsetTop - (parent.offsetHeight / 2) + (el.offsetHeight / 2)
+                parent.scrollTo({ top: targetScroll, behavior: 'smooth' })
+            }
+        }
+    }, [sortMenuHoverIndex, isSortMenuOpen])
 
     const forceClose = useCallback(() => {
         sfx.cancel()
@@ -321,19 +518,34 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
 
     // --- Media targets list ---
     const MEDIA_OPTIONS: { id: MediaTarget; label: string }[] = [
-        { id: 'squareImage', label: 'Icono Grid (Square)' },
-        { id: 'logoImage', label: 'Logotipo (Logo)' },
-        { id: 'backgroundImage', label: 'Fondo (Background)' },
-        { id: 'iconImage', label: 'Icono (Icon)' },
-        { id: 'horizontalImage', label: 'Horizontal' },
-        { id: 'verticalImage', label: 'Vertical' },
         { id: 'coverImage', label: 'Carátula (Cover)' },
+        { id: 'verticalImage', label: 'Cuadrícula Vertical' },
+        { id: 'horizontalImage', label: 'Cuadrícula Horizontal' },
+        { id: 'squareImage', label: 'Imagen Cuadrada' },
+        { id: 'backgroundImage', label: 'Fondo de Pantalla' },
+        { id: 'logoImage', label: 'Logotipo' },
+        { id: 'iconImage', label: 'Icono (Pequeño)' }
     ]
+
+    const SORT_OPTIONS = [
+        { id: 'name-asc', name: 'Alfabético (A-Z)' },
+        { id: 'name-desc', name: 'Alfabético (Z-A)' },
+        { id: 'newest', name: 'Más nuevos' },
+        { id: 'oldest', name: 'Más antiguos' }
+    ]
+
 
     // ── Keyboard navigation ──
     useEffect(() => {
         const handler = (e: Event) => {
-            const { visible: vis, tab: ct, focusArea: area, contentIndex: cIdx, isSaving: saving, isTargetMenuOpen: menuOpen, isEmuMenuOpen } = r.current
+            const vis = r.current.visible
+            const ct = r.current.tab
+            const area = r.current.focusArea
+            const cIdx = r.current.contentIndex
+            const saving = r.current.isSaving
+            const menuOpen = r.current.isTargetMenuOpen
+            const isEmuMenuOpen = r.current.isEmuMenuOpen
+
             if (!vis || saving) return
 
             const action = (e as CustomEvent<string>).detail
@@ -371,7 +583,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 } else if (action === 'down') {
                     if (currentHover < MEDIA_OPTIONS.length - 1) { sfx.navigate(); setMenuHoverIndex(currentHover + 1) }
                 } else if (action === 'select') {
-                    sfx.confirm(); setMediaTarget(MEDIA_OPTIONS[currentHover].id); setIsTargetMenuOpen(false)
+                    sfx.confirm(); setMediaTarget(MEDIA_OPTIONS[currentHover].id as MediaTarget); setIsTargetMenuOpen(false)
                 } else if (action === 'back') {
                     sfx.cancel(); setIsTargetMenuOpen(false)
                 }
@@ -420,8 +632,105 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
 
             // --- FOCUS AREA: CONTENT (MAIN FORM/GRID) ---
             if (area === 'content') {
+                // Tab 0: Import (Search, Console dropdown, Grid)
+                if (ct === 'import') {
+                    const cols = 4
+                    const resultsStartAt = 4  // 0=search, 1=console, 2=year, 3=sort, 4+=grid
+
+                    // --- Menus Open Logic ---
+                    if (r.current.isConsoleMenuOpen) {
+                        const consoleOptions = [{ id: '', name: 'Todas' }, ...r.current.apiConsoles]
+                        if (action === 'up') { sfx.navigate(); setConsoleMenuHoverIndex(p => Math.max(0, p - 1)) }
+                        else if (action === 'down') { sfx.navigate(); setConsoleMenuHoverIndex(p => Math.min(consoleOptions.length - 1, p + 1)) }
+                        else if (action === 'select') {
+                            sfx.confirm(); setImportConsole(consoleOptions[r.current.consoleMenuHoverIndex]?.id ?? ''); setIsConsoleMenuOpen(false)
+                        } else if (action === 'back') { sfx.navigate(); setIsConsoleMenuOpen(false) }
+                        return
+                    }
+
+                    if (r.current.isYearMenuOpen) {
+                        const yearOptions = [{ id: '', name: 'Cualquier año' }, ...r.current.apiYears.map(y => ({ id: y, name: y }))]
+                        if (action === 'up') { sfx.navigate(); setYearMenuHoverIndex(p => Math.max(0, p - 1)) }
+                        else if (action === 'down') { sfx.navigate(); setYearMenuHoverIndex(p => Math.min(yearOptions.length - 1, p + 1)) }
+                        else if (action === 'select') {
+                            sfx.confirm(); setImportYear(yearOptions[r.current.yearMenuHoverIndex]?.id ?? ''); setIsYearMenuOpen(false)
+                        } else if (action === 'back') { sfx.navigate(); setIsYearMenuOpen(false) }
+                        return
+                    }
+
+                    if (r.current.isSortMenuOpen) {
+                        if (action === 'up') { sfx.navigate(); setSortMenuHoverIndex(p => Math.max(0, p - 1)) }
+                        else if (action === 'down') { sfx.navigate(); setSortMenuHoverIndex(p => Math.min(SORT_OPTIONS.length - 1, p + 1)) }
+                        else if (action === 'select') {
+                            sfx.confirm(); setImportSort(SORT_OPTIONS[r.current.sortMenuHoverIndex].id); setIsSortMenuOpen(false)
+                        } else if (action === 'back') { sfx.navigate(); setIsSortMenuOpen(false) }
+                        return
+                    }
+
+                    if (action === 'up') {
+                        if (cIdx >= resultsStartAt + cols) {
+                            sfx.navigate(); setContentIndex(cIdx - cols)
+                        } else if (cIdx >= resultsStartAt) {
+                            // Up from grid goes back to the filter row
+                            sfx.navigate(); setContentIndex(1)
+                        } else if (cIdx >= 1) {
+                            // Up from filters goes back to search
+                            sfx.navigate(); setContentIndex(0)
+                        }
+                    } else if (action === 'down') {
+                        if (cIdx === 0) {
+                            // Down from search goes to console selector
+                            sfx.navigate(); setContentIndex(1)
+                        } else if (cIdx >= 1 && cIdx < resultsStartAt) {
+                            // Down from any filter goes to first grid item
+                            if (r.current.importResults.length > 0) {
+                                sfx.navigate(); setContentIndex(resultsStartAt)
+                            }
+                        } else {
+                            const maxItems = resultsStartAt + r.current.importResults.length
+                            const row = Math.floor((cIdx - resultsStartAt) / cols)
+                            const totalRows = Math.ceil(r.current.importResults.length / cols)
+                            if (row < totalRows - 1) {
+                                sfx.navigate(); setContentIndex(Math.min(cIdx + cols, maxItems - 1))
+                            }
+                        }
+                    } else if (action === 'left') {
+                        if (cIdx >= 2 && cIdx < resultsStartAt) {
+                            sfx.navigate(); setContentIndex(cIdx - 1)
+                        } else if (cIdx >= resultsStartAt) {
+                            const mod = (cIdx - resultsStartAt) % cols
+                            if (mod > 0) { sfx.navigate(); setContentIndex(cIdx - 1) }
+                            else { sfx.navigate(); setFocusArea('nav') }
+                        } else {
+                            sfx.navigate(); setFocusArea('nav')
+                        }
+                    } else if (action === 'right') {
+                        if (cIdx >= 1 && cIdx < resultsStartAt - 1) {
+                            sfx.navigate(); setContentIndex(cIdx + 1)
+                        } else if (cIdx >= resultsStartAt) {
+                            const mod = (cIdx - resultsStartAt) % cols
+                            if (mod < cols - 1 && cIdx < resultsStartAt + r.current.importResults.length - 1) {
+                                sfx.navigate(); setContentIndex(cIdx + 1)
+                            }
+                        }
+                    } else if (action === 'select') {
+                        if (cIdx === 0) {
+                            sfx.confirm(); setIsInputEditing(true)
+                        } else if (cIdx === 1) {
+                            sfx.navigate(); setIsConsoleMenuOpen(true)
+                        } else if (cIdx === 2) {
+                            sfx.navigate(); setIsYearMenuOpen(true)
+                        } else if (cIdx === 3) {
+                            sfx.navigate(); setIsSortMenuOpen(true)
+                        } else {
+                            handleImportGame(r.current.importResults[cIdx - resultsStartAt])
+                        }
+                    } else if (action === 'back') {
+                        sfx.navigate(); setFocusArea('nav')
+                    }
+                }
                 // Tab 1: General Info (Linear List)
-                if (ct === 'general') {
+                else if (ct === 'general') {
                     const maxItems = 5
                     if (action === 'up') {
                         if (cIdx > 0) { sfx.navigate(); setContentIndex(p => p - 1); setContentSubIndex(0) }
@@ -555,7 +864,10 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     }, [])
 
     const handleSave = async () => {
-        const { form: f, emulators: emus, editSlot: slot } = r.current
+        const f = r.current.form
+        const emus = r.current.emulators
+        const slot = r.current.editSlot
+
         setError(null)
         if (!f.name.trim()) { sfx.error(); setError('Falta asignar un nombre.'); return }
         if (!f.path.trim()) { sfx.error(); setError('Falta elegir la ruta.'); return }
@@ -641,6 +953,252 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
             titleOverride={isEditing ? 'Editar Juego' : 'Añadir Juego'}
         >
             {error && <div className="cp-form__error" style={{ marginBottom: 16 }}><Icon icon="mynaui:info-circle" /> {error}</div>}
+
+            {/* ── IMPORT TAB ── */}
+            {tab === 'import' && (
+                <div className="cp-form ag-import-tab">
+                    {/* Search bar */}
+                    <div style={{ transition: 'all 0.3s' }}>
+                        <div
+                            className={`ag-field-row ag-import-search ${isFocused('content', 0) ? 'ag-field-row--focused' : ''} ${isInputEditing && isFocused('content', 0) ? 'ag-field-row--editing' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(0); setIsInputEditing(true) }}
+                        >
+                            <Icon icon="mynaui:search" className="ag-field-icon" />
+                            <div className="ag-field-body">
+                                <div className="ag-field-label">Buscar Juego</div>
+                                <input
+                                    id="ag-import-query"
+                                    className={`ag-field-input ${isInputEditing && isFocused('content', 0) ? 'ag-field-input--editing' : ''}`}
+                                    value={importQuery}
+                                    onChange={e => setImportQuery(e.target.value)}
+                                    placeholder="Nombre del juego..."
+                                    disabled={isSaving}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Console filter dropdown */}
+                    {apiConsoles.length > 0 && (
+                        <div style={{ display: 'flex', gap: '12px', marginBottom: 20 }}>
+                        {/* Console dropdown */}
+                        {(() => {
+                            const consoleOptions = [{ id: '', name: 'Todas las consolas' }, ...apiConsoles]
+                            const activeLabel = consoleOptions.find(o => o.id === importConsole)?.name || 'Todas'
+                            return (
+                                <div
+                                    className={`ag-field-row ${isFocused('content', 1) && !isConsoleMenuOpen ? 'ag-field-row--focused' : ''} ${isConsoleMenuOpen ? 'ag-field-row--menu-open' : ''}`}
+                                    style={{ flex: 1.5, marginBottom: 0 }}
+                                    onClick={() => {
+                                        setFocusArea('content'); setContentIndex(1)
+                                        if (!isConsoleMenuOpen) {
+                                            const idx = consoleOptions.findIndex(c => c.id === importConsole)
+                                            setConsoleMenuHoverIndex(idx >= 0 ? idx : 0)
+                                        }
+                                        setIsConsoleMenuOpen(v => !v)
+                                    }}
+                                >
+                                    <Icon icon="mynaui:monitor" className="ag-field-icon" style={{ fontSize: 18 }} />
+                                    <div className="ag-field-body">
+                                        <div className="ag-field-label">Consola</div>
+                                        <div className="ag-custom-select" style={{ width: '100%' }}>
+                                            <div className="ag-custom-select__value">
+                                                {activeLabel}
+                                                <Icon icon={isConsoleMenuOpen ? 'mynaui:chevron-up' : 'mynaui:chevron-down'} />
+                                            </div>
+                                            {isConsoleMenuOpen && (
+                                                <div className="ag-custom-select__dropdown" style={{ zIndex: 100 }}>
+                                                    {consoleOptions.map((opt, i) => (
+                                                        <div
+                                                            key={opt.id}
+                                                            id={`ag-console-opt-${i}`}
+                                                            className={`ag-custom-select__option ${consoleMenuHoverIndex === i ? 'active' : ''}`}
+                                                            onMouseEnter={() => setConsoleMenuHoverIndex(i)}
+                                                            onClick={e => {
+                                                                e.stopPropagation(); setImportConsole(opt.id); setIsConsoleMenuOpen(false); sfx.confirm()
+                                                            }}
+                                                        >
+                                                            {opt.name}
+                                                            {consoleMenuHoverIndex === i && <Icon icon="mynaui:check" />}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })()}
+
+                        {/* Year dropdown */}
+                        {(() => {
+                            const yearOptions = [{ id: '', name: 'Cualquier año' }, ...apiYears.map(y => ({ id: y, name: y }))]
+                            const activeLabel = yearOptions.find(o => o.id === importYear)?.name || 'Cualquiera'
+                            return (
+                                <div
+                                    className={`ag-field-row ${isFocused('content', 2) && !isYearMenuOpen ? 'ag-field-row--focused' : ''} ${isYearMenuOpen ? 'ag-field-row--menu-open' : ''}`}
+                                    style={{ flex: 1, marginBottom: 0 }}
+                                    onClick={() => {
+                                        setFocusArea('content'); setContentIndex(2)
+                                        if (!isYearMenuOpen) {
+                                            const idx = yearOptions.findIndex(y => y.id === importYear)
+                                            setYearMenuHoverIndex(idx >= 0 ? idx : 0)
+                                        }
+                                        setIsYearMenuOpen(v => !v)
+                                    }}
+                                >
+                                    <Icon icon="mynaui:calendar" className="ag-field-icon" style={{ fontSize: 18 }} />
+                                    <div className="ag-field-body">
+                                        <div className="ag-field-label">Año</div>
+                                        <div className="ag-custom-select" style={{ width: '100%' }}>
+                                            <div className="ag-custom-select__value">
+                                                {activeLabel}
+                                                <Icon icon={isYearMenuOpen ? 'mynaui:chevron-up' : 'mynaui:chevron-down'} />
+                                            </div>
+                                            {isYearMenuOpen && (
+                                                <div className="ag-custom-select__dropdown" style={{ zIndex: 100 }}>
+                                                    {yearOptions.map((opt, i) => (
+                                                        <div
+                                                            key={opt.id}
+                                                            id={`ag-year-opt-${i}`}
+                                                            className={`ag-custom-select__option ${yearMenuHoverIndex === i ? 'active' : ''}`}
+                                                            onMouseEnter={() => setYearMenuHoverIndex(i)}
+                                                            onClick={e => {
+                                                                e.stopPropagation(); setImportYear(opt.id); setIsYearMenuOpen(false); sfx.confirm()
+                                                            }}
+                                                        >
+                                                            {opt.name}
+                                                            {yearMenuHoverIndex === i && <Icon icon="mynaui:check" />}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })()}
+
+                        {/* Sort dropdown */}
+                        {(() => {
+                            const activeLabel = SORT_OPTIONS.find(o => o.id === importSort)?.name || 'Orden'
+                            return (
+                                <div
+                                    className={`ag-field-row ${isFocused('content', 3) && !isSortMenuOpen ? 'ag-field-row--focused' : ''} ${isSortMenuOpen ? 'ag-field-row--menu-open' : ''}`}
+                                    style={{ flex: 1.2, marginBottom: 0 }}
+                                    onClick={() => {
+                                        setFocusArea('content'); setContentIndex(3)
+                                        if (!isSortMenuOpen) {
+                                            const idx = SORT_OPTIONS.findIndex(s => s.id === importSort)
+                                            setSortMenuHoverIndex(idx >= 0 ? idx : 0)
+                                        }
+                                        setIsSortMenuOpen(v => !v)
+                                    }}
+                                >
+                                    <Icon icon="mynaui:sort-one" className="ag-field-icon" style={{ fontSize: 18 }} />
+                                    <div className="ag-field-body">
+                                        <div className="ag-field-label">Orden</div>
+                                        <div className="ag-custom-select" style={{ width: '100%' }}>
+                                            <div className="ag-custom-select__value">
+                                                {activeLabel}
+                                                <Icon icon={isSortMenuOpen ? 'mynaui:chevron-up' : 'mynaui:chevron-down'} />
+                                            </div>
+                                            {isSortMenuOpen && (
+                                                <div className="ag-custom-select__dropdown" style={{ zIndex: 100 }}>
+                                                    {SORT_OPTIONS.map((opt, i) => (
+                                                        <div
+                                                            key={opt.id}
+                                                            id={`ag-sort-opt-${i}`}
+                                                            className={`ag-custom-select__option ${sortMenuHoverIndex === i ? 'active' : ''}`}
+                                                            onMouseEnter={() => setSortMenuHoverIndex(i)}
+                                                            onClick={e => {
+                                                                e.stopPropagation(); setImportSort(opt.id); setIsSortMenuOpen(false); sfx.confirm()
+                                                            }}
+                                                        >
+                                                            {opt.name}
+                                                            {sortMenuHoverIndex === i && <Icon icon="mynaui:check" />}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })()}
+                    </div>
+                    )}
+
+                    {/* Results Grid */}
+                    <div className={`ag-import-grid-wrap ${isAMenuOpen ? 'ag-media-content--dimmed' : ''}`} style={{ transition: 'all 0.3s' }}>
+                        <div className="ag-import-grid" id="ag-import-grid">
+                        {importLoading ? (
+                            <div className="ag-import-empty">
+                                <Icon icon="mynaui:spinner" className="ag-import-empty-icon" style={{ animation: 'spin 1s linear infinite' }} />
+                                <span>Buscando...</span>
+                            </div>
+                        ) : importResults.length > 0 ? (
+                            importResults.map((res: any, i: number) => (
+                                <div
+                                    key={res.id}
+                                    id={`ag-import-card-${i}`}
+                                    className={`ag-import-card ${isFocused('content', i + 4) ? 'ag-import-card--focused' : ''}`}
+                                    onClick={() => {
+                                        setFocusArea('content')
+                                        setContentIndex(i + 4)
+                                        handleImportGame(res)
+                                    }}
+                                >
+                                    <div className="ag-import-card__cover">
+                                        <div className="ag-import-card__badges">
+                                            {getGameConsoles(res).map(name => (
+                                                <div key={name} className="ag-import-card__badge">
+                                                    {name}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {res.images?.cover ? (
+                                            <img
+                                                src={`http://localhost:3000${res.images.cover}`}
+                                                alt={res.name}
+                                                onError={e => {
+                                                    const t = e.target as HTMLImageElement
+                                                    t.style.display = 'none'
+                                                    t.nextElementSibling?.classList.remove('ag-import-card__no-cover--hidden')
+                                                }}
+                                            />
+                                        ) : null}
+                                        <div className={`ag-import-card__no-cover ${res.images?.cover ? 'ag-import-card__no-cover--hidden' : ''}`}>
+                                            <span className="ag-import-card__no-cover-q">?</span>
+                                            <span className="ag-import-card__no-cover-label">Sin portada</span>
+                                        </div>
+                                    </div>
+                                    <div className="ag-import-card__info">
+                                        <div className="ag-import-card__name" title={res.name}>{res.name}</div>
+                                        <div className="ag-import-card__meta">
+                                            {res.releaseDate && (
+                                                <span className="ag-import-card__year">
+                                                    {new Date(res.releaseDate).getFullYear()}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="ag-import-empty">
+                                <Icon icon="mynaui:cloud-search" className="ag-import-empty-icon" />
+                                <span>
+                                    {importQuery
+                                        ? `Sin resultados para «${importQuery}»`
+                                        : 'Escribe para buscar juegos en la API'}
+                                </span>
+                            </div>
+                        )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── GENERAL TAB ── */}
             {tab === 'general' && (
@@ -775,6 +1333,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                         {[{ id: '', name: 'Nativo' }, ...emulators].map((opt, i) => (
                                             <div 
                                                 key={opt.id} 
+                                                id={`ag-emu-opt-${i}`}
                                                 className={`ag-custom-select__option ${emuMenuHoverIndex === i ? 'active' : ''}`}
                                                 onMouseEnter={() => setEmuMenuHoverIndex(i)}
                                                 onClick={(e) => {
@@ -855,6 +1414,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                         {MEDIA_OPTIONS.map((opt, i) => (
                                             <div 
                                                 key={opt.id} 
+                                                id={`ag-target-opt-${i}`}
                                                 className={`ag-custom-select__option ${menuHoverIndex === i ? 'active' : ''}`}
                                             >
                                                 {opt.label}
