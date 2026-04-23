@@ -568,8 +568,7 @@ function MainApp(): React.JSX.Element {
                     }
                 }
             } else if (section === 'add-game-modal') {
-                if (action === 'back' || action === 'escape') { sfx.cancel(); closeAddGameModal() }
-                else { window.dispatchEvent(new CustomEvent('panel-move', { detail: action })) }
+                window.dispatchEvent(new CustomEvent('panel-move', { detail: action }))
             } else if (section === 'settings') {
                 if (action === 'back' || action === 'escape') {
                     sfx.close(); setSettingsPanelVisible(false)

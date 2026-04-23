@@ -3,9 +3,12 @@ import { Icon } from '@iconify/react'
 import { HomeSlot, Emulator } from '../../../shared/types'
 import { sfx } from '../utils/audioManager'
 import SidePanel, { ConsolePanelTab } from './SidePanel'
+import { useDialog } from '../hooks/useDialog'
+import { useToast } from '../hooks/useToast'
 
 interface AddGameForm {
     name: string
+    searchId: string
     path: string
     emulatorId: string
     processName: string
@@ -19,13 +22,13 @@ interface AddGameForm {
 }
 
 const EMPTY_FORM: AddGameForm = { 
-    name: '', path: '', emulatorId: '', processName: '',
+    name: '', searchId: '', path: '', emulatorId: '', processName: '',
     squareImage: '', backgroundImage: '', logoImage: '', 
     coverImage: '', verticalImage: '', horizontalImage: '', iconImage: '' 
 }
 
 type Tab = 'general' | 'media'
-type FocusArea = 'nav' | 'nav_close' | 'content' | 'footer'
+type FocusArea = 'nav' | 'nav_save' | 'nav_close' | 'content'
 type MediaTarget = 'squareImage' | 'backgroundImage' | 'logoImage' | 'coverImage' | 'verticalImage' | 'horizontalImage' | 'iconImage'
 
 const TABS: ConsolePanelTab[] = [
@@ -50,22 +53,63 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     // ── Start in 'nav' so the user navigates tabs first ──
     const [focusArea, setFocusArea] = useState<FocusArea>('nav')
     const [contentIndex, setContentIndex] = useState(0)
-    const [footerIndex, setFooterIndex] = useState(1)
+    const [contentSubIndex, setContentSubIndex] = useState(0)
     const [mediaTarget, setMediaTarget] = useState<MediaTarget>('squareImage')
     const [isTargetMenuOpen, setIsTargetMenuOpen] = useState(false)
     const [menuHoverIndex, setMenuHoverIndex] = useState(0)
 
+    const [isEmuMenuOpen, setIsEmuMenuOpen] = useState(false)
+    const [emuMenuHoverIndex, setEmuMenuHoverIndex] = useState(0)
+
     const [form, setForm] = useState<AddGameForm>(EMPTY_FORM)
+    const [initialForm, setInitialForm] = useState<AddGameForm>(EMPTY_FORM)
+    
+    const { showDialog } = useDialog()
+    const { showToast } = useToast()
+
     const [emulators, setEmulators] = useState<Emulator[]>([])
     const [apiImages, setApiImages] = useState<{ type: string; url: string }[]>([])
     const [isSaving, setIsSaving] = useState(false)
+    const [isInputEditing, setIsInputEditing] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const isEditing = !!editSlot
 
-    // Always-fresh ref for the event handler
-    const r = useRef({ tab, focusArea, contentIndex, footerIndex, visible, form, emulators, apiImages, isSaving, editSlot, mediaTarget, isTargetMenuOpen, menuHoverIndex })
+    const r = useRef({ 
+        tab, focusArea, contentIndex, contentSubIndex, visible, form, emulators, 
+        apiImages, isSaving, editSlot, mediaTarget, isTargetMenuOpen, 
+        menuHoverIndex, isInputEditing, isEmuMenuOpen, emuMenuHoverIndex,
+        hasAnyChanges: false
+    })
+    
+    // Check for unsaved changes per section
+    const hasSectionChanges = (section: Tab) => {
+        if (section === 'general') {
+            return form.name !== initialForm.name ||
+                   form.searchId !== initialForm.searchId ||
+                   form.path !== initialForm.path ||
+                   form.emulatorId !== initialForm.emulatorId ||
+                   form.processName !== initialForm.processName
+        }
+        if (section === 'media') {
+            return form.squareImage !== initialForm.squareImage ||
+                   form.backgroundImage !== initialForm.backgroundImage ||
+                   form.logoImage !== initialForm.logoImage ||
+                   form.coverImage !== initialForm.coverImage ||
+                   form.verticalImage !== initialForm.verticalImage ||
+                   form.horizontalImage !== initialForm.horizontalImage ||
+                   form.iconImage !== initialForm.iconImage
+        }
+        return false
+    }
+    const hasAnyChanges = hasSectionChanges('general') || hasSectionChanges('media')
+
     useEffect(() => {
-        r.current = { tab, focusArea, contentIndex, footerIndex, visible, form, emulators, apiImages, isSaving, editSlot, mediaTarget, isTargetMenuOpen, menuHoverIndex }
+        r.current = { 
+            tab, focusArea, contentIndex, contentSubIndex, visible, form, emulators, 
+            apiImages, isSaving, editSlot, mediaTarget, isTargetMenuOpen, 
+            menuHoverIndex, isInputEditing, isEmuMenuOpen, emuMenuHoverIndex,
+            hasAnyChanges
+        }
     })
 
     // ── Reset state on open ──
@@ -73,15 +117,19 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         if (!visible) return
         window.api.emulators.getAll().then(setEmulators)
         setTab('general')
-        setFocusArea('nav')       // ← START IN NAV, not content
+        setFocusArea('nav')
         setContentIndex(0)
-        setFooterIndex(1)
+        setContentSubIndex(0)
         setApiImages([])
         setError(null)
+        setIsInputEditing(false)
+        setIsEmuMenuOpen(false)
+        setEmuMenuHoverIndex(0)
 
         if (editSlot) {
-            setForm({
+            const data = {
                 name: editSlot.label,
+                searchId: editSlot.game?.searchId ?? '',
                 path: editSlot.game?.path ?? '',
                 emulatorId: editSlot.game?.emulator?.id ?? '',
                 processName: editSlot.game?.processName ?? '',
@@ -92,16 +140,20 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 verticalImage: editSlot.verticalImage ?? '',
                 horizontalImage: editSlot.horizontalImage ?? '',
                 iconImage: editSlot.iconImage ?? ''
-            })
+            }
+            setForm(data)
+            setInitialForm(data)
         } else {
             setForm(EMPTY_FORM)
+            setInitialForm(EMPTY_FORM)
         }
     }, [visible, editSlot])
 
     // ── Fetch API images when entering media tab ──
     useEffect(() => {
-        if (tab !== 'media' || !form.name) { setApiImages([]); return }
-        const q = encodeURIComponent(form.name)
+        const query = form.searchId.trim() || form.name.trim()
+        if (tab !== 'media' || !query) { setApiImages([]); return }
+        const q = encodeURIComponent(query)
         fetch(`http://localhost:3000/api/games/search?q=${q}`)
             .then(res => res.json())
             .then(data => {
@@ -116,20 +168,67 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
             .catch(() => setApiImages([]))
     }, [tab, form.name])
 
-    // ── Auto-focus inputs when content area is focused ──
+    // ── Input Focus Sync (Native & Gamepad) ──
+    const blurAllInputs = useCallback(() => {
+        const ids = ['ag-name', 'ag-searchid', 'ag-path', 'ag-emu', 'ag-process']
+        ids.forEach(id => {
+            const el = document.getElementById(id)
+            if (el) el.blur()
+        })
+    }, [])
+
+    const focusCurrentInput = useCallback(() => {
+        const ids = ['ag-name', 'ag-searchid', 'ag-path', 'ag-emu', 'ag-process']
+        const id = ids[contentIndex]
+        const el = document.getElementById(id)
+        if (el) el.focus()
+    }, [contentIndex])
+
     useEffect(() => {
         if (!visible) return
-            if (contentIndex === 0) document.getElementById('ag-name')?.focus()
-            if (contentIndex === 1) document.getElementById('ag-path')?.focus()
-            if (contentIndex === 2) document.getElementById('ag-emu')?.focus()
-            if (contentIndex === 3) document.getElementById('ag-process')?.focus()
+        if (isInputEditing) {
+            focusCurrentInput()
         } else {
-            document.getElementById('ag-name')?.blur()
-            document.getElementById('ag-path')?.blur()
-            document.getElementById('ag-emu')?.blur()
-            document.getElementById('ag-process')?.blur()
+            blurAllInputs()
         }
-    }, [focusArea, contentIndex, tab, visible])
+    }, [isInputEditing, visible, focusCurrentInput, blurAllInputs])
+
+    // Safety: Blur if we leave the content area or general tab
+    useEffect(() => {
+        if (focusArea !== 'content' || tab !== 'general') {
+            setIsInputEditing(false)
+            blurAllInputs()
+        }
+    }, [focusArea, tab, blurAllInputs])
+
+    // Listen to native focus to keep states perfectly in sync automatically.
+    // This fixes the bug where MainApp.tsx blurs the input but AddGameModal didn't know.
+    useEffect(() => {
+        const handleFocusIn = (e: FocusEvent) => {
+            const target = e.target as HTMLElement
+            if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) && target.id.startsWith('ag-')) {
+                setIsInputEditing(true)
+                setFocusArea('content')
+                if (target.id === 'ag-name') setContentIndex(0)
+                if (target.id === 'ag-searchid') setContentIndex(1)
+                if (target.id === 'ag-path') setContentIndex(2)
+                if (target.id === 'ag-emu') setContentIndex(3)
+                if (target.id === 'ag-process') setContentIndex(4)
+            }
+        }
+        const handleFocusOut = (e: FocusEvent) => {
+            const target = e.target as HTMLElement
+            if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) && target.id.startsWith('ag-')) {
+                setIsInputEditing(false)
+            }
+        }
+        window.addEventListener('focusin', handleFocusIn)
+        window.addEventListener('focusout', handleFocusOut)
+        return () => {
+            window.removeEventListener('focusin', handleFocusIn)
+            window.removeEventListener('focusout', handleFocusOut)
+        }
+    }, [])
 
     // ── Auto-assign default images from API ──
     useEffect(() => {
@@ -156,20 +255,35 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         }
     }, [mediaTarget, apiImages, visible])
 
+    // ── Auto-assign Search ID ──
+    const handleAutoAssignSearchId = useCallback(() => {
+        const name = r.current.form.name
+        if (!name) return
+        
+        const slug = name
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // Limpiar acentos
+            .replace(/[^a-z0-9\s-]/g, "")    // Limpiar caracteres especiales
+            .trim()
+            .replace(/\s+/g, '-')             // Espacios a guiones
+            
+        setForm(p => ({ ...p, searchId: slug }))
+        sfx.confirm()
+    }, [])
+
     // ── Auto-scroll into view ──
     useEffect(() => {
         if (isTargetMenuOpen) return;
 
         const bodyEl = document.querySelector('.console-panel__content-body')
 
-        if (focusArea === 'footer' && bodyEl) {
-            bodyEl.scrollTo({ top: bodyEl.scrollHeight, behavior: 'smooth' })
-        } else if (focusArea === 'content') {
+        if (focusArea === 'content' && bodyEl) {
             if ((contentIndex === 0 || contentIndex === 1) && bodyEl) {
                 bodyEl.scrollTo({ top: 0, behavior: 'smooth' })
             } else {
                 const id = tab === 'general' 
-                    ? (contentIndex === 0 ? 'ag-name' : contentIndex === 1 ? 'ag-path' : contentIndex === 2 ? 'ag-emu' : 'ag-process')
+                    ? (contentIndex === 0 ? 'ag-name' : contentIndex === 1 ? 'ag-searchid' : contentIndex === 2 ? 'ag-path' : contentIndex === 3 ? 'ag-emu' : 'ag-process')
                     : (contentIndex === 0 ? 'ag-media-target' : contentIndex === 1 ? 'ag-artwork-btn' : contentIndex === 2 ? 'ag-remove-btn' : `ag-api-btn-${contentIndex - 3}`)
                 
                 const el = document.getElementById(id)
@@ -180,13 +294,30 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         }
     }, [contentIndex, focusArea, tab, isTargetMenuOpen])
 
-    const handleClose = useCallback(() => {
+    const forceClose = useCallback(() => {
         sfx.cancel()
         setForm(EMPTY_FORM)
+        setInitialForm(EMPTY_FORM)
         setError(null)
         setIsTargetMenuOpen(false)
         onClose()
     }, [onClose])
+
+    const handleClose = useCallback(() => {
+        if (r.current.hasAnyChanges && r.current.visible) {
+            showDialog({
+                title: 'Cambios sin guardar',
+                message: '¿Estás seguro de que quieres salir? Perderás todos los cambios realizados.',
+                icon: 'mynaui:warning-triangle',
+                actions: [
+                    { label: 'Cancelar', variant: 'ghost', onClick: () => {} },
+                    { label: 'Descartar Cambios', variant: 'danger', onClick: forceClose }
+                ]
+            })
+        } else {
+            forceClose()
+        }
+    }, [forceClose, showDialog])
 
     // --- Media targets list ---
     const MEDIA_OPTIONS: { id: MediaTarget; label: string }[] = [
@@ -202,10 +333,34 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     // ── Keyboard navigation ──
     useEffect(() => {
         const handler = (e: Event) => {
-            const { visible: vis, tab: ct, focusArea: area, contentIndex: cIdx, footerIndex: fIdx, isSaving: saving, isTargetMenuOpen: menuOpen, mediaTarget: currentTarget } = r.current
+            const { visible: vis, tab: ct, focusArea: area, contentIndex: cIdx, isSaving: saving, isTargetMenuOpen: menuOpen, isEmuMenuOpen } = r.current
             if (!vis || saving) return
 
             const action = (e as CustomEvent<string>).detail
+
+            // ─ Sub-menu: Input Editing ─
+            if (r.current.isInputEditing) {
+                // MainApp already handled Enter/Escape and called .blur(), which triggers our focusout listener.
+                // We just swallow the arrow keys here so navigating while typing doesn't move the UI.
+                return 
+            }
+
+            // ─ Sub-menu: Emulator Dropdown ─
+            if (isEmuMenuOpen) {
+                e.stopImmediatePropagation()
+                const currentHover = r.current.emuMenuHoverIndex
+                const emuOptions = [{ id: '', name: 'Nativo' }, ...r.current.emulators]
+                if (action === 'up') {
+                    if (currentHover > 0) { sfx.navigate(); setEmuMenuHoverIndex(currentHover - 1) }
+                } else if (action === 'down') {
+                    if (currentHover < emuOptions.length - 1) { sfx.navigate(); setEmuMenuHoverIndex(currentHover + 1) }
+                } else if (action === 'select') {
+                    sfx.confirm(); setForm(p => ({ ...p, emulatorId: emuOptions[currentHover].id, path: '' })); setIsEmuMenuOpen(false); setIsInputEditing(false)
+                } else if (action === 'back') {
+                    sfx.cancel(); setIsEmuMenuOpen(false); setIsInputEditing(false)
+                }
+                return
+            }
 
             // ─ Sub-menu: Media Target Dropdown ─
             if (menuOpen) {
@@ -230,8 +385,12 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                     if (tabIdx > 0) { sfx.navigate(); setTab(TABS[tabIdx - 1].id as Tab) }
                 } else if (action === 'down') {
                     if (tabIdx < TABS.length - 1) { sfx.navigate(); setTab(TABS[tabIdx + 1].id as Tab) }
-                    else { sfx.navigate(); setFocusArea('nav_close') }
-                } else if (action === 'right' || action === 'select') {
+                    else { 
+                        sfx.navigate()
+                        if (r.current.hasAnyChanges) setFocusArea('nav_save')
+                        else setFocusArea('nav_close')
+                    }
+                } else if (action === 'select') {
                     sfx.navigate(); setFocusArea('content'); setContentIndex(0)
                 } else if (action === 'back') {
                     handleClose()
@@ -239,97 +398,107 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 return
             }
 
+            // --- FOCUS AREA: SIDEBAR SAVE BUTTON ---
+            if (area === 'nav_save') {
+                if (action === 'up') { sfx.navigate(); setFocusArea('nav'); setTab(TABS[TABS.length - 1].id as Tab) }
+                else if (action === 'down') { sfx.navigate(); setFocusArea('nav_close') }
+                else if (action === 'select') { handleSave() }
+                else if (action === 'back') { sfx.navigate(); setFocusArea('nav') }
+                return
+            }
+
             // --- FOCUS AREA: SIDEBAR CLOSE BUTTON ---
             if (area === 'nav_close') {
-                if (action === 'up') { sfx.navigate(); setFocusArea('nav'); setTab(TABS[TABS.length - 1].id as Tab) }
-                else if (action === 'right') { sfx.navigate(); setFocusArea('content'); setContentIndex(0) }
+                if (action === 'up') { 
+                    sfx.navigate()
+                    if (r.current.hasAnyChanges) setFocusArea('nav_save')
+                    else { setFocusArea('nav'); setTab(TABS[TABS.length - 1].id as Tab) }
+                }
                 else if (action === 'select' || action === 'back') { handleClose() }
                 return
             }
 
             // --- FOCUS AREA: CONTENT (MAIN FORM/GRID) ---
             if (area === 'content') {
-                // If a native input is natively focused, only intercept Escape/back
-                if (r.current.focusArea === 'content' && ct === 'general') {
-                    const nativeEl = document.activeElement as HTMLElement
-                    const isNativelyFocused = ['ag-name', 'ag-path', 'ag-emu'].some(id => document.getElementById(id) === nativeEl)
-                    if (isNativelyFocused) {
-                        if (action === 'back') {
-                            nativeEl.blur()
-                        }
-                        return // Let the browser handle typing
-                    }
-                }
-
                 // Tab 1: General Info (Linear List)
                 if (ct === 'general') {
-                    const maxItems = 4
+                    const maxItems = 5
                     if (action === 'up') {
-                        if (cIdx > 0) { sfx.navigate(); setContentIndex(p => p - 1) }
-                        else { sfx.navigate(); setFocusArea('nav') }
+                        if (cIdx > 0) { sfx.navigate(); setContentIndex(p => p - 1); setContentSubIndex(0) }
                     } else if (action === 'down') {
-                        if (cIdx < maxItems - 1) { sfx.navigate(); setContentIndex(p => p + 1) }
-                        else { sfx.navigate(); setFocusArea('footer'); setFooterIndex(1) }
-                    } else if (action === 'left' || action === 'back') {
-                        sfx.navigate(); setFocusArea('nav')
+                        if (cIdx < maxItems - 1) { sfx.navigate(); setContentIndex(p => p + 1); setContentSubIndex(0) }
+                    } else if (action === 'left') {
+                        if (cIdx === 1 && r.current.contentSubIndex > 0) {
+                            sfx.navigate(); setContentSubIndex(0)
+                        }
+                    } else if (action === 'right') {
+                        if (cIdx === 1 && r.current.contentSubIndex === 0) {
+                            sfx.navigate(); setContentSubIndex(1)
+                        }
+                    } else if (action === 'back') {
+                        sfx.navigate(); setFocusArea('nav'); setContentSubIndex(0)
                     } else if (action === 'select') {
-                        // Focus the native input explicitly
-                        const ids = ['ag-name', 'ag-path', 'ag-emu', 'ag-process']
-                        document.getElementById(ids[cIdx])?.focus()
+                        if (cIdx === 1 && r.current.contentSubIndex === 1) {
+                            handleAutoAssignSearchId()
+                        } else if (cIdx === 2) {
+                            handleBrowseGame()
+                        } else if (cIdx === 3) {
+                            sfx.open()
+                            const emuOptions = [{ id: '', name: 'Nativo' }, ...r.current.emulators];
+                            const startIdx = emuOptions.findIndex(o => o.id === r.current.form.emulatorId)
+                            setEmuMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
+                            setIsEmuMenuOpen(true)
+                        } else {
+                            sfx.confirm()
+                            setIsInputEditing(true)
+                        }
                     }
-                // Tab 2: Multimedia (Grid Layout)
                 } else if (ct === 'media') {
-                    // Grid navigation: 3 columns
                     const cols = 3
                     const hasRemoveBtn = !!r.current.form[r.current.mediaTarget]
-                    const apiImgsStartAt = 3 // 0: Select, 1: Browse, 2: Remove
-                    const maxItems = apiImgsStartAt + r.current.apiImages.length
+                    const apiImgsStartAt = 3
+                    const apiImgs = r.current.apiImages
+                    const maxItems = apiImgsStartAt + apiImgs.length
                     
                     if (action === 'up') {
                         if (cIdx >= apiImgsStartAt + cols) { 
                             sfx.navigate(); setContentIndex(cIdx - cols) 
                         } else if (cIdx >= apiImgsStartAt) {
-                            sfx.navigate(); setContentIndex(hasRemoveBtn ? 2 : 1)
-                        } else if (cIdx === 2) {
+                            // Up from anywhere in the first row of grid goes back to Explorar (1)
                             sfx.navigate(); setContentIndex(1)
-                        } else if (cIdx === 1) {
+                        } else if (cIdx === 1 || cIdx === 2) {
                             sfx.navigate(); setContentIndex(0)
-                        } else {
-                            sfx.navigate(); setFocusArea('nav')
                         }
                     } else if (action === 'down') {
                         if (cIdx === 0) {
                             sfx.navigate(); setContentIndex(1)
-                        } else if (cIdx === 1) {
-                            sfx.navigate(); setContentIndex(hasRemoveBtn ? 2 : apiImgsStartAt)
-                        } else if (cIdx === 2) {
-                            sfx.navigate(); setContentIndex(apiImgsStartAt)
-                        } else if (cIdx + cols < maxItems) {
-                            sfx.navigate(); setContentIndex(cIdx + cols)
+                        } else if (cIdx === 1 || cIdx === 2) {
+                            if (apiImgs.length > 0) {
+                                sfx.navigate(); setContentIndex(apiImgsStartAt)
+                            }
                         } else {
-                            sfx.navigate(); setFocusArea('footer'); setFooterIndex(0) // Land on Cancel (0)
+                            const row = Math.floor((cIdx - apiImgsStartAt) / cols)
+                            const totalRows = Math.ceil(apiImgs.length / cols)
+                            if (row < totalRows - 1) {
+                                sfx.navigate(); setContentIndex(Math.min(cIdx + cols, maxItems - 1))
+                            }
                         }
                     } else if (action === 'left') {
-                        if (cIdx > apiImgsStartAt) {
-                            sfx.navigate(); setContentIndex(cIdx - 1)
-                        } else if (cIdx === apiImgsStartAt) {
-                            sfx.navigate(); setContentIndex(hasRemoveBtn ? 2 : 1)
-                        } else if (cIdx === 2) {
+                        if (cIdx === 2) {
                             sfx.navigate(); setContentIndex(1)
-                        } else if (cIdx === 1) {
-                            sfx.navigate(); setContentIndex(0)
-                        } else {
-                            sfx.navigate(); setFocusArea('nav')
+                        } else if (cIdx >= apiImgsStartAt) {
+                            if ((cIdx - apiImgsStartAt) % cols !== 0) {
+                                sfx.navigate(); setContentIndex(cIdx - 1)
+                            }
                         }
                     } else if (action === 'right') {
-                        if (cIdx < maxItems - 1) {
-                            if (cIdx === 0) { /* dropdown right does nothing unless handled natively */ }
-                            else if (cIdx === 1 && !hasRemoveBtn) setContentIndex(apiImgsStartAt)
-                            else setContentIndex(cIdx + 1)
-                            sfx.navigate()
+                        if (cIdx === 1 && hasRemoveBtn) {
+                            sfx.navigate(); setContentIndex(2)
+                        } else if (cIdx >= apiImgsStartAt) {
+                            if ((cIdx - apiImgsStartAt) % cols < cols - 1 && cIdx < maxItems - 1) {
+                                sfx.navigate(); setContentIndex(cIdx + 1)
+                            }
                         }
-                    } else if (action === 'back') {
-                        sfx.navigate(); setFocusArea('nav')
                     } else if (action === 'select') {
                         if (cIdx === 0) {
                             sfx.confirm()
@@ -348,32 +517,11 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                 setForm(p => ({ ...p, [r.current.mediaTarget]: imgUrlNormalized }))
                             }
                         }
+                    } else if (action === 'back') {
+                        sfx.navigate(); setFocusArea('nav')
                     }
                 }
                 return
-            }
-
-            // --- FOCUS AREA: FOOTER BUTTONS (CANCEL/SAVE) ---
-            if (area === 'footer') {
-                if (action === 'up') {
-                    sfx.navigate()
-                    setFocusArea('content')
-                    // Return to last item: index 2 + (length - 1)
-                    const lastIdx = ct === 'general' ? 3 : Math.max(0, 1 + r.current.apiImages.length)
-                    setContentIndex(lastIdx)
-                } else if (action === 'left') {
-                    if (fIdx > 0) { sfx.navigate(); setFooterIndex(fIdx - 1) }
-                    else { sfx.navigate(); setFocusArea('nav') }
-                } else if (action === 'right') {
-                    if (fIdx < 1) { sfx.navigate(); setFooterIndex(fIdx + 1) }
-                } else if (action === 'select') {
-                    if (fIdx === 0) handleClose()
-                    else document.getElementById('ag-save')?.click()
-                } else if (action === 'back') {
-                    sfx.navigate()
-                    setFocusArea('content')
-                    setContentIndex(ct === 'general' ? 3 : 0)
-                }
             }
         }
         window.addEventListener('panel-move', handler)
@@ -434,6 +582,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 game: {
                     id: slot?.game?.id ?? slotId,
                     name: f.name.trim(),
+                    searchId: f.searchId.trim(),
                     path: f.path.trim(),
                     emulator: selectedEmulator,
                     processName: f.processName.trim(),
@@ -441,10 +590,21 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 }
             }
             const res = await window.api.slots.add(newSlot)
-            if (res.success) { sfx.confirm(); handleClose() }
-            else { sfx.error(); setError('Fallo al guardar.'); setIsSaving(false) }
+            if (res.success) {
+                sfx.confirm()
+                showToast(slot ? 'Juego actualizado' : 'Juego añadido', 'success')
+                forceClose()
+            } else {
+                sfx.error()
+                showToast('Fallo al guardar', 'error')
+                setError('Fallo al guardar.')
+                setIsSaving(false)
+            }
         } catch {
-            sfx.error(); setError('Error inesperado.'); setIsSaving(false)
+            sfx.error()
+            showToast('Error inesperado', 'error')
+            setError('Error inesperado.')
+            setIsSaving(false)
         }
     }
 
@@ -452,9 +612,13 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         if (isTargetMenuOpen) return false
         if (focusArea !== area) return false
         if (idx === undefined) return true
-        if (area === 'footer') return footerIndex === idx
         return contentIndex === idx
     }
+
+    const dynamicTabs = TABS.map(t => ({
+        ...t,
+        hasChanges: hasSectionChanges(t.id as Tab)
+    }))
 
     // Resolve artwork URL for preview based on media target
     const targetVal = form[mediaTarget]
@@ -467,121 +631,192 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     return (
         <SidePanel
             visible={visible}
-            tabs={TABS}
+            tabs={dynamicTabs}
             activeTab={tab}
             focusArea={focusArea as any}
             onTabChange={(id) => { setTab(id as Tab); setFocusArea('content'); setContentIndex(0) }}
             onClose={handleClose}
+            onSave={handleSave}
+            hasUnsavedChanges={hasAnyChanges}
             titleOverride={isEditing ? 'Editar Juego' : 'Añadir Juego'}
-            footer={
-                <div className="cp-footer-actions">
-                    <button
-                        className={`cp-btn cp-btn--ghost ${isFocused('footer', 0) ? 'cp-btn--focused' : ''}`}
-                        onClick={handleClose} disabled={isSaving}
-                    >
-                        Cancelar
-                    </button>
-                    <button
-                        id="ag-save"
-                        className={`cp-btn cp-btn--primary ${isFocused('footer', 1) ? 'cp-btn--focused' : ''}`}
-                        onClick={handleSave} disabled={isSaving}
-                    >
-                        <Icon icon="mynaui:check" /> {isSaving ? 'Guardando...' : (isEditing ? 'Actualizar' : 'Guardar')}
-                    </button>
-                </div>
-            }
         >
             {error && <div className="cp-form__error" style={{ marginBottom: 16 }}><Icon icon="mynaui:info-circle" /> {error}</div>}
 
             {/* ── GENERAL TAB ── */}
             {tab === 'general' && (
                 <div className="cp-form">
-                    {/* Name */}
-                    <div
-                        className={`ag-field-row ${isFocused('content', 0) ? 'ag-field-row--focused' : ''}`}
-                        onClick={() => { setFocusArea('content'); setContentIndex(0) }}
-                    >
-                        <Icon icon="mynaui:edit-one" className="ag-field-icon" />
-                        <div className="ag-field-body">
-                            <div className="ag-field-label">Nombre del Juego</div>
-                            <input
-                                id="ag-name"
-                                className="ag-field-input"
-                                value={form.name}
-                                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                                placeholder="Ej. The Legend of Zelda"
-                                disabled={isSaving}
-                            />
-                        </div>
-                        {isFocused('content', 0) && <div className="ag-field-hint">A para editar</div>}
-                    </div>
-
-                    {/* Path */}
-                    <div
-                        className={`ag-field-row ${isFocused('content', 1) ? 'ag-field-row--focused' : ''}`}
-                        onClick={() => { setFocusArea('content'); setContentIndex(1) }}
-                    >
-                        <Icon icon="mynaui:folder-open" className="ag-field-icon" />
-                        <div className="ag-field-body">
-                            <div className="ag-field-label">Ruta del Archivo</div>
-                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <div className={isEmuMenuOpen ? 'ag-media-content--dimmed' : ''} style={{ transition: 'all 0.3s' }}>
+                        {/* Name */}
+                        <div
+                            className={`ag-field-row ${isFocused('content', 0) ? 'ag-field-row--focused' : ''} ${isInputEditing && isFocused('content', 0) ? 'ag-field-row--editing' : ''}`}
+                            onClick={() => { 
+                                setFocusArea('content'); 
+                                setContentIndex(0);
+                                setIsInputEditing(true);
+                            }}
+                        >
+                            <Icon icon="mynaui:edit-one" className="ag-field-icon" />
+                            <div className="ag-field-body">
+                                <div className="ag-field-label">Nombre del Juego</div>
                                 <input
-                                    id="ag-path"
-                                    className="ag-field-input"
-                                    value={form.path}
-                                    onChange={e => setForm(p => ({ ...p, path: e.target.value }))}
-                                    placeholder="/Juegos/Juego.exe o ROM"
+                                    id="ag-name"
+                                    className={`ag-field-input ${isInputEditing && isFocused('content', 0) ? 'ag-field-input--editing' : ''}`}
+                                    value={form.name}
+                                    onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                                    placeholder="Ej. The Legend of Zelda"
                                     disabled={isSaving}
-                                    style={{ flex: 1 }}
                                 />
-                                <button className="cp-btn cp-btn--secondary cp-btn--icon" onClick={handleBrowseGame} disabled={isSaving} title="Explorar">
-                                    <Icon icon="mynaui:folder-open" />
-                                </button>
                             </div>
                         </div>
-                        {isFocused('content', 1) && <div className="ag-field-hint">A para editar</div>}
+
+                        {/* Search ID with Side Button */}
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'stretch', marginBottom: 8, position: 'relative' }}>
+                            <div
+                                className={`ag-field-row ${isFocused('content', 1) && contentSubIndex === 0 ? 'ag-field-row--focused' : ''} ${isInputEditing && isFocused('content', 1) && contentSubIndex === 0 ? 'ag-field-row--editing' : ''}`}
+                                onClick={() => { 
+                                    setFocusArea('content'); 
+                                    setContentIndex(1);
+                                    setContentSubIndex(0);
+                                    setIsInputEditing(true);
+                                }}
+                                style={{ flex: 1, marginBottom: 0 }}
+                            >
+                                <Icon icon="mynaui:search" className="ag-field-icon" />
+                                <div className="ag-field-body">
+                                    <div className="ag-field-label">Nombre para Búsqueda (APIs)</div>
+                                    <input
+                                        id="ag-searchid"
+                                        className={`ag-field-input ${isInputEditing && isFocused('content', 1) && contentSubIndex === 0 ? 'ag-field-input--editing' : ''}`}
+                                        value={form.searchId}
+                                        onChange={e => setForm(p => ({ ...p, searchId: e.target.value }))}
+                                        placeholder="Ej. the-legend-of-zelda (Opcional)"
+                                        disabled={isSaving}
+                                    />
+                                </div>
+                            </div>
+                            
+                            <button
+                                className={`ag-side-btn ${isFocused('content', 1) && contentSubIndex === 1 ? 'ag-side-btn--focused' : ''}`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setFocusArea('content');
+                                    setContentIndex(1);
+                                    setContentSubIndex(1);
+                                    handleAutoAssignSearchId();
+                                }}
+                                onMouseEnter={() => {
+                                    setFocusArea('content');
+                                    setContentIndex(1);
+                                    setContentSubIndex(1);
+                                }}
+                                title="Auto-generar ID desde el nombre"
+                                disabled={isSaving}
+                            >
+                                <Icon icon="mynaui:sparkles" style={{ fontSize: 18 }} />
+                                <span>Autoasignar</span>
+                            </button>
+                        </div>
+
+                        {/* Path */}
+                        <div
+                            className={`ag-field-row ${isFocused('content', 2) ? 'ag-field-row--focused' : ''}`}
+                            onClick={() => { 
+                                setFocusArea('content'); 
+                                setContentIndex(2); 
+                                handleBrowseGame(); 
+                            }}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <Icon icon="mynaui:file" className="ag-field-icon" />
+                            <div className="ag-field-body">
+                                <div className="ag-field-label">Ruta del Archivo</div>
+                                <input
+                                    id="ag-path"
+                                    className={`ag-field-input`}
+                                    value={form.path || 'Seleccionar archivo...'}
+                                    readOnly
+                                    disabled={isSaving}
+                                    style={{ 
+                                        opacity: form.path ? 1 : 0.4, 
+                                        color: 'rgba(255,255,255,0.5)',
+                                        cursor: 'pointer'
+                                    }}
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     {/* Emulator */}
                     <div
-                        className={`ag-field-row ${isFocused('content', 2) ? 'ag-field-row--focused' : ''}`}
-                        onClick={() => { setFocusArea('content'); setContentIndex(2) }}
+                        className={`ag-field-row ${isFocused('content', 3) && !isEmuMenuOpen ? 'ag-field-row--focused' : ''} ${isEmuMenuOpen ? 'ag-field-row--menu-open' : ''}`}
+                        onClick={() => { 
+                            if (isSaving) return;
+                            setFocusArea('content'); 
+                            setContentIndex(3);
+                            if (!isEmuMenuOpen) {
+                                const emuOptions = [{ id: '', name: 'Nativo' }, ...emulators];
+                                const startIdx = emuOptions.findIndex(o => o.id === form.emulatorId)
+                                setEmuMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
+                            }
+                            setIsEmuMenuOpen(!isEmuMenuOpen);
+                        }}
                     >
                         <Icon icon="mynaui:controller" className="ag-field-icon" />
                         <div className="ag-field-body">
                             <div className="ag-field-label">Emulador</div>
-                            <select
-                                id="ag-emu"
-                                className="ag-field-input"
-                                value={form.emulatorId}
-                                onChange={e => setForm(p => ({ ...p, emulatorId: e.target.value, path: '' }))}
-                                disabled={isSaving}
-                            >
-                                <option value="">— Nativo (Ejecutable directo) —</option>
-                                {emulators.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                            </select>
+                            <div className="ag-custom-select">
+                                <div className={`ag-custom-select__value ${isSaving ? 'disabled' : ''}`}>
+                                    {emulators.find(e => e.id === form.emulatorId)?.name || 'Nativo'}
+                                    <Icon icon={isEmuMenuOpen ? 'mynaui:chevron-up' : 'mynaui:chevron-down'} />
+                                </div>
+
+                                {isEmuMenuOpen && (
+                                    <div className="ag-custom-select__dropdown" style={{ zIndex: 100 }}>
+                                        {[{ id: '', name: 'Nativo' }, ...emulators].map((opt, i) => (
+                                            <div 
+                                                key={opt.id} 
+                                                className={`ag-custom-select__option ${emuMenuHoverIndex === i ? 'active' : ''}`}
+                                                onMouseEnter={() => setEmuMenuHoverIndex(i)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setForm(p => ({ ...p, emulatorId: opt.id, path: '' }))
+                                                    setIsEmuMenuOpen(false)
+                                                    sfx.confirm()
+                                                }}
+                                            >
+                                                {opt.name}
+                                                {emuMenuHoverIndex === i && <Icon icon="mynaui:check" />}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        {isFocused('content', 2) && <div className="ag-field-hint">A para editar</div>}
                     </div>
 
-                    {/* Process Name */}
-                    <div
-                        className={`ag-field-row ${isFocused('content', 3) ? 'ag-field-row--focused' : ''}`}
-                        onClick={() => { setFocusArea('content'); setContentIndex(3) }}
-                    >
-                        <Icon icon="mynaui:search" className="ag-field-icon" />
-                        <div className="ag-field-body">
-                            <div className="ag-field-label">Nombre del Proceso (Opcional)</div>
-                            <input
-                                id="ag-process"
-                                className="ag-field-input"
-                                value={form.processName}
-                                onChange={e => setForm(p => ({ ...p, processName: e.target.value }))}
-                                placeholder="Ej. java, Minecraft, etc."
-                                disabled={isSaving}
-                            />
+                    <div className={isEmuMenuOpen ? 'ag-media-content--dimmed' : ''} style={{ transition: 'all 0.3s' }}>
+                        {/* Process Name */}
+                        <div
+                            className={`ag-field-row ${isFocused('content', 4) ? 'ag-field-row--focused' : ''} ${isInputEditing && isFocused('content', 4) ? 'ag-field-row--editing' : ''}`}
+                            onClick={() => { 
+                                setFocusArea('content'); 
+                                setContentIndex(4);
+                                setIsInputEditing(true);
+                            }}
+                        >
+                            <Icon icon="mynaui:search" className="ag-field-icon" />
+                            <div className="ag-field-body">
+                                <div className="ag-field-label">Nombre del Proceso (Opcional)</div>
+                                <input
+                                    id="ag-process"
+                                    className={`ag-field-input ${isInputEditing && isFocused('content', 3) ? 'ag-field-input--editing' : ''}`}
+                                    value={form.processName}
+                                    onChange={e => setForm(p => ({ ...p, processName: e.target.value }))}
+                                    placeholder="Ej. java, Minecraft, etc."
+                                    disabled={isSaving}
+                                />
+                            </div>
                         </div>
-                        {isFocused('content', 3) && <div className="ag-field-hint">A para editar</div>}
                     </div>
                 </div>
             )}
@@ -591,7 +826,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 <div className="cp-form ag-media">
                     {/* Media Type Selector */}
                     <div
-                        className={`ag-field-row ${isFocused('content', 0) ? 'ag-field-row--focused' : ''} ${isTargetMenuOpen ? 'ag-field-row--menu-open' : ''}`}
+                        className={`ag-field-row ${isFocused('content', 0) && !isTargetMenuOpen ? 'ag-field-row--focused' : ''} ${isTargetMenuOpen ? 'ag-field-row--menu-open' : ''}`}
                         onClick={() => { 
                             setFocusArea('content'); 
                             setContentIndex(0); 
@@ -651,25 +886,33 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
                                     Selecciona una imagen de la API o importa una local
                                 </div>
-                                <button
-                                    id="ag-artwork-btn"
-                                    className={`cp-btn cp-btn--secondary ag-media-browse ${isFocused('content', 1) ? 'cp-btn--focused' : ''}`}
-                                    onClick={handleBrowseArtwork}
-                                    disabled={isSaving}
-                                >
-                                    <Icon icon="mynaui:folder-open" /> Explorar Local...
-                                </button>
-                                {form[mediaTarget] && (
+                                <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                                     <button
-                                        id="ag-remove-btn"
-                                        className={`cp-btn cp-btn--ghost ${isFocused('content', 2) ? 'cp-btn--focused' : ''}`}
-                                        onClick={() => setForm(p => ({ ...p, [mediaTarget]: '' }))}
+                                        id="ag-artwork-btn"
+                                        className={`cp-btn cp-btn--secondary ag-media-browse ${isFocused('content', 1) ? 'cp-btn--focused' : ''}`}
+                                        onClick={handleBrowseArtwork}
                                         disabled={isSaving}
-                                        style={{ fontSize: 12, marginTop: 4, outline: isFocused('content', 2) ? '2px solid var(--accent)' : 'none' }}
+                                        style={{ flex: 1, padding: '8px 12px' }}
                                     >
-                                        <Icon icon="mynaui:x" /> Quitar imagen
+                                        <Icon icon="mynaui:search" /> Explorar
                                     </button>
-                                )}
+                                    {form[mediaTarget] && (
+                                        <button
+                                            id="ag-remove-btn"
+                                            className={`cp-btn cp-btn--ghost ${isFocused('content', 2) ? 'cp-btn--focused' : ''}`}
+                                            onClick={() => setForm(p => ({ ...p, [mediaTarget]: '' }))}
+                                            disabled={isSaving}
+                                            style={{ 
+                                                fontSize: 12, 
+                                                padding: '8px 12px',
+                                                color: '#ff8080',
+                                                border: isFocused('content', 2) ? '1px solid rgba(255,128,128,0.3)' : '1px solid transparent'
+                                            }}
+                                        >
+                                            <Icon icon="mynaui:trash" /> Quitar
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

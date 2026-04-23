@@ -72,6 +72,7 @@ export interface Console {
 export interface Game {
     id: string
     name: string
+    searchId?: string
     console?: Console
     emulator?: Emulator
     path?: string

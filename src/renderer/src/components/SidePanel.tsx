@@ -6,15 +6,18 @@ export interface ConsolePanelTab {
     label: string
     icon: string
     description?: string
+    hasChanges?: boolean
 }
 
 interface ConsolePanelProps {
     visible: boolean
     tabs: ConsolePanelTab[]
     activeTab: string
-    focusArea: 'nav' | 'content' | 'nav_close'
+    focusArea: 'nav' | 'content' | 'nav_close' | 'nav_save'
     onTabChange: (tabId: string) => void
     onClose: () => void
+    onSave?: () => void
+    hasUnsavedChanges?: boolean
     children: React.ReactNode
     footer?: React.ReactNode
     titleOverride?: string
@@ -27,6 +30,8 @@ const SidePanel: React.FC<ConsolePanelProps> = ({
     focusArea,
     onTabChange,
     onClose,
+    onSave,
+    hasUnsavedChanges,
     children,
     footer,
     titleOverride
@@ -56,18 +61,35 @@ const SidePanel: React.FC<ConsolePanelProps> = ({
                             >
                                 <Icon icon={tab.icon} className="console-panel__nav-icon" />
                                 <span className="console-panel__nav-label">{tab.label}</span>
-                                {activeTab === tab.id && (
-                                    <Icon icon="mynaui:chevron-right" className="console-panel__nav-arrow" />
-                                )}
+                                <Icon 
+                                    icon="mynaui:circle-solid" 
+                                    className={`console-panel__nav-unsaved ${tab.hasChanges ? 'visible' : ''}`} 
+                                />
+                                <Icon 
+                                    icon="mynaui:chevron-right" 
+                                    className={`console-panel__nav-arrow ${activeTab === tab.id ? 'visible' : ''}`} 
+                                />
                             </button>
                         </li>
                     ))}
                 </ul>
 
-                <button className={`console-panel__close ${focusArea === 'nav_close' ? 'console-panel__close--focused' : ''}`} onClick={onClose}>
-                    <Icon icon="mynaui:x" />
-                    <span>Cerrar</span>
-                </button>
+                <div className="console-panel__nav-footer">
+                    {hasUnsavedChanges && (
+                        <button 
+                            className={`console-panel__save ${focusArea === 'nav_save' ? 'console-panel__save--focused' : ''}`} 
+                            onClick={onSave}
+                        >
+                            <Icon icon="mynaui:check" />
+                            <span>Guardar</span>
+                        </button>
+                    )}
+
+                    <button className={`console-panel__close ${focusArea === 'nav_close' ? 'console-panel__close--focused' : ''}`} onClick={onClose}>
+                        <Icon icon="mynaui:x" />
+                        <span>Cerrar</span>
+                    </button>
+                </div>
             </nav>
 
             {/* ── Right Content ── */}
