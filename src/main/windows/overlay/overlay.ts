@@ -60,7 +60,15 @@ export function toggleOverlay() {
         // Animate out, then hide
         overlayInstance.webContents.send('dispatch-action', { type: 'OVERLAY_CLOSING' });
         setTimeout(() => {
-            if (overlayInstance?.isVisible()) overlayInstance.hide();
+            if (overlayInstance?.isVisible()) {
+                overlayInstance.hide();
+                
+                // If no game is running, restore focus to the Hub so navigation works
+                if (!getCurrentSessionData()) {
+                    mainApp?.show();
+                    mainApp?.focus();
+                }
+            }
         }, 400);
     } else {
         // Ensure bounds cover full primary screen (game may be fullscreen)
