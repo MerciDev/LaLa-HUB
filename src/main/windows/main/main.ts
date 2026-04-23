@@ -368,11 +368,26 @@ export function setCurrentPage(page: number): void {
     }
 }
 
+let lastPageChangeTime = 0
+const PAGE_CHANGE_COOLDOWN = 250 // ms
+
 export function handlePageChange(direction: 'next' | 'prev'): void {
+    const now = Date.now()
+    if (now - lastPageChangeTime < PAGE_CHANGE_COOLDOWN) {
+        // Still send the current page to unstick the renderer even if we ignore the input
+        appWindow?.webContents.send('dispatch-action', { type: 'SET_GRID_PAGE', payload: currentPage })
+        return
+    }
+    lastPageChangeTime = now
+
     if (direction === 'next' && currentPage < totalPages - 1) {
         setCurrentPage(currentPage + 1)
     } else if (direction === 'prev' && currentPage > 0) {
         setCurrentPage(currentPage - 1)
+    } else {
+        // If no change occurs (e.g. at boundaries), re-send current page 
+        // to unstick the renderer's pending selection state.
+        appWindow?.webContents.send('dispatch-action', { type: 'SET_GRID_PAGE', payload: currentPage })
     }
 }
 

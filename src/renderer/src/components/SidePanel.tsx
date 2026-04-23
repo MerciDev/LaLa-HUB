@@ -13,7 +13,7 @@ interface ConsolePanelProps {
     visible: boolean
     tabs: ConsolePanelTab[]
     activeTab: string
-    focusArea: 'nav' | 'content' | 'nav_close' | 'nav_save'
+    focusArea: 'nav' | 'content' | 'nav_close' | 'nav_save' | 'footer'
     onTabChange: (tabId: string) => void
     onClose: () => void
     onSave?: () => void

@@ -301,7 +301,13 @@ async function main(): Promise<void> {
     // Load and set all slots from storage
     const savedSlots = loadSlots()
     mainApp.setGridItems(savedSlots)
-    mainApp.setTotalPages(3)
+    
+    // Calculate total pages based on the items' page index
+    const maxPage = savedSlots.reduce((max, slot) => Math.max(max, slot.page ?? 0), 0)
+    mainApp.setTotalPages(maxPage + 1)
+    
+    // Force reset page to 0 on renderer load to prevent dev-mode HMR desync
+    mainApp.setCurrentPage(0)
 
     // Fetch metadata & images in the background; update the grid when ready
     processGameSlots(savedSlots).then((updatedSlots) => {

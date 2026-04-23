@@ -4,6 +4,7 @@ export const keymaps = {
 
     // Keyboard
     overlay: 'Control+X',
+    loading: 'Control+L',
     contextMenu: 'Shift',
     openMain: 'Home',
     openSocial: 'Insert',

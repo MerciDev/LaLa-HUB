@@ -103,9 +103,14 @@ function MainApp(): React.JSX.Element {
     const {
         selectedSlotIndex,
         setSelectedSlotIndex,
-        navigate: gridNavigate,
-        applyPendingSelection
+        navigate: rawGridNavigate,
+        applyPendingSelection,
+        clearPendingSelection
     } = useGridNavigation(homeGrid.rows, homeGrid.cols)
+
+    const gridNavigate = (action: string, items: HomeSlot[], currentPage: number) => {
+        rawGridNavigate(action, items, currentPage, totalPages)
+    }
 
     /** Find slot that occupies selectedSlotIndex (anchor or covered cell) */
     const selectedSlotItem = React.useMemo(() => {
@@ -121,8 +126,15 @@ function MainApp(): React.JSX.Element {
         return null
     }, [selectedSlotIndex, currentPage, homeGrid.items, homeGrid.cols])
 
-    const totalPages =
-        Math.max(Math.max(0, ...homeGrid.items.map((i) => i.page ?? 0)), currentPage) + 1
+    const totalPages = Math.max(
+        3,
+        Math.max(0, ...homeGrid.items.map((i) => i.page ?? 0)) + 1,
+        currentPage + 1
+    )
+
+    useEffect(() => {
+        window.api.movementControl.send('SET_TOTAL_PAGES', totalPages)
+    }, [totalPages])
 
     // --- Header Navigation ---
     const [focusedHeader, setFocusedHeader] = useState<'left' | 'right' | null>(null)
@@ -315,6 +327,7 @@ function MainApp(): React.JSX.Element {
 
     // Ref to handle state inside stable IPC listener
     const stateRefForIPC = useRef({ currentPage })
+    const paginationLockRef = useRef(false)
     useEffect(() => { stateRefForIPC.current = { currentPage } }, [currentPage])
 
     useEffect(() => {
@@ -337,11 +350,17 @@ function MainApp(): React.JSX.Element {
                 case 'SET_SELECTED_INDEX':
                     if (action.payload.section === 'grid') setSelectedSlotIndex(action.payload.index)
                     break
-                case 'SET_GRID_PAGE':
-                    setDirection(action.payload > stateRefForIPC.current.currentPage ? 'next' : 'prev')
-                    setCurrentPage(action.payload)
-                    applyPendingSelection()
+                case 'SET_GRID_PAGE': {
+                    const prevPage = stateRefForIPC.current.currentPage
+                    if (action.payload !== prevPage) {
+                        setDirection(action.payload > prevPage ? 'next' : 'prev')
+                        setCurrentPage(action.payload)
+                        applyPendingSelection()
+                    } else {
+                        clearPendingSelection()
+                    }
                     break
+                }
                 case 'TOGGLE_CONTEXT_MENU': setContextMenuVisible(action.payload); break
                 case 'SET_CONTEXT_OPTIONS': setContextOptions(action.payload); break
                 case 'ADD_CONTEXT_OPTION': setContextOptions((prev) => [...prev, action.payload]); break
@@ -406,9 +425,15 @@ function MainApp(): React.JSX.Element {
     }, [])
 
     // ─── Navigation / Input Handling ─────────────────────────────────────────────
+    const lastMovementTimeRef = useRef(0)
 
     useEffect(() => {
         const handleMovementAction = (section: string, action: string) => {
+            // Apply throttle to prevent cursor from flying too fast
+            const now = Date.now()
+            if (now - lastMovementTimeRef.current < 120) return
+            lastMovementTimeRef.current = now
+
             // Blur any focused input on back/select
             if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
                 if (action === 'back' || action === 'select') {

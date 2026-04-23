@@ -31,6 +31,8 @@ export type AppAction =
     | { type: 'OPEN_SETTINGS' }
     | { type: 'CLOSE_SETTINGS' }
     | { type: 'OPEN_EDIT_GAME'; payload: HomeSlot }
+    | { type: 'CLOSE_ADD_GAME' }
+    | { type: 'GO_HOME' }
     // Grid Edit Modes
     | { type: 'ENTER_MOVE_MODE'; payload: HomeSlot }
     | { type: 'EXIT_MOVE_MODE' }

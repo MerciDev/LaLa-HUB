@@ -79,85 +79,92 @@ export function useGridNavigation(rows: number, cols: number) {
     const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null)
     const pendingSelectionRef = useRef<number | null>(null)
 
-    const navigate = (action: string, items: HomeSlot[], currentPage: number) => {
+    const navigate = (action: string, items: HomeSlot[], currentPage: number, totalPages: number = 1) => {
         const totalSlots = rows * cols
+        let pageActionToTrigger: 'next' | 'prev' | null = null
 
-        setSelectedSlotIndex(prevIndex => {
-            if (prevIndex === null) {
-                if (['up', 'down', 'left', 'right'].includes(action)) {
-                    return 0
-                }
-                return null
+        const prevIndex = selectedSlotIndex
+
+        if (prevIndex === null) {
+            if (['up', 'down', 'left', 'right'].includes(action)) {
+                setSelectedSlotIndex(0)
             }
+            return
+        }
 
-            // Resolve to anchor in case we're somehow on a covered cell
-            const anchoredPrev = resolveAnchor(prevIndex, items, currentPage, cols)
+        // Resolve to anchor in case we're somehow on a covered cell
+        const anchoredPrev = resolveAnchor(prevIndex, items, currentPage, cols)
+        let nextIndex = anchoredPrev
 
-            let nextIndex = anchoredPrev
-
-            switch (action) {
-                case 'right': {
-                    // Jump past the full width of the current slot
-                    const rightEdge = getRightEdge(anchoredPrev, items, currentPage, cols)
-                    const rightEdgeCol = rightEdge % cols
-                    if (rightEdgeCol === cols - 1) {
-                        // At the end of the row → page change
+        switch (action) {
+            case 'right': {
+                const rightEdge = getRightEdge(anchoredPrev, items, currentPage, cols)
+                const rightEdgeCol = rightEdge % cols
+                if (rightEdgeCol === cols - 1) {
+                    if (currentPage < totalPages - 1) {
                         if (pendingSelectionRef.current === null) {
                             const row = Math.floor(anchoredPrev / cols)
                             pendingSelectionRef.current = row * cols
-                            window.api.movementControl.send('PAGE_ACTION', 'next')
+                            pageActionToTrigger = 'next'
                         }
-                    } else {
-                        const raw = rightEdge + 1
-                        nextIndex = resolveAnchorFromDirection(raw, items, currentPage, cols, 'right')
                     }
-                    break
+                } else {
+                    const raw = rightEdge + 1
+                    nextIndex = resolveAnchorFromDirection(raw, items, currentPage, cols, 'right')
                 }
-                case 'left': {
-                    const startCol = anchoredPrev % cols
-                    if (startCol === 0) {
-                        // At the left edge → page change
+                break
+            }
+            case 'left': {
+                const startCol = anchoredPrev % cols
+                if (startCol === 0) {
+                    if (currentPage > 0) {
                         if (pendingSelectionRef.current === null) {
                             const row = Math.floor(anchoredPrev / cols)
                             pendingSelectionRef.current = row * cols + cols - 1
-                            window.api.movementControl.send('PAGE_ACTION', 'prev')
+                            pageActionToTrigger = 'prev'
                         }
-                    } else {
-                        const raw = anchoredPrev - 1
-                        nextIndex = resolveAnchorFromDirection(raw, items, currentPage, cols, 'left')
                     }
-                    break
+                } else {
+                    const raw = anchoredPrev - 1
+                    nextIndex = resolveAnchorFromDirection(raw, items, currentPage, cols, 'left')
                 }
-                case 'down': {
-                    const bottomEdge = getBottomEdge(anchoredPrev, items, currentPage, cols)
-                    if (bottomEdge + cols < totalSlots) {
-                        const raw = bottomEdge + cols
-                        nextIndex = resolveAnchorFromDirection(raw, items, currentPage, cols, 'down')
-                    }
-                    break
-                }
-                case 'up': {
-                    if (anchoredPrev - cols >= 0) {
-                        const raw = anchoredPrev - cols
-                        nextIndex = resolveAnchorFromDirection(raw, items, currentPage, cols, 'up')
-                    }
-                    break
-                }
-                case 'back':
-                    return null
-                case 'select': {
-                    const selectedItem = items.find(
-                        (i) => i.position === anchoredPrev && (i.page ?? 0) === currentPage
-                    )
-                    if (selectedItem?.onClick) {
-                        window.api.gridItemControl(selectedItem.onClick, selectedItem)
-                    }
-                    return anchoredPrev
-                }
+                break
             }
+            case 'down': {
+                const bottomEdge = getBottomEdge(anchoredPrev, items, currentPage, cols)
+                if (bottomEdge + cols < totalSlots) {
+                    const raw = bottomEdge + cols
+                    nextIndex = resolveAnchorFromDirection(raw, items, currentPage, cols, 'down')
+                }
+                break
+            }
+            case 'up': {
+                if (anchoredPrev - cols >= 0) {
+                    const raw = anchoredPrev - cols
+                    nextIndex = resolveAnchorFromDirection(raw, items, currentPage, cols, 'up')
+                }
+                break
+            }
+            case 'back':
+                setSelectedSlotIndex(null)
+                return
+            case 'select': {
+                const selectedItem = items.find(
+                    (i) => i.position === anchoredPrev && (i.page ?? 0) === currentPage
+                )
+                if (selectedItem?.onClick) {
+                    window.api.gridItemControl(selectedItem.onClick, selectedItem)
+                }
+                nextIndex = anchoredPrev
+                break
+            }
+        }
 
-            return nextIndex
-        })
+        setSelectedSlotIndex(nextIndex)
+
+        if (pageActionToTrigger) {
+            window.api.movementControl.send('PAGE_ACTION', pageActionToTrigger)
+        }
     }
 
     const applyPendingSelection = () => {
@@ -167,10 +174,15 @@ export function useGridNavigation(rows: number, cols: number) {
         }
     }
 
+    const clearPendingSelection = () => {
+        pendingSelectionRef.current = null
+    }
+
     return {
         selectedSlotIndex,
         setSelectedSlotIndex,
         navigate,
-        applyPendingSelection
+        applyPendingSelection,
+        clearPendingSelection
     }
 }

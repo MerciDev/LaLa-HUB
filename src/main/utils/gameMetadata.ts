@@ -160,34 +160,51 @@ export async function processGameSlots(slots: HomeSlot[]): Promise<HomeSlot[]> {
 
     for (let i = 0; i < newSlots.length; i++) {
         const slot = newSlots[i]
+        if (!slot.game) continue
 
-        // Only process if missing images
-        if (slot.game && (!slot.squareImage || !slot.backgroundImage)) {
-            debugLog(`[Metadata] Processing ${slot.label} (ID: ${slot.game.id})...`)
+        // 1. First, check if any existing image fields have remote 'http' URLs and download them
+        const imageFields: (keyof HomeSlot)[] = [
+            'squareImage', 'backgroundImage', 'logoImage', 'coverImage', 
+            'verticalImage', 'horizontalImage', 'iconImage'
+        ]
+
+        for (const field of imageFields) {
+            const val = slot[field]
+            if (typeof val === 'string' && val.startsWith('http')) {
+                debugLog(`[Metadata] Downloading remote ${field} for ${slot.label}...`)
+                const local = await downloadGameImage(val, slot.game.id)
+                if (local) {
+                    (slot as any)[field] = local
+                    updated = true
+                }
+            }
+        }
+
+        // 2. If essential images (square or background) are still missing, try fetching metadata
+        if (!slot.squareImage || !slot.backgroundImage) {
+            debugLog(`[Metadata] Missing essential images for ${slot.label}, fetching metadata...`)
             
-            // 1. Try to fetch by exact ID
+            // Try by ID
             let metadata = await fetchGameMetadata(slot.game.id)
 
-            // 2. Fallback: Search by name if ID lookup failed (likely UUID or manual ID)
+            // Fallback to Search by Name
             if (!metadata) {
-                debugLog(`[Metadata] ID not found, searching by name: "${slot.label}"`)
                 metadata = await searchGameMetadata(slot.label)
-                
-                // If found by name, update the game ID to match API for future calls
                 if (metadata && slot.game) {
-                    debugLog(`[Metadata] Match found in API: ${metadata.id}. Rewriting slot ID.`)
                     slot.game.id = metadata.id
                     updated = true
                 }
             }
 
             if (metadata) {
-                // Update images if found
-                const imageUrl = metadata.images.square || metadata.images.cover
-                if (imageUrl && !slot.squareImage) {
-                    const localPath = await downloadGameImage(imageUrl, slot.game.id)
-                    if (localPath) {
-                        slot.squareImage = localPath
+                const imgs = metadata.images || {}
+                
+                // Square/Cover
+                const imageUrl = imgs.square || imgs.cover
+                if (imageUrl && (!slot.squareImage || slot.squareImage.startsWith('http'))) {
+                    const local = await downloadGameImage(imageUrl, slot.game.id)
+                    if (local) {
+                        slot.squareImage = local
                         updated = true
                         
                         // Try thumb
@@ -197,11 +214,31 @@ export async function processGameSlots(slots: HomeSlot[]): Promise<HomeSlot[]> {
                     }
                 }
 
-                if (metadata.images.background && !slot.backgroundImage) {
-                    const localBg = await downloadGameImage(metadata.images.background, slot.game.id + '-bg')
+                // Background
+                if (imgs.background && (!slot.backgroundImage || slot.backgroundImage.startsWith('http'))) {
+                    const localBg = await downloadGameImage(imgs.background, slot.game.id + '-bg')
                     if (localBg) {
                         slot.backgroundImage = localBg
                         updated = true
+                    }
+                }
+
+                // Optionally populate other missing fields from metadata
+                const mapping: Record<string, keyof HomeSlot> = {
+                    logo: 'logoImage',
+                    vertical: 'verticalImage',
+                    horizontal: 'horizontalImage',
+                    icon: 'iconImage'
+                }
+
+                for (const [metaKey, slotKey] of Object.entries(mapping)) {
+                    const url = (imgs as any)[metaKey]
+                    if (url && !slot[slotKey]) {
+                        const local = await downloadGameImage(url, slot.game.id + '-' + metaKey)
+                        if (local) {
+                            (slot as any)[slotKey] = local
+                            updated = true
+                        }
                     }
                 }
             }

@@ -394,10 +394,20 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
 
     // ── Handle Import Game ──
     const handleImportGame = useCallback((res: any) => {
+        const imgs = res.images || {}
+        const normalize = (u: string) => `http://localhost:3000${u}`.replace('localhost:3000//', 'localhost:3000/')
+        
         setForm(p => ({
             ...p,
             name: res.name || '',
-            searchId: res.id || ''
+            searchId: res.id || '',
+            squareImage: imgs.square ? normalize(imgs.square) : p.squareImage,
+            backgroundImage: imgs.background ? normalize(imgs.background) : p.backgroundImage,
+            logoImage: imgs.logo ? normalize(imgs.logo) : p.logoImage,
+            coverImage: imgs.cover ? normalize(imgs.cover) : p.coverImage,
+            verticalImage: imgs.vertical ? normalize(imgs.vertical) : p.verticalImage,
+            horizontalImage: imgs.horizontal ? normalize(imgs.horizontal) : p.horizontalImage,
+            iconImage: imgs.icon ? normalize(imgs.icon) : p.iconImage,
         }))
         setTab('general')
         setFocusArea('content')
