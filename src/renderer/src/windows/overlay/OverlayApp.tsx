@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Icon } from '@iconify/react'
 import './style.css'
+import { useGamepad } from '../../hooks/useGamepad'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ function panelCount(s: SectionId): number {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function OverlayApp(): React.JSX.Element {
+  useGamepad()
   const [visible, setVisible]       = useState(false)
   const [activeGame, setActiveGame] = useState<any>(null)
   const [section, setSection]       = useState<SectionId | null>(null)
@@ -73,6 +75,7 @@ export default function OverlayApp(): React.JSX.Element {
   const [theme, setTheme]           = useState<Theme>('dark')
   const [volume, setVolume]         = useState(70)
   const [notifyOn, setNotifyOn]     = useState(true)
+  const [sessionTimeStr, setSessionTimeStr] = useState('00:00:00')
   const closingRef = useRef(false)
 
   // ── Clock ───────────────────────────────────────────────────────────────
@@ -86,6 +89,26 @@ export default function OverlayApp(): React.JSX.Element {
     const t = setInterval(tick, 1000)
     return () => clearInterval(t)
   }, [])
+
+  // ── Session Timer ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!visible || !activeGame?.sessionStartTime) return
+    
+    const updateSessionTime = () => {
+      const now = Date.now()
+      const diff = Math.max(0, now - activeGame.sessionStartTime)
+      const hrs = Math.floor(diff / 3600000)
+      const mins = Math.floor((diff % 3600000) / 60000)
+      const secs = Math.floor((diff % 60000) / 1000)
+      
+      const f = (n: number) => n.toString().padStart(2, '0')
+      setSessionTimeStr(`${f(hrs)}:${f(mins)}:${f(secs)}`)
+    }
+
+    updateSessionTime()
+    const t = setInterval(updateSessionTime, 1000)
+    return () => clearInterval(t)
+  }, [visible, activeGame?.sessionStartTime])
 
   // ── Theme on <html> ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -143,29 +166,32 @@ export default function OverlayApp(): React.JSX.Element {
     setSection(null); setInPanel(false)
   }, [])
 
-  // ── Keyboard navigation ───────────────────────────────────────────────────
+  // ── Keyboard & Gamepad navigation ───────────────────────────────────────────
   useEffect(() => {
     if (!visible) return
 
     const count = section ? panelCount(section) : 0
 
-    const onKey = (e: KeyboardEvent) => {
-      e.preventDefault()
-
+    const handleAction = (action: string) => {
       // ── Inside panel ─────────────────────────────────────────────────────
       if (inPanel && section) {
-        switch (e.key) {
+        switch (action) {
+          case 'up':
           case 'ArrowUp':
             setPanelIdx(i => (i - 1 + count) % count)
             break
+          case 'down':
           case 'ArrowDown':
             setPanelIdx(i => (i + 1) % count)
             break
+          case 'left':
           case 'ArrowLeft':
+          case 'back':
           case 'Escape':
             // Exit panel back to bar focus
             setInPanel(false)
             break
+          case 'select':
           case 'Enter':
             execPanelAction(section, panelIdx, theme, setTheme, volume, setVolume, notifyOn, setNotifyOn, dismiss)
             break
@@ -174,15 +200,18 @@ export default function OverlayApp(): React.JSX.Element {
       }
 
       // ── On bar ───────────────────────────────────────────────────────────
-      switch (e.key) {
+      switch (action) {
+        case 'left':
         case 'ArrowLeft':
           if (section) break 
           setBarIdx(i => Math.max(0, i - 1))
           break
+        case 'right':
         case 'ArrowRight':
           if (section) break
           setBarIdx(i => Math.min(SECTIONS.length - 1, i + 1))
           break
+        case 'select':
         case 'Enter': {
           const targetId = SECTIONS[barIdx].id
           if (targetId === 'home') {
@@ -199,6 +228,7 @@ export default function OverlayApp(): React.JSX.Element {
           break
         }
 
+        case 'back':
         case 'Escape':
         case 'Backspace':
           if (section) closePanel()
@@ -207,8 +237,23 @@ export default function OverlayApp(): React.JSX.Element {
       }
     }
 
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault()
+      handleAction(e.key)
+    }
+
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    
+    // Gamepad IPC
+    const api = (window as any).api
+    const removeListener = api?.movementControl?.onAction((_: string, action: string) => {
+        handleAction(action)
+    })
+
+    return () => {
+        window.removeEventListener('keydown', onKey)
+        removeListener?.()
+    }
   }, [visible, inPanel, section, barIdx, panelIdx, theme, volume, notifyOn, openSection, closePanel, dismiss])
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -222,8 +267,11 @@ export default function OverlayApp(): React.JSX.Element {
         <div className="ov-game-hud__info">
           <div className="ov-game-hud__title">{activeGame?.label || 'Ningún juego activo'}</div>
           <div className="ov-game-hud__meta">
-            <span className="ov-game-hud__pill"><Icon icon="mynaui:desktop" /> {activeGame?.console || '---'}</span>
-            <span className="ov-game-hud__pill"><Icon icon="mynaui:clock" /> {activeGame?.playtimeStr || '0m'}</span>
+            <span className="ov-game-hud__pill">
+              <Icon icon={activeGame?.platform?.icon || 'mynaui:desktop'} /> 
+              {activeGame?.platform?.name || activeGame?.console || '---'}
+            </span>
+            <span className="ov-game-hud__pill"><Icon icon="mynaui:clock" /> {sessionTimeStr}</span>
           </div>
         </div>
         <div className="ov-game-hud__stats">
@@ -333,7 +381,10 @@ function PanelGame({ inPanel, panelIdx, activeGame }: { inPanel: boolean; panelI
           </div>
           <div className="ov-game-card__info">
             <div className="ov-game-card__title">{activeGame.label}</div>
-            <div className="ov-game-card__meta">⏱ Jugando ahora · {activeGame.playtimeStr}</div>
+            <div className="ov-game-card__meta">
+              {activeGame.platform?.name && <span>{activeGame.platform.name} · </span>}
+              ⏱ Sesión: {sessionTimeStr}
+            </div>
           </div>
           <div className="ov-game-card__actions">
             <button 

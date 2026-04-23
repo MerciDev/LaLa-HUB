@@ -244,6 +244,7 @@ function MainApp(): React.JSX.Element {
         setAddGamePanelVisible(true)
         setAddGameSelectedIndex(0)
         window.api.contextMenuControl.send('toggle', false)
+        setLastGridIndex(stateRef.current.selectedSlotIndex ?? 0)
         setSelectedSlotIndex(null)
         setInfoText('Añadir Juego')
         setIslandWidth('50%')
@@ -266,6 +267,7 @@ function MainApp(): React.JSX.Element {
         setAddGamePanelVisible(false)
         setEditSlot(null)
         collapseIsland()
+        setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
         window.api.movementControl.send('SET_SECTION', 'grid')
     }
 
@@ -373,6 +375,9 @@ function MainApp(): React.JSX.Element {
                     setMainExpanded(false)
                     setSocialExpanded(false)
                     setIslandWidth('56px')
+                    setLastGridIndex(stateRef.current.selectedSlotIndex ?? 0)
+                    setSelectedSlotIndex(null)
+                    window.api.movementControl.send('SET_SECTION', 'settings')
                     break
                 case 'GO_HOME':
                     sfx.close()
@@ -383,15 +388,18 @@ function MainApp(): React.JSX.Element {
                     setResizeMode(null)
                     setFocusedHeader(null)
                     setContextMenuVisible(false)
+                    setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
                     break
                 case 'CLOSE_SETTINGS':
                     sfx.close()
                     setSettingsPanelVisible(false)
+                    setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
                     break
                 case 'CLOSE_ADD_GAME':
                     sfx.close()
                     setAddGamePanelVisible(false)
                     setEditSlot(null)
+                    setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
                     break
                 case 'OPEN_EDIT_GAME':
                     openEditGameModal(action.payload)
@@ -595,12 +603,7 @@ function MainApp(): React.JSX.Element {
             } else if (section === 'add-game-modal') {
                 window.dispatchEvent(new CustomEvent('panel-move', { detail: action }))
             } else if (section === 'settings') {
-                if (action === 'back' || action === 'escape') {
-                    sfx.close(); setSettingsPanelVisible(false)
-                    window.api.movementControl.send('SET_SECTION', 'grid')
-                } else {
-                    window.dispatchEvent(new CustomEvent('panel-move', { detail: action }))
-                }
+                window.dispatchEvent(new CustomEvent('panel-move', { detail: action }))
             }
         }
 

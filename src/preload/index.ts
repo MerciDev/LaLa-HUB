@@ -90,8 +90,20 @@ const api = {
       ipcRenderer.invoke('emulators-get'),
     save: (emulator: import('../shared/types').Emulator): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('emulator-save', emulator),
-    remove: (id: string): Promise<{ success: boolean }> =>
+    remove: (id: string) =>
       ipcRenderer.invoke('emulator-remove', id)
+  },
+
+  /** Platform management (used by Settings panel). */
+  platforms: {
+    getAll: (): Promise<import('../shared/types').Platform[]> =>
+      ipcRenderer.invoke('platforms-get'),
+    save: (platform: import('../shared/types').Platform): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('platform-save', platform),
+    remove: (id: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('platform-remove', id),
+    sync: (): Promise<{ success: boolean; count?: number; error?: string }> =>
+      ipcRenderer.invoke('platforms-sync')
   },
 
   /** Playtime queries (read-only from renderer side). */

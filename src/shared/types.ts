@@ -52,6 +52,7 @@ export interface Emulator {
     path: string
     /** Argument template, use {roms} as placeholder for the ROM path. */
     args: string
+    platforms?: string[]
 }
 
 export interface RetroArchSettings {
@@ -61,21 +62,23 @@ export interface RetroArchSettings {
 
 export interface AppSettings {
     emulators: Emulator[]
+    platforms: Platform[]
     retroarch?: RetroArchSettings
 }
 
-export interface Console {
+export interface Platform {
     id: string
     name: string
-    emulated?: boolean
-    emulator?: Emulator
+    icon?: string
+    image?: string
+    company?: string
 }
 
 export interface Game {
     id: string
     name: string
     searchId?: string
-    console?: Console
+    platform?: Platform
     emulator?: Emulator
     path?: string
     args?: string

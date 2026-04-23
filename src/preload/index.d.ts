@@ -41,6 +41,14 @@ export interface API {
     save: (emulator: Emulator) => Promise<{ success: boolean }>
     remove: (id: string) => Promise<{ success: boolean }>
   }
+
+  /** Platform manager — used by the Settings panel. */
+  platforms: {
+    getAll: () => Promise<import('../shared/types').Platform[]>
+    save: (platform: import('../shared/types').Platform) => Promise<{ success: boolean }>
+    remove: (id: string) => Promise<{ success: boolean }>
+    sync: () => Promise<{ success: boolean; count?: number; error?: string }>
+  }
   
   /** Playtime queries (read-only). */
   playtime: {

@@ -34,6 +34,7 @@ export const keymaps = {
     gamepadDown: 'Down',
     gamepadLeft: 'Left',
     gamepadRight: 'Right',
+    gamepadOverlayCombo: 'L3R3',
 }
 
 export function createDebouncedToggle(toggleFn: () => void, cooldownMs = 300) {

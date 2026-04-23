@@ -7,8 +7,12 @@ import { debugLog, debugError } from './debug'
 const SETTINGS_FOLDER = 'config'
 const SETTINGS_FILE = 'settings.json'
 
+import platformsData from './platforms.json'
+const DEFAULT_PLATFORMS = platformsData
+
 const DEFAULT_SETTINGS: AppSettings = {
-    emulators: []
+    emulators: [],
+    platforms: DEFAULT_PLATFORMS
 }
 
 function getSettingsPath(): string {
@@ -58,6 +62,7 @@ export function loadEmulators(): Emulator[] {
 export function saveEmulator(emulator: Emulator): void {
     const settings = loadSettings()
     const idx = settings.emulators.findIndex(e => e.id === emulator.id)
+    debugLog(`[Settings] Saving emulator: ${emulator.name} (Platforms: ${emulator.platforms?.length || 0})`)
     if (idx >= 0) {
         settings.emulators[idx] = emulator
         debugLog(`[Settings] Emulator updated: ${emulator.name}`)
@@ -73,6 +78,44 @@ export function removeEmulator(id: string): void {
     settings.emulators = settings.emulators.filter(e => e.id !== id)
     saveSettings(settings)
     debugLog(`[Settings] Emulator removed: ${id}`)
+}
+
+// ─── Platform helpers ───────────────────────────────────────────────────────────
+export function loadPlatforms(): import('../../shared/types').Platform[] {
+    const settings = loadSettings()
+    // Only return defaults if we have absolutely no platform data at all
+    if (!settings.platforms) {
+        return DEFAULT_SETTINGS.platforms || []
+    }
+    return settings.platforms
+}
+
+export function savePlatform(platform: import('../../shared/types').Platform): void {
+    const settings = loadSettings()
+    if (!settings.platforms) settings.platforms = []
+    const idx = settings.platforms.findIndex(p => p.id === platform.id)
+    if (idx >= 0) {
+        settings.platforms[idx] = platform
+        debugLog(`[Settings] Platform updated: ${platform.name}`)
+    } else {
+        settings.platforms.push(platform)
+        debugLog(`[Settings] Platform added: ${platform.name}`)
+    }
+    saveSettings(settings)
+}
+
+export function removePlatform(id: string): void {
+    const settings = loadSettings()
+    settings.platforms = (settings.platforms || []).filter(p => p.id !== id)
+    saveSettings(settings)
+    debugLog(`[Settings] Platform removed: ${id}`)
+}
+
+export function clearPlatforms(): void {
+    const settings = loadSettings()
+    settings.platforms = []
+    saveSettings(settings)
+    debugLog(`[Settings] All platforms cleared`)
 }
 
 // ─── RetroArch helpers ──────────────────────────────────────────────────────────

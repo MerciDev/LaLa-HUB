@@ -2,6 +2,7 @@ import { BrowserWindow, screen } from 'electron';
 import { is } from '@electron-toolkit/utils';
 import { join } from 'path';
 import { getCurrentSessionData, formatPlaytime } from '../../utils/playtime';
+import { isLoadingVisible } from '../loading/loading';
 
 let overlayInstance: BrowserWindow | null = null;
 let mainApp: BrowserWindow | null = null;
@@ -71,6 +72,8 @@ export function toggleOverlay() {
             }
         }, 400);
     } else {
+        if (isLoadingVisible()) return;
+
         // Ensure bounds cover full primary screen (game may be fullscreen)
         const { bounds } = screen.getPrimaryDisplay();
         overlayInstance.setBounds(bounds);
@@ -88,8 +91,10 @@ export function toggleOverlay() {
             gameData = {
                 id: slot.id,
                 label: slot.label,
-                console: slot.game?.console?.name || 'PC',
+                platform: slot.game?.platform || null,
+                console: slot.game?.platform?.name || 'PC',
                 playtimeStr: formatPlaytime(totalMinutes),
+                sessionStartTime: session.startTime,
                 imageUrl: slot.squareImage || slot.thumbImage || null
             };
         }

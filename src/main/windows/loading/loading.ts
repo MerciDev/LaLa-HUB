@@ -98,6 +98,10 @@ export function hideLoading(): void {
     loadingInstance.hide();
 }
 
+export function isLoadingVisible(): boolean {
+    return !!loadingInstance && loadingInstance.isVisible();
+}
+
 /**
  * Legacy toggle kept for compatibility with the keyboard shortcut binding.
  * Prefer showLoading / hideLoading for explicit control.

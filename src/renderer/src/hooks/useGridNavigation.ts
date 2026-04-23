@@ -76,7 +76,7 @@ function getBottomEdge(pos: number, items: HomeSlot[], page: number, cols: numbe
  * Span-aware: correctly resolves anchor cells for multi-cell slots.
  */
 export function useGridNavigation(rows: number, cols: number) {
-    const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null)
+    const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(0)
     const pendingSelectionRef = useRef<number | null>(null)
 
     const navigate = (action: string, items: HomeSlot[], currentPage: number, totalPages: number = 1) => {

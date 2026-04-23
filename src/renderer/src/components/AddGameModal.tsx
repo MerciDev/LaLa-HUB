@@ -11,6 +11,7 @@ interface AddGameForm {
     searchId: string
     path: string
     emulatorId: string
+    platformId: string
     processName: string
     squareImage: string
     backgroundImage: string
@@ -22,7 +23,7 @@ interface AddGameForm {
 }
 
 const EMPTY_FORM: AddGameForm = { 
-    name: '', searchId: '', path: '', emulatorId: '', processName: '',
+    name: '', searchId: '', path: '', emulatorId: '', platformId: '', processName: '',
     squareImage: '', backgroundImage: '', logoImage: '', 
     coverImage: '', verticalImage: '', horizontalImage: '', iconImage: '' 
 }
@@ -61,6 +62,8 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
 
     const [isEmuMenuOpen, setIsEmuMenuOpen] = useState(false)
     const [emuMenuHoverIndex, setEmuMenuHoverIndex] = useState(0)
+    const [isPlatMenuOpen, setIsPlatMenuOpen] = useState(false)
+    const [platMenuHoverIndex, setPlatMenuHoverIndex] = useState(0)
 
     const [importQuery, setImportQuery] = useState('')
     const [importResults, setImportResults] = useState<any[]>([])
@@ -78,7 +81,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     const [isSortMenuOpen, setIsSortMenuOpen] = useState(false)
     const [sortMenuHoverIndex, setSortMenuHoverIndex] = useState(0)
 
-    const isAMenuOpen = isTargetMenuOpen || isEmuMenuOpen || isConsoleMenuOpen || isYearMenuOpen || isSortMenuOpen
+    const isAMenuOpen = isTargetMenuOpen || isEmuMenuOpen || isPlatMenuOpen || isConsoleMenuOpen || isYearMenuOpen || isSortMenuOpen
 
     const [form, setForm] = useState<AddGameForm>(EMPTY_FORM)
     const [initialForm, setInitialForm] = useState<AddGameForm>(EMPTY_FORM)
@@ -87,6 +90,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     const { showToast } = useToast()
 
     const [emulators, setEmulators] = useState<Emulator[]>([])
+    const [platforms, setPlatforms] = useState<import('../../../shared/types').Platform[]>([])
     const [apiImages, setApiImages] = useState<{ type: string; url: string }[]>([])
     const [isSaving, setIsSaving] = useState(false)
     const [isInputEditing, setIsInputEditing] = useState(false)
@@ -94,9 +98,10 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     const isEditing = !!editSlot
 
     const r = useRef({ 
-        tab, focusArea, contentIndex, contentSubIndex, visible, form, emulators, 
+        tab, focusArea, contentIndex, contentSubIndex, visible, form, emulators, platforms,
         apiImages, isSaving, editSlot, mediaTarget, isTargetMenuOpen, 
         menuHoverIndex, isInputEditing, isEmuMenuOpen, emuMenuHoverIndex,
+        isPlatMenuOpen, platMenuHoverIndex,
         hasAnyChanges: false, importResults,
         apiConsoles, importConsole, isConsoleMenuOpen, consoleMenuHoverIndex,
         apiYears, importYear, importSort, isYearMenuOpen, yearMenuHoverIndex,
@@ -110,6 +115,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                    form.searchId !== initialForm.searchId ||
                    form.path !== initialForm.path ||
                    form.emulatorId !== initialForm.emulatorId ||
+                   form.platformId !== initialForm.platformId ||
                    form.processName !== initialForm.processName
         }
         if (section === 'media') {
@@ -127,9 +133,10 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
 
     useEffect(() => {
         r.current = { 
-            tab, focusArea, contentIndex, contentSubIndex, visible, form, emulators, 
+            tab, focusArea, contentIndex, contentSubIndex, visible, form, emulators, platforms,
             apiImages, isSaving, editSlot, mediaTarget, isTargetMenuOpen, 
             menuHoverIndex, isInputEditing, isEmuMenuOpen, emuMenuHoverIndex,
+            isPlatMenuOpen, platMenuHoverIndex,
             hasAnyChanges, importResults, apiConsoles, importConsole,
             isConsoleMenuOpen, consoleMenuHoverIndex,
             apiYears, importYear, importSort, isYearMenuOpen, yearMenuHoverIndex,
@@ -175,6 +182,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     useEffect(() => {
         if (!visible) return
         window.api.emulators.getAll().then(setEmulators)
+        window.api.platforms.getAll().then(setPlatforms)
         setTab(editSlot ? 'general' : 'import')
         setFocusArea('nav')
         setContentIndex(0)
@@ -196,6 +204,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 searchId: editSlot.game?.searchId ?? '',
                 path: editSlot.game?.path ?? '',
                 emulatorId: editSlot.game?.emulator?.id ?? '',
+                platformId: editSlot.game?.platform?.id ?? '',
                 processName: editSlot.game?.processName ?? '',
                 squareImage: editSlot.squareImage ?? '',
                 backgroundImage: editSlot.backgroundImage ?? '',
@@ -292,7 +301,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
 
     const focusCurrentInput = useCallback(() => {
         if (tab === 'general') {
-            const ids = ['ag-name', 'ag-searchid', 'ag-path', 'ag-emu', 'ag-process']
+            const ids = ['ag-name', 'ag-searchid', 'ag-path', 'ag-emu', 'ag-plat', 'ag-process']
             const el = document.getElementById(ids[contentIndex])
             if (el) el.focus()
         } else if (tab === 'import') {
@@ -331,7 +340,8 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 if (target.id === 'ag-searchid') { setContentIndex(1) }
                 if (target.id === 'ag-path') { setContentIndex(2) }
                 if (target.id === 'ag-emu') { setContentIndex(3) }
-                if (target.id === 'ag-process') { setContentIndex(4) }
+                if (target.id === 'ag-plat') { setContentIndex(4) }
+                if (target.id === 'ag-process') { setContentIndex(5) }
                 if (target.id === 'ag-import-query') { setContentIndex(0) }
                 if (target.id === 'ag-import-console') { setContentIndex(1) }
             }
@@ -433,7 +443,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 if (contentIndex <= 1) {
                     bodyEl.scrollTo({ top: 0, behavior: 'smooth' })
                 } else {
-                    const id = contentIndex === 2 ? 'ag-path' : contentIndex === 3 ? 'ag-emu' : 'ag-process'
+                    const id = contentIndex === 2 ? 'ag-path' : contentIndex === 3 ? 'ag-emu' : contentIndex === 4 ? 'ag-plat' : 'ag-process'
                     const el = document.getElementById(id)
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
                 }
@@ -456,6 +466,17 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
             }
         }
     }, [consoleMenuHoverIndex, isConsoleMenuOpen])
+
+    useEffect(() => {
+        if (isPlatMenuOpen) {
+            const el = document.getElementById(`ag-plat-opt-${platMenuHoverIndex}`)
+            const parent = el?.parentElement
+            if (el && parent) {
+                const targetScroll = el.offsetTop - (parent.offsetHeight / 2) + (el.offsetHeight / 2)
+                parent.scrollTo({ top: targetScroll, behavior: 'smooth' })
+            }
+        }
+    }, [platMenuHoverIndex, isPlatMenuOpen])
 
     useEffect(() => {
         if (isEmuMenuOpen) {
@@ -557,6 +578,8 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
             const isEmuMenuOpen = r.current.isEmuMenuOpen
 
             if (!vis || saving) return
+            // If a dialog is open, let it handle the events exclusively
+            if (document.querySelector('.ag-dialog-overlay')) return
 
             const action = (e as CustomEvent<string>).detail
 
@@ -570,16 +593,35 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
             // ─ Sub-menu: Emulator Dropdown ─
             if (isEmuMenuOpen) {
                 e.stopImmediatePropagation()
+                const emuOptions = [{ id: '', name: 'Nativo' }, ...r.current.emulators];
                 const currentHover = r.current.emuMenuHoverIndex
-                const emuOptions = [{ id: '', name: 'Nativo' }, ...r.current.emulators]
                 if (action === 'up') {
                     if (currentHover > 0) { sfx.navigate(); setEmuMenuHoverIndex(currentHover - 1) }
                 } else if (action === 'down') {
                     if (currentHover < emuOptions.length - 1) { sfx.navigate(); setEmuMenuHoverIndex(currentHover + 1) }
                 } else if (action === 'select') {
-                    sfx.confirm(); setForm(p => ({ ...p, emulatorId: emuOptions[currentHover].id, path: '' })); setIsEmuMenuOpen(false); setIsInputEditing(false)
+                    sfx.confirm(); setForm(p => ({ ...p, emulatorId: emuOptions[currentHover].id, platformId: '', path: '' })); setIsEmuMenuOpen(false)
                 } else if (action === 'back') {
-                    sfx.cancel(); setIsEmuMenuOpen(false); setIsInputEditing(false)
+                    sfx.cancel(); setIsEmuMenuOpen(false)
+                }
+                return
+            }
+
+            // ─ Sub-menu: Platform Dropdown ─
+            if (r.current.isPlatMenuOpen) {
+                e.stopImmediatePropagation()
+                const currentHover = r.current.platMenuHoverIndex
+                const selectedEmulator = r.current.emulators.find(e => e.id === r.current.form.emulatorId)
+                const platOptions = r.current.platforms.filter(p => selectedEmulator?.platforms?.includes(p.id))
+
+                if (action === 'up') {
+                    if (currentHover > 0) { sfx.navigate(); setPlatMenuHoverIndex(currentHover - 1) }
+                } else if (action === 'down') {
+                    if (currentHover < platOptions.length - 1) { sfx.navigate(); setPlatMenuHoverIndex(currentHover + 1) }
+                } else if (action === 'select') {
+                    sfx.confirm(); setForm(p => ({ ...p, platformId: platOptions[currentHover].id })); setIsPlatMenuOpen(false); setIsInputEditing(false)
+                } else if (action === 'back') {
+                    sfx.cancel(); setIsPlatMenuOpen(false); setIsInputEditing(false)
                 }
                 return
             }
@@ -741,7 +783,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 }
                 // Tab 1: General Info (Linear List)
                 else if (ct === 'general') {
-                    const maxItems = 5
+                    const maxItems = 6
                     if (action === 'up') {
                         if (cIdx > 0) { sfx.navigate(); setContentIndex(p => p - 1); setContentSubIndex(0) }
                     } else if (action === 'down') {
@@ -767,6 +809,18 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                             const startIdx = emuOptions.findIndex(o => o.id === r.current.form.emulatorId)
                             setEmuMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
                             setIsEmuMenuOpen(true)
+                        } else if (cIdx === 4) {
+                            const selectedEmulator = r.current.emulators.find(e => e.id === r.current.form.emulatorId)
+                            const platOptions = r.current.platforms.filter(p => selectedEmulator?.platforms?.includes(p.id))
+                            if (platOptions.length > 0) {
+                                sfx.open()
+                                const startIdx = platOptions.findIndex(o => o.id === r.current.form.platformId)
+                                setPlatMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
+                                setIsPlatMenuOpen(true)
+                            } else {
+                                sfx.error()
+                                showToast('Este emulador no tiene plataformas asociadas', 'warning')
+                            }
                         } else {
                             sfx.confirm()
                             setIsInputEditing(true)
@@ -886,10 +940,11 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         try {
             const slotId = slot?.id ?? `game-${Date.now()}`
             const selectedEmulator = emus.find(e => e.id === f.emulatorId)
+            const selectedPlatform = r.current.platforms.find(p => p.id === f.platformId)
             const newSlot: HomeSlot = {
                 ...(slot ?? {}),
                 id: slotId,
-                icon: 'mdi:controller',
+                icon: selectedPlatform?.icon || 'mdi:controller',
                 label: f.name.trim(),
                 squareImage: f.squareImage || slot?.squareImage,
                 backgroundImage: f.backgroundImage || slot?.backgroundImage,
@@ -907,6 +962,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                     searchId: f.searchId.trim(),
                     path: f.path.trim(),
                     emulator: selectedEmulator,
+                    platform: selectedPlatform,
                     processName: f.processName.trim(),
                     playtimeMinutes: slot?.game?.playtimeMinutes ?? 0
                 }
@@ -1212,128 +1268,91 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
 
             {/* ── GENERAL TAB ── */}
             {tab === 'general' && (
-                <div className="cp-form">
-                    <div className={isEmuMenuOpen ? 'ag-media-content--dimmed' : ''} style={{ transition: 'all 0.3s' }}>
-                        {/* Name */}
-                        <div
+                <div className="cp-form ag-general">
+                    <div className={isEmuMenuOpen || isPlatMenuOpen ? 'ag-media-content--dimmed' : ''} style={{ transition: 'all 0.3s' }}>
+                        {/* Game Name */}
+                        <div 
                             className={`ag-field-row ${isFocused('content', 0) ? 'ag-field-row--focused' : ''} ${isInputEditing && isFocused('content', 0) ? 'ag-field-row--editing' : ''}`}
-                            onClick={() => { 
-                                setFocusArea('content'); 
-                                setContentIndex(0);
-                                setIsInputEditing(true);
-                            }}
+                            onClick={() => { setFocusArea('content'); setContentIndex(0); setIsInputEditing(true) }}
                         >
-                            <Icon icon="mynaui:edit-one" className="ag-field-icon" />
+                            <Icon icon="mynaui:type" className="ag-field-icon" />
                             <div className="ag-field-body">
                                 <div className="ag-field-label">Nombre del Juego</div>
-                                <input
+                                <input 
                                     id="ag-name"
                                     className={`ag-field-input ${isInputEditing && isFocused('content', 0) ? 'ag-field-input--editing' : ''}`}
-                                    value={form.name}
+                                    value={form.name} 
                                     onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                                    placeholder="Ej. The Legend of Zelda"
+                                    placeholder="Nombre visible..."
                                     disabled={isSaving}
                                 />
                             </div>
                         </div>
 
-                        {/* Search ID with Side Button */}
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'stretch', marginBottom: 8, position: 'relative' }}>
-                            <div
-                                className={`ag-field-row ${isFocused('content', 1) && contentSubIndex === 0 ? 'ag-field-row--focused' : ''} ${isInputEditing && isFocused('content', 1) && contentSubIndex === 0 ? 'ag-field-row--editing' : ''}`}
-                                onClick={() => { 
-                                    setFocusArea('content'); 
-                                    setContentIndex(1);
-                                    setContentSubIndex(0);
-                                    setIsInputEditing(true);
-                                }}
-                                style={{ flex: 1, marginBottom: 0 }}
-                            >
-                                <Icon icon="mynaui:search" className="ag-field-icon" />
-                                <div className="ag-field-body">
-                                    <div className="ag-field-label">Nombre para Búsqueda (APIs)</div>
-                                    <input
+                        {/* Search ID */}
+                        <div 
+                            className={`ag-field-row ${isFocused('content', 1) ? 'ag-field-row--focused' : ''} ${isInputEditing && isFocused('content', 1) ? 'ag-field-row--editing' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(1); setIsInputEditing(true) }}
+                        >
+                            <Icon icon="mynaui:id" className="ag-field-icon" />
+                            <div className="ag-field-body">
+                                <div className="ag-field-label">ID de Búsqueda (Slug)</div>
+                                <div style={{ display: 'flex', gap: 10 }}>
+                                    <input 
                                         id="ag-searchid"
                                         className={`ag-field-input ${isInputEditing && isFocused('content', 1) && contentSubIndex === 0 ? 'ag-field-input--editing' : ''}`}
-                                        value={form.searchId}
+                                        value={form.searchId} 
                                         onChange={e => setForm(p => ({ ...p, searchId: e.target.value }))}
-                                        placeholder="Ej. the-legend-of-zelda (Opcional)"
+                                        placeholder="the-legend-of-zelda..."
                                         disabled={isSaving}
                                     />
+                                    <button 
+                                        className={`ag-field-btn ${isFocused('content', 1) && contentSubIndex === 1 ? 'active' : ''}`}
+                                        onClick={(e) => { e.stopPropagation(); handleAutoAssignSearchId() }}
+                                    >
+                                        <Icon icon="mynaui:magic" />
+                                        Auto
+                                    </button>
                                 </div>
                             </div>
-                            
-                            <button
-                                className={`ag-side-btn ${isFocused('content', 1) && contentSubIndex === 1 ? 'ag-side-btn--focused' : ''}`}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setFocusArea('content');
-                                    setContentIndex(1);
-                                    setContentSubIndex(1);
-                                    handleAutoAssignSearchId();
-                                }}
-                                onMouseEnter={() => {
-                                    setFocusArea('content');
-                                    setContentIndex(1);
-                                    setContentSubIndex(1);
-                                }}
-                                title="Auto-generar ID desde el nombre"
-                                disabled={isSaving}
-                            >
-                                <Icon icon="mynaui:sparkles" style={{ fontSize: 18 }} />
-                                <span>Autoasignar</span>
-                            </button>
                         </div>
 
-                        {/* Path */}
-                        <div
+                        {/* Executable Path */}
+                        <div 
                             className={`ag-field-row ${isFocused('content', 2) ? 'ag-field-row--focused' : ''}`}
-                            onClick={() => { 
-                                setFocusArea('content'); 
-                                setContentIndex(2); 
-                                handleBrowseGame(); 
-                            }}
-                            style={{ cursor: 'pointer' }}
+                            onClick={() => { setFocusArea('content'); setContentIndex(2); handleBrowseGame() }}
                         >
-                            <Icon icon="mynaui:file" className="ag-field-icon" />
+                            <Icon icon="mynaui:folder" className="ag-field-icon" />
                             <div className="ag-field-body">
-                                <div className="ag-field-label">Ruta del Archivo</div>
-                                <input
-                                    id="ag-path"
-                                    className={`ag-field-input`}
-                                    value={form.path || 'Seleccionar archivo...'}
-                                    readOnly
-                                    disabled={isSaving}
-                                    style={{ 
-                                        opacity: form.path ? 1 : 0.4, 
-                                        color: 'rgba(255,255,255,0.5)',
-                                        cursor: 'pointer'
-                                    }}
-                                />
+                                <div className="ag-field-label">Ruta del Juego o ROM</div>
+                                <div className="ag-field-path-row">
+                                    <div className="ag-field-path-text">{form.path || 'Seleccionar archivo...'}</div>
+                                    <Icon icon="mynaui:external-link" />
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Emulator */}
-                    <div
-                        className={`ag-field-row ${isFocused('content', 3) && !isEmuMenuOpen ? 'ag-field-row--focused' : ''} ${isEmuMenuOpen ? 'ag-field-row--menu-open' : ''}`}
+                    {/* Emulator Selector */}
+                    <div 
+                        className={`ag-field-row ${isFocused('content', 3) && !isEmuMenuOpen ? 'ag-field-row--focused' : ''} ${isEmuMenuOpen ? 'ag-field-row--menu-open' : ''} ${isPlatMenuOpen ? 'ag-media-content--dimmed' : ''}`}
                         onClick={() => { 
-                            if (isSaving) return;
                             setFocusArea('content'); 
-                            setContentIndex(3);
+                            setContentIndex(3); 
                             if (!isEmuMenuOpen) {
                                 const emuOptions = [{ id: '', name: 'Nativo' }, ...emulators];
                                 const startIdx = emuOptions.findIndex(o => o.id === form.emulatorId)
                                 setEmuMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
                             }
-                            setIsEmuMenuOpen(!isEmuMenuOpen);
+                            setIsEmuMenuOpen(!isEmuMenuOpen) 
                         }}
                     >
-                        <Icon icon="mynaui:controller" className="ag-field-icon" />
-                        <div className="ag-field-body">
-                            <div className="ag-field-label">Emulador</div>
+                        <Icon icon="mynaui:chip" className="ag-field-icon" />
+                        <div className="ag-field-body" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div className="ag-field-label" style={{ marginBottom: 0 }}>Emulador</div>
+                            
                             <div className="ag-custom-select">
-                                <div className={`ag-custom-select__value ${isSaving ? 'disabled' : ''}`}>
+                                <div className="ag-custom-select__value">
                                     {emulators.find(e => e.id === form.emulatorId)?.name || 'Nativo'}
                                     <Icon icon={isEmuMenuOpen ? 'mynaui:chevron-up' : 'mynaui:chevron-down'} />
                                 </div>
@@ -1348,7 +1367,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                                 onMouseEnter={() => setEmuMenuHoverIndex(i)}
                                                 onClick={(e) => {
                                                     e.stopPropagation()
-                                                    setForm(p => ({ ...p, emulatorId: opt.id, path: '' }))
+                                                    setForm(p => ({ ...p, emulatorId: opt.id, platformId: '', path: '' }))
                                                     setIsEmuMenuOpen(false)
                                                     sfx.confirm()
                                                 }}
@@ -1363,13 +1382,70 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                         </div>
                     </div>
 
-                    <div className={isEmuMenuOpen ? 'ag-media-content--dimmed' : ''} style={{ transition: 'all 0.3s' }}>
+                    {/* Platform Selector */}
+                    <div 
+                        className={`ag-field-row ${isFocused('content', 4) && !isPlatMenuOpen ? 'ag-field-row--focused' : ''} ${isPlatMenuOpen ? 'ag-field-row--menu-open' : ''} ${isEmuMenuOpen ? 'ag-media-content--dimmed' : ''}`}
+                        onClick={() => { 
+                            const selectedEmulator = emulators.find(e => e.id === form.emulatorId)
+                            const platOptions = platforms.filter(p => selectedEmulator?.platforms?.includes(p.id))
+                            
+                            if (platOptions.length > 0) {
+                                setFocusArea('content'); 
+                                setContentIndex(4); 
+                                if (!isPlatMenuOpen) {
+                                    const startIdx = platOptions.findIndex(o => o.id === form.platformId)
+                                    setPlatMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
+                                }
+                                setIsPlatMenuOpen(!isPlatMenuOpen)
+                            } else {
+                                sfx.error()
+                                showToast('Este emulador no tiene plataformas asociadas', 'warning')
+                            }
+                        }}
+                    >
+                        <Icon icon="mynaui:grid-nine" className="ag-field-icon" />
+                        <div className="ag-field-body" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div className="ag-field-label" style={{ marginBottom: 0 }}>Plataforma</div>
+                            
+                            <div className="ag-custom-select">
+                                <div className="ag-custom-select__value">
+                                    {platforms.find(p => p.id === form.platformId)?.name || 'Seleccionar...'}
+                                    <Icon icon={isPlatMenuOpen ? 'mynaui:chevron-up' : 'mynaui:chevron-down'} />
+                                </div>
+
+                                {isPlatMenuOpen && (
+                                    <div className="ag-custom-select__dropdown" style={{ zIndex: 100 }}>
+                                        {platforms.filter(p => emulators.find(e => e.id === form.emulatorId)?.platforms?.includes(p.id)).map((opt, i) => (
+                                            <div 
+                                                key={opt.id} 
+                                                id={`ag-plat-opt-${i}`}
+                                                className={`ag-custom-select__option ${platMenuHoverIndex === i ? 'active' : ''}`}
+                                                onMouseEnter={() => setPlatMenuHoverIndex(i)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setForm(p => ({ ...p, platformId: opt.id }))
+                                                    setIsPlatMenuOpen(false)
+                                                    sfx.confirm()
+                                                }}
+                                            >
+                                                {opt.icon && <Icon icon={opt.icon} style={{ marginRight: 10, fontSize: 16 }} />}
+                                                {opt.name}
+                                                {platMenuHoverIndex === i && <Icon icon="mynaui:check" />}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={isEmuMenuOpen || isPlatMenuOpen ? 'ag-media-content--dimmed' : ''} style={{ transition: 'all 0.3s' }}>
                         {/* Process Name */}
                         <div
-                            className={`ag-field-row ${isFocused('content', 4) ? 'ag-field-row--focused' : ''} ${isInputEditing && isFocused('content', 4) ? 'ag-field-row--editing' : ''}`}
+                            className={`ag-field-row ${isFocused('content', 5) ? 'ag-field-row--focused' : ''} ${isInputEditing && isFocused('content', 5) ? 'ag-field-row--editing' : ''}`}
                             onClick={() => { 
                                 setFocusArea('content'); 
-                                setContentIndex(4);
+                                setContentIndex(5);
                                 setIsInputEditing(true);
                             }}
                         >
@@ -1378,7 +1454,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                 <div className="ag-field-label">Nombre del Proceso (Opcional)</div>
                                 <input
                                     id="ag-process"
-                                    className={`ag-field-input ${isInputEditing && isFocused('content', 3) ? 'ag-field-input--editing' : ''}`}
+                                    className={`ag-field-input ${isInputEditing && isFocused('content', 5) ? 'ag-field-input--editing' : ''}`}
                                     value={form.processName}
                                     onChange={e => setForm(p => ({ ...p, processName: e.target.value }))}
                                     placeholder="Ej. java, Minecraft, etc."

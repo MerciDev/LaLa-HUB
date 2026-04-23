@@ -54,10 +54,14 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             e.stopImmediatePropagation()
             const action = (e as CustomEvent<string>).detail
             
-            if (action === 'left' || action === 'up') {
-                if (selectedIndex > 0) { sfx.navigate(); setSelectedIndex(p => p - 1) }
-            } else if (action === 'right' || action === 'down') {
-                if (selectedIndex < dialog.actions.length - 1) { sfx.navigate(); setSelectedIndex(p => p + 1) }
+            if (action === 'left') {
+                if (dialog.actions.length === 3 && selectedIndex === 1) { sfx.navigate(); setSelectedIndex(0) }
+            } else if (action === 'right') {
+                if (dialog.actions.length === 3 && selectedIndex === 0) { sfx.navigate(); setSelectedIndex(1) }
+            } else if (action === 'up') {
+                if (dialog.actions.length === 3 && selectedIndex === 2) { sfx.navigate(); setSelectedIndex(1) }
+            } else if (action === 'down') {
+                if (dialog.actions.length === 3 && (selectedIndex === 0 || selectedIndex === 1)) { sfx.navigate(); setSelectedIndex(2) }
             } else if (action === 'select') {
                 sfx.confirm()
                 dialog.actions[selectedIndex].onClick()
@@ -86,6 +90,7 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     >
                         <motion.div
                             className="ag-dialog-box"
+                            style={{ width: '450px' }}
                             initial={{ scale: 0.9, opacity: 0, y: 10 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.95, opacity: 0, y: 10 }}
@@ -96,11 +101,12 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                                 <h2>{dialog.title}</h2>
                             </div>
                             {dialog.message && <p className="ag-dialog-message">{dialog.message}</p>}
-                            <div className="ag-dialog-actions">
+                            <div className="ag-dialog-actions" style={dialog.actions.length >= 3 ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' } : {}}>
                                 {dialog.actions.map((act, i) => (
                                     <button
                                         key={i}
                                         className={`cp-btn cp-btn--${act.variant || 'secondary'} ${selectedIndex === i ? 'cp-btn--focused' : ''}`}
+                                        style={(dialog.actions.length === 3 && i === 2) ? { gridColumn: 'span 2' } : {}}
                                         onClick={() => {
                                             act.onClick()
                                             closeDialog()

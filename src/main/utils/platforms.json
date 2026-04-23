@@ -1,0 +1,176 @@
+[
+    {
+        "id": "nintendo-top-nes",
+        "name": "NES / Famicom",
+        "company": "Nintendo",
+        "icon": "mdi:nintendo-nes"
+    },
+    {
+        "id": "nintendo-snes",
+        "name": "Super Nintendo / SNES",
+        "company": "Nintendo",
+        "icon": "mdi:nintendo-snes"
+    },
+    {
+        "id": "nintendo-n64",
+        "name": "Nintendo 64",
+        "company": "Nintendo",
+        "icon": "file-icons:nintendo64"
+    },
+    {
+        "id": "nintendo-gamecube",
+        "name": "Nintendo GameCube",
+        "company": "Nintendo",
+        "icon": "mdi:nintendo-gamecube"
+    },
+    {
+        "id": "nintendo-wii",
+        "name": "Wii",
+        "company": "Nintendo",
+        "icon": "mdi:nintendo-wii"
+    },
+    {
+        "id": "nintendo-wiiu",
+        "name": "Wii U",
+        "company": "Nintendo",
+        "icon": "mdi:nintendo-wiiu"
+    },
+    {
+        "id": "nintendo-switch",
+        "name": "Nintendo Switch",
+        "company": "Nintendo",
+        "icon": "mdi:nintendo-switch"
+    },
+    {
+        "id": "nintendo-gb",
+        "name": "Game Boy",
+        "company": "Nintendo",
+        "icon": "mdi:nintendo-gameboy"
+    },
+    {
+        "id": "nintendo-gbc",
+        "name": "Game Boy Color",
+        "company": "Nintendo",
+        "icon": "mdi:nintendo-gameboy"
+    },
+    {
+        "id": "nintendo-gba",
+        "name": "Game Boy Advance",
+        "company": "Nintendo",
+        "icon": "mdi:nintendo-gameboy"
+    },
+    {
+        "id": "nintendo-ds",
+        "name": "Nintendo DS",
+        "company": "Nintendo",
+        "icon": "mdi:nintendo-ds"
+    },
+    {
+        "id": "nintendo-3ds",
+        "name": "Nintendo 3DS",
+        "company": "Nintendo",
+        "icon": "mdi:nintendo-3ds"
+    },
+    {
+        "id": "sony-ps1",
+        "name": "PlayStation",
+        "company": "Sony",
+        "icon": "logos:playstation"
+    },
+    {
+        "id": "sony-ps2",
+        "name": "PlayStation 2",
+        "company": "Sony",
+        "icon": "simple-icons:playstation2"
+    },
+    {
+        "id": "sony-ps3",
+        "name": "PlayStation 3",
+        "company": "Sony",
+        "icon": "simple-icons:playstation3"
+    },
+    {
+        "id": "sony-ps4",
+        "name": "PlayStation 4",
+        "company": "Sony",
+        "icon": "simple-icons:playstation4"
+    },
+    {
+        "id": "sony-ps5",
+        "name": "PlayStation 5",
+        "company": "Sony",
+        "icon": "simple-icons:playstation5"
+    },
+    {
+        "id": "sony-psp",
+        "name": "PlayStation Portable (PSP)",
+        "company": "Sony",
+        "icon": "logos:playstation"
+    },
+    {
+        "id": "sony-psvita",
+        "name": "PlayStation Vita",
+        "company": "Sony",
+        "icon": "logos:playstation"
+    },
+    {
+        "id": "microsoft-xbox",
+        "name": "Xbox",
+        "company": "Microsoft",
+        "icon": "logos:xbox"
+    },
+    {
+        "id": "microsoft-xbox360",
+        "name": "Xbox 360",
+        "company": "Microsoft",
+        "icon": "logos:xbox"
+    },
+    {
+        "id": "microsoft-xboxone",
+        "name": "Xbox One",
+        "company": "Microsoft",
+        "icon": "logos:xbox"
+    },
+    {
+        "id": "microsoft-xboxseries",
+        "name": "Xbox Series X|S",
+        "company": "Microsoft",
+        "icon": "logos:xbox"
+    },
+    {
+        "id": "sega-mastersystem",
+        "name": "Master System",
+        "company": "Sega",
+        "icon": "logos:sega"
+    },
+    {
+        "id": "sega-genesis",
+        "name": "Sega Genesis / Mega Drive",
+        "company": "Sega",
+        "icon": "logos:sega"
+    },
+    {
+        "id": "sega-saturn",
+        "name": "Sega Saturn",
+        "company": "Sega",
+        "icon": "logos:sega"
+    },
+    {
+        "id": "sega-dreamcast",
+        "name": "Dreamcast",
+        "company": "Sega",
+        "icon": "logos:sega"
+    },
+    {
+        "id": "pc-windows",
+        "name": "PC (Windows)",
+        "company": "PC",
+        "icon": "logos:microsoft-windows"
+    },
+    {
+        "id": "other-arcade",
+        "name": "Arcade",
+        "company": "Varias",
+        "icon": "mdi:controller-classic"
+    }
+]

@@ -16,6 +16,7 @@ import { processGameSlots } from './utils/gameMetadata'
 import { registerFileDialogHandlers } from './handlers/fileDialogHandler'
 import { registerSlotHandlers } from './handlers/slotHandler'
 import { registerEmulatorHandlers } from './handlers/emulatorHandler'
+import { registerPlatformHandlers } from './handlers/platformHandler'
 import { registerPlaytimeHandlers } from './handlers/playtimeHandler'
 import { registerArtworkHandlers } from './handlers/artworkHandler'
 import { registerScannerHandlers } from './handlers/scannerHandler'
@@ -218,6 +219,7 @@ async function main(): Promise<void> {
   registerFileDialogHandlers()
   registerSlotHandlers()
   registerEmulatorHandlers()
+  registerPlatformHandlers()
   registerPlaytimeHandlers()
   registerArtworkHandlers()
   registerScannerHandlers()
@@ -371,6 +373,7 @@ async function main(): Promise<void> {
       case 'gamepadRight': logicAction = 'right'; break
       case 'gamepadStart': logicAction = 'contextMenu'; break
       case 'gamepadX': logicAction = 'overlay'; break
+      case 'gamepadOverlayCombo': logicAction = 'overlay'; break
     }
 
     if (logicAction === 'overlay') {
@@ -389,10 +392,12 @@ async function main(): Promise<void> {
         mainApp.toggleContextMenu(false)
         mainApp.setSection('grid')
       } else {
-        appWindow?.webContents.send('movement-action', mainApp.currentSection, logicAction)
+        const targetWin = overlayWindow?.isVisible() ? overlayWindow : appWindow
+        targetWin?.webContents.send('movement-action', mainApp.currentSection, logicAction)
       }
     } else {
-      appWindow?.webContents.send('movement-action', mainApp.currentSection, logicAction)
+      const targetWin = overlayWindow?.isVisible() ? overlayWindow : appWindow
+      targetWin?.webContents.send('movement-action', mainApp.currentSection, logicAction)
     }
   })
 }
