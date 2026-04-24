@@ -437,6 +437,7 @@ function MainApp(): React.JSX.Element {
 
     useEffect(() => {
         const handleMovementAction = (section: string, action: string) => {
+            console.log(`[DEBUG] Renderer Action: ${action} | Section: ${section}`)
             // Apply throttle to prevent cursor from flying too fast
             const now = Date.now()
             if (now - lastMovementTimeRef.current < 120) return
@@ -539,6 +540,27 @@ function MainApp(): React.JSX.Element {
             }
 
             // ── Grid ─────────────────────────────────────────────────────────
+            // ── Global Actions ────────────────────────────────────────────────
+            if (action === 'openMain') {
+                console.log(`[DEBUG] Executing openMain logic...`)
+                sfx.confirm()
+                setMainExpanded(true)
+                setFocusedHeader('left')
+                setFocusedHeaderIndex(0)
+                window.api.movementControl.send('SET_SECTION', 'header')
+                return
+            }
+            if (action === 'openSocial') {
+                console.log(`[DEBUG] Executing openSocial logic...`)
+                sfx.confirm()
+                setSocialExpanded(true)
+                setFocusedHeader('right')
+                setFocusedHeaderIndex(0)
+                window.api.movementControl.send('SET_SECTION', 'header')
+                return
+            }
+
+            // ── Section Specific ──────────────────────────────────────────────
             if (section === 'grid') {
                 if (action === 'up' && selectedSlotIndex !== null && selectedSlotIndex < homeGrid.cols) {
                     sfx.navigate()
@@ -555,10 +577,6 @@ function MainApp(): React.JSX.Element {
                 }
                 sfx.navigate()
                 gridNavigate(action, homeGrid.items, currentPage)
-            } else if (action === 'openMain') {
-                sfx.confirm(); setMainExpanded(p => !p)
-            } else if (action === 'openSocial') {
-                sfx.confirm(); setSocialExpanded(p => !p)
             } else if (section === 'header') {
                 if (action === 'down' || action === 'back') {
                     sfx.navigate()

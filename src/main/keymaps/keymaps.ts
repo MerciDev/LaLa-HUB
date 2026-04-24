@@ -2,22 +2,29 @@ import { checkFileExists, readJson, saveJson } from "../utils/storage";
 
 export const keymaps = {
 
-    // Keyboard
-    overlay: 'Control+X',
-    loading: 'Control+L',
-    contextMenu: 'Shift',
-    openMain: 'Home',
-    openSocial: 'Insert',
-    right: 'ArrowRight',
-    left: 'ArrowLeft',
-    up: 'ArrowUp',
-    down: 'ArrowDown',
+    // Navegación (Stick 1 y POV mapeados a las mismas acciones)
+    up: 'ArrowUp | W',
+    down: 'ArrowDown | S',
+    left: 'ArrowLeft | A',
+    right: 'ArrowRight | D',
+
+    // Botones de Acción
     select: 'Enter',
     back: 'Escape',
+    overlay: 'Control+X',
+    contextMenu: 'Shift',
+    openMain: 'Home | 1',
+    openSocial: 'Insert | 4',
+    
+    // Auxiliares
     nextPage: 'E',
     prevPage: 'Q',
 
-    // Gamepad
+    // JoyToKey Config
+    joyToKeyPath: 'C:\\Program Files (x86)\\JoyToKey\\JoyToKey.exe',
+    useJoyToKey: false,
+
+    // Gamepad Labels (Para referencia visual en la UI)
     gamepadA: 'A',
     gamepadB: 'B',
     gamepadX: 'X',
@@ -51,12 +58,21 @@ export function createDebouncedToggle(toggleFn: () => void, cooldownMs = 300) {
 
 export function loadKeymaps(): void {
     if (!checkFileExists('config', 'keymaps')) {
-        // First run: persist the defaults so the user can edit the file
         saveJson('config', 'keymaps', keymaps);
+        return
     }
-    // Load saved keymaps (may include user customisations) and merge into defaults
-    const keymapsData = readJson('config', 'keymaps');
+    
+    const keymapsData = readJson<any>('config', 'keymaps');
     if (keymapsData) {
+        // Merge data, but also check if we are adding new keys that weren't there
+        const existingKeys = Object.keys(keymapsData)
+        const defaultKeys = Object.keys(keymaps)
+        const hasNewKeys = defaultKeys.some(k => !existingKeys.includes(k))
+
         Object.assign(keymaps, keymapsData);
+
+        if (hasNewKeys) {
+            saveJson('config', 'keymaps', keymaps);
+        }
     }
 }

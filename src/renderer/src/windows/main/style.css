@@ -159,8 +159,8 @@ body {
 .mainOptions.expanded,
 .socialOptions:hover,
 .socialOptions.expanded {
-  max-width: 400px;
-  padding: 8px 14px;
+  max-width: 400px !important;
+  padding: 8px 14px !important;
   background: var(--bg-elevated);
   border-color: rgba(255, 255, 255, 0.12);
 }
@@ -1923,7 +1923,7 @@ select:focus {
 .ag-custom-select {
   position: relative;
   width: 100%;
-  max-width: 400px;
+  max-width: 400px !important;
   user-select: none;
 }
 

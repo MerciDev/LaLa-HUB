@@ -32,6 +32,12 @@ function NavigationHeader({
     const isSocialExpanded = socialExpanded || focusedHeader === 'right'
 
     useEffect(() => {
+        if (isMainExpanded || isSocialExpanded) {
+            console.log(`[DEBUG] NavigationHeader - MainExpanded: ${isMainExpanded}, SocialExpanded: ${isSocialExpanded}, Focused: ${focusedHeader}`)
+        }
+    }, [isMainExpanded, isSocialExpanded, focusedHeader])
+
+    useEffect(() => {
         if (!isMainExpanded && mainOptionsRef.current) {
             mainOptionsRef.current.scrollLeft = 0
         }

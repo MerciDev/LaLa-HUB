@@ -10,6 +10,7 @@ import * as overlay from './windows/overlay/overlay'
 import * as loading from './windows/loading/loading'
 import * as mainApp from './windows/main/main'
 import * as keymaps from './keymaps/keymaps'
+import { saveJoyToKeyProfile, loadJoyToKeyProfile } from './utils/joyToKey'
 import { HomeSlot } from '../shared/types'
 import { loadSlots } from './utils/storage'
 import { processGameSlots } from './utils/gameMetadata'
@@ -33,27 +34,32 @@ let isRendererInputFocused = false
 /** Checks if an Electron input event matches a keymap string (e.g. 'Control+X', 'ArrowUp', etc.) */
 function isKeyMatch(input: Input, target: string): boolean {
   if (!target) return false
-  const parts = target.split('+').map(p => p.trim().toLowerCase())
-  const keyPart = parts.pop()
-  if (!keyPart) return false
-
-  let matchKey = input.key.toLowerCase()
-  if (matchKey === ' ') matchKey = 'space'
-  if (keyPart !== matchKey) return false
-
-  let hasControl = parts.includes('control') || parts.includes('ctrl')
-  let hasAlt = parts.includes('alt')
-  let hasShift = parts.includes('shift')
-  let hasMeta = parts.includes('meta') || parts.includes('cmd')
-
-  // If the key itself is a modifier, inherently consider it active if the event has it
-  if (keyPart === 'shift') hasShift = true
-  if (keyPart === 'control' || keyPart === 'ctrl') hasControl = true
-  if (keyPart === 'alt') hasAlt = true
-  if (keyPart === 'meta' || keyPart === 'cmd') hasMeta = true
   
-  return hasControl === input.control && hasAlt === input.alt && 
-         hasShift === input.shift && hasMeta === input.meta
+  // Soporte para múltiples teclas separadas por | (ej: "ArrowUp | W")
+  const options = target.split('|').map(opt => opt.trim())
+  
+  return options.some(option => {
+    const parts = option.split('+').map(p => p.trim().toLowerCase())
+    const keyPart = parts.pop()
+    if (!keyPart) return false
+
+    let matchKey = input.key.toLowerCase()
+    if (matchKey === ' ') matchKey = 'space'
+    if (keyPart !== matchKey) return false
+
+    let hasControl = parts.includes('control') || parts.includes('ctrl')
+    let hasAlt = parts.includes('alt')
+    let hasShift = parts.includes('shift')
+    let hasMeta = parts.includes('meta') || parts.includes('cmd')
+
+    if (keyPart === 'shift') hasShift = true
+    if (keyPart === 'control' || keyPart === 'ctrl') hasControl = true
+    if (keyPart === 'alt') hasAlt = true
+    if (keyPart === 'meta' || keyPart === 'cmd') hasMeta = true
+    
+    return hasControl === input.control && hasAlt === input.alt && 
+           hasShift === input.shift && hasMeta === input.meta
+  })
 }
 
 function createWindow(): void {
@@ -86,7 +92,8 @@ function createWindow(): void {
     if (input.type !== 'keyDown') return
 
     for (const [action, key] of Object.entries(keymaps.keymaps)) {
-      if (isKeyMatch(input, key)) {
+      if (typeof key === 'string' && isKeyMatch(input, key)) {
+        debugLog(`[DEBUG] Key match found: ${input.key} (${input.type}) -> Action: ${action}`)
 
         // If the user focuses an input in the renderer, DO NOT preempt navigation keystrokes like 'e' or 'q'
         // that are standard typed keys, EXCEPT for 'back'/'Escape' to unfocus or basic enter
@@ -137,7 +144,6 @@ ipcMain.on('context-menu-control', (_, action: string, data?: any) => {
 })
 
 export const debouncedToggleOverlay = keymaps.createDebouncedToggle(overlay.toggleOverlay);
-export const debouncedToggleLoading = keymaps.createDebouncedToggle(loading.toggleLoading);
 
 // Sync overlay state when closed from renderer (background click)
 ipcMain.on('overlay-close', () => {
@@ -192,14 +198,12 @@ export function refreshGlobalShortcuts(): void {
     debugLog(`[Shortcuts] Overlay key registered: ${currentKeymaps.overlay}`)
   }
 
-  if (currentKeymaps.loading) {
-    globalShortcut.register(currentKeymaps.loading, () => {
-      debouncedToggleLoading()
-    })
-    debugLog(`[Shortcuts] Loading key registered: ${currentKeymaps.loading}`)
-  }
 
-  debugLog('[Shortcuts] Global shortcuts refreshed.')
+  saveJoyToKeyProfile('LaLa-HUB')
+  if (currentKeymaps.joyToKeyPath) {
+    loadJoyToKeyProfile(currentKeymaps.joyToKeyPath, 'LaLa-HUB')
+  }
+  debugLog('[Shortcuts] Global shortcuts refreshed and JoyToKey profile updated.')
 }
 
 async function main(): Promise<void> {
@@ -357,6 +361,7 @@ async function main(): Promise<void> {
   // Handle gamepad input
 
   ipcMain.on('gamepad-input', (_, button: string) => {
+    if (keymaps.keymaps.useJoyToKey) return // JoyToKey will handle this via keyboard events
     debugLog(`Received gamepad input: ${button}`)
     const action = Object.entries(keymaps.keymaps).find(([_, value]) => value === button)?.[0]
     if (!action) return

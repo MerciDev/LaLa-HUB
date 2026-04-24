@@ -31,4 +31,12 @@ export function registerKeymapHandlers(onUpdate?: () => void): void {
         
         return { success: true }
     })
+
+    ipcMain.handle('keymaps-open-j2k-dir', async () => {
+        const { shell, app } = require('electron')
+        const path = require('path')
+        const dir = path.join(app.getPath('userData'), 'joyToKey')
+        shell.openPath(dir)
+        return { success: true }
+    })
 }
