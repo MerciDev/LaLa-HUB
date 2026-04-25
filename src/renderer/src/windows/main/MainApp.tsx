@@ -542,21 +542,39 @@ function MainApp(): React.JSX.Element {
             // ── Grid ─────────────────────────────────────────────────────────
             // ── Global Actions ────────────────────────────────────────────────
             if (action === 'openMain') {
-                console.log(`[DEBUG] Executing openMain logic...`)
                 sfx.confirm()
-                setMainExpanded(true)
-                setFocusedHeader('left')
-                setFocusedHeaderIndex(0)
-                window.api.movementControl.send('SET_SECTION', 'header')
+                if (focusedHeader === 'left') {
+                    setMainExpanded(false)
+                    setFocusedHeader(null)
+                    setSelectedSlotIndex(lastGridIndex || 0)
+                    window.api.movementControl.send('SET_SECTION', 'grid')
+                } else {
+                    setMainExpanded(true)
+                    setSocialExpanded(false)
+                    if (selectedSlotIndex !== null) setLastGridIndex(selectedSlotIndex)
+                    setFocusedHeader('left')
+                    setFocusedHeaderIndex(0)
+                    setSelectedSlotIndex(null)
+                    window.api.movementControl.send('SET_SECTION', 'header')
+                }
                 return
             }
             if (action === 'openSocial') {
-                console.log(`[DEBUG] Executing openSocial logic...`)
                 sfx.confirm()
-                setSocialExpanded(true)
-                setFocusedHeader('right')
-                setFocusedHeaderIndex(0)
-                window.api.movementControl.send('SET_SECTION', 'header')
+                if (focusedHeader === 'right') {
+                    setSocialExpanded(false)
+                    setFocusedHeader(null)
+                    setSelectedSlotIndex(lastGridIndex || 0)
+                    window.api.movementControl.send('SET_SECTION', 'grid')
+                } else {
+                    setSocialExpanded(true)
+                    setMainExpanded(false)
+                    if (selectedSlotIndex !== null) setLastGridIndex(selectedSlotIndex)
+                    setFocusedHeader('right')
+                    setFocusedHeaderIndex(0)
+                    setSelectedSlotIndex(null)
+                    window.api.movementControl.send('SET_SECTION', 'header')
+                }
                 return
             }
 
@@ -581,6 +599,8 @@ function MainApp(): React.JSX.Element {
                 if (action === 'down' || action === 'back') {
                     sfx.navigate()
                     setFocusedHeader(null)
+                    setMainExpanded(false)
+                    setSocialExpanded(false)
                     if (settingsPanelVisible) {
                         window.api.movementControl.send('SET_SECTION', 'settings')
                     } else {

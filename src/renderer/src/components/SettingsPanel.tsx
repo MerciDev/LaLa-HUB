@@ -330,18 +330,28 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
         })
     }
 
-    // ── Key capture for remapping ─────────────────────────────────────────────
     useEffect(() => {
-        if (!listeningKey) return
+        if (!listeningKey) {
+            window.api.movementControl.setInputCapture(false)
+            return
+        }
+
+        window.api.movementControl.setInputCapture(true)
+        
         const handleKey = (e: KeyboardEvent) => {
             e.preventDefault()
             setKeymaps(prev => ({ ...prev, [listeningKey]: e.key === ' ' ? 'Space' : e.key }))
             setKeymapDirty(true)
             setListeningKey(null)
+            window.api.movementControl.setInputCapture(false)
             sfx.confirm()
         }
         window.addEventListener('keydown', handleKey, { once: true })
-        return () => window.removeEventListener('keydown', handleKey)
+        return () => {
+            window.removeEventListener('keydown', handleKey)
+            // Safety cleanup
+            window.api.movementControl.setInputCapture(false)
+        }
     }, [listeningKey])
 
     // ── Platform Dropdown Scrolling ───────────────────────────────────────────

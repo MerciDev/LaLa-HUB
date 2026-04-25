@@ -30,6 +30,7 @@ export let overlayWindow: BrowserWindow | null = null
 export let loadingWindow: BrowserWindow | null = null
 
 let isRendererInputFocused = false
+let isInputCaptureActive = false
 
 /** Checks if an Electron input event matches a keymap string (e.g. 'Control+X', 'ArrowUp', etc.) */
 function isKeyMatch(input: Input, target: string): boolean {
@@ -90,6 +91,8 @@ function createWindow(): void {
   // Handle Input Events for Movement
   appWindow.webContents.on('before-input-event', (event, input: Input) => {
     if (input.type !== 'keyDown') return
+
+    if (isInputCaptureActive) return
 
     for (const [action, key] of Object.entries(keymaps.keymaps)) {
       if (typeof key === 'string' && isKeyMatch(input, key)) {
@@ -193,6 +196,7 @@ export function refreshGlobalShortcuts(): void {
   
   if (currentKeymaps.overlay) {
     globalShortcut.register(currentKeymaps.overlay, () => {
+      if (isInputCaptureActive) return
       debouncedToggleOverlay()
     })
     debugLog(`[Shortcuts] Overlay key registered: ${currentKeymaps.overlay}`)
@@ -202,6 +206,15 @@ export function refreshGlobalShortcuts(): void {
   saveJoyToKeyProfile('LaLa-HUB')
   if (currentKeymaps.joyToKeyPath) {
     loadJoyToKeyProfile(currentKeymaps.joyToKeyPath, 'LaLa-HUB')
+    
+    // Aseguramos que nuestra app recupere el foco después de que JoyToKey se inicie
+    setTimeout(() => {
+      if (appWindow && !appWindow.isDestroyed()) {
+        appWindow.focus()
+        // Opcionalmente podemos forzar el primer plano si es necesario
+        // appWindow.setAlwaysOnTop(true); appWindow.setAlwaysOnTop(false);
+      }
+    }, 1200)
   }
   debugLog('[Shortcuts] Global shortcuts refreshed and JoyToKey profile updated.')
 }
@@ -358,9 +371,15 @@ async function main(): Promise<void> {
     isRendererInputFocused = focused
   })
 
+  ipcMain.on('set-input-capture', (_, active: boolean) => {
+    isInputCaptureActive = active
+    debugLog(`[Main] Input Capture active: ${active}`)
+  })
+
   // Handle gamepad input
 
   ipcMain.on('gamepad-input', (_, button: string) => {
+    if (isInputCaptureActive) return // Let the renderer handle gamepad input during capture if needed
     if (keymaps.keymaps.useJoyToKey) return // JoyToKey will handle this via keyboard events
     debugLog(`Received gamepad input: ${button}`)
     const action = Object.entries(keymaps.keymaps).find(([_, value]) => value === button)?.[0]

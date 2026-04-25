@@ -208,7 +208,8 @@ export function loadJoyToKeyProfile(exePath: string, profileName: string = 'LaLa
   }
 
   // JoyToKey command line: JoyToKey.exe "ProfileName"
-  const command = `"${exePath}" "${profileName}"`
+  // Usamos 'start /min' para que se abra minimizado y no robe el foco
+  const command = `start /min "" "${exePath}" "${profileName}"`
   
   debugLog(`[JoyToKey] Intentando cargar perfil '${profileName}'...`)
   

@@ -38,6 +38,9 @@ const api = {
     setInputFocused: (focused: boolean) => {
       ipcRenderer.send('set-input-focused', focused)
     },
+    setInputCapture: (active: boolean) => {
+      ipcRenderer.send('set-input-capture', active)
+    },
     onAction: (callback: (section: string, action: string) => void) => {
       const subscription = (_, section, action) => callback(section, action)
       ipcRenderer.on('movement-action', subscription)
