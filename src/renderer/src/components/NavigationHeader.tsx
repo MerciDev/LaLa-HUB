@@ -31,8 +31,29 @@ function NavigationHeader({
     const [textWidth, setTextWidth] = React.useState(0)
     const [windowWidth, setWindowWidth] = React.useState(window.innerWidth)
 
+    const [sideWidth, setSideWidth] = React.useState(0)
+    const profileRef = useRef<HTMLButtonElement>(null)
+    const friendsRef = useRef<HTMLButtonElement>(null)
+
     const isSocialExpanded = socialExpanded || focusedHeader === 'left'
     const isPersonalExpanded = personalExpanded || focusedHeader === 'right'
+
+    // Synchronize side widths (Profile and Friends)
+    useEffect(() => {
+        const observer = new ResizeObserver(() => {
+            const pWidth = profileRef.current?.getBoundingClientRect().width || 0
+            const fWidth = friendsRef.current?.getBoundingClientRect().width || 0
+            const maxW = Math.max(pWidth, fWidth)
+            if (maxW > 0) {
+                setSideWidth(maxW)
+            }
+        })
+
+        if (profileRef.current) observer.observe(profileRef.current)
+        if (friendsRef.current) observer.observe(friendsRef.current)
+
+        return () => observer.disconnect()
+    }, [socialIcons, personalIcons]) // Re-run if icons change
 
     // Track window size for max-width calculations
     useEffect(() => {
@@ -102,34 +123,59 @@ function NavigationHeader({
                         return (
                             <button
                                 key={icon.id}
+                                ref={hasFriends ? friendsRef : null}
                                 className={`icon-button ${focused ? 'focused' : ''} ${hasFriends ? 'icon-button--friends' : ''}`}
+                                style={hasFriends && sideWidth > 0 ? { minWidth: `${sideWidth}px` } : {}}
                                 title={icon.label}
                                 onMouseEnter={() => icon.onMouseEnter && window.api.mainOptionControl(icon.onMouseEnter)}
                                 onMouseLeave={() => icon.onMouseLeave && window.api.mainOptionControl(icon.onMouseLeave)}
                                 onClick={() => icon.onClick && window.api.mainOptionControl(icon.onClick)}
                             >
                                 {hasFriends && friends.length > 0 ? (
-                                    <div className="friends-stack">
-                                        {friends.slice(0, 3).map((f, i) => (
-                                            <div key={f.id} className="friend-avatar-wrapper" style={{ zIndex: 10 - i }}>
-                                                <div className="friend-avatar">
-                                                    <Icon icon="mynaui:user" />
-                                                </div>
-                                                {f.playingIcon ? (
-                                                    <div className="status-dot-mini status-icon-wrapper-mini">
-                                                        <Icon icon={f.playingIcon} className="status-platform-icon-mini" />
+                                    <>
+                                        <div className="friends-stack-container">
+                                            <div className="friends-stack">
+                                                {friends.slice(0, 3).map((f, i) => (
+                                                    <div key={f.id} className="friend-avatar-wrapper" style={{ zIndex: 10 - i }}>
+                                                        <div className="friend-avatar">
+                                                            <Icon icon="mynaui:user" />
+                                                        </div>
+                                                        {f.playingIcon ? (
+                                                            <div className="status-dot-mini status-icon-wrapper-mini">
+                                                                <Icon icon={f.playingIcon} className="status-platform-icon-mini" />
+                                                            </div>
+                                                        ) : (
+                                                            <span className={`status-dot-mini status-dot--${f.status}`} />
+                                                        )}
                                                     </div>
-                                                ) : (
-                                                    <span className={`status-dot-mini status-dot--${f.status}`} />
+                                                ))}
+                                                {friends.length > 3 && (
+                                                    <div className="friends-remaining">
+                                                        +{friends.length - 3}
+                                                    </div>
                                                 )}
                                             </div>
-                                        ))}
-                                        {friends.length > 3 && (
-                                            <div className="friends-remaining">
-                                                +{friends.length - 3}
+                                        </div>
+                                        <div className="friends-info">
+                                            <div 
+                                                className={`friends-label-marquee-container ${icon.label && icon.label.length > 15 ? 'active' : ''}`}
+                                            >
+                                                <span className={`friends-label ${icon.label && icon.label.length > 15 ? 'marquee-active' : ''}`}>
+                                                    {icon.label}
+                                                </span>
                                             </div>
-                                        )}
-                                    </div>
+                                            <div className="friends-status">
+                                                <span className={`status-dot status-dot--online`} />
+                                                <div 
+                                                    className={`friends-status-marquee-container`}
+                                                >
+                                                    <span>
+                                                        {friends.filter(f => f.status === 'online').length} en línea
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
                                 ) : (
                                     <Icon icon={icon.icon} />
                                 )}
@@ -206,7 +252,9 @@ function NavigationHeader({
                         return (
                             <button
                                 key={icon.id}
+                                ref={hasExtraData ? profileRef : null}
                                 className={`icon-button ${focused ? 'focused' : ''} ${hasExtraData ? 'icon-button--profile' : ''}`}
+                                style={hasExtraData && sideWidth > 0 ? { minWidth: `${sideWidth}px` } : {}}
                                 title={icon.label}
                                 onMouseEnter={() => icon.onMouseEnter && window.api.mainOptionControl(icon.onMouseEnter)}
                                 onMouseLeave={() => icon.onMouseLeave && window.api.mainOptionControl(icon.onMouseLeave)}
@@ -218,14 +266,9 @@ function NavigationHeader({
                                             <div 
                                                 className={`profile-username-marquee-container ${icon.extraData?.username && icon.extraData.username.length > 15 ? 'active' : ''}`}
                                             >
-                                                <span className={`profile-username ${icon.extraData?.username && icon.extraData.username.length > 15 ? 'marquee-active' : ''}`} style={{ paddingRight: icon.extraData?.username && icon.extraData.username.length > 15 ? '40px' : '0' }}>
+                                                <span className={`profile-username ${icon.extraData?.username && icon.extraData.username.length > 15 ? 'marquee-active' : ''}`}>
                                                     {icon.extraData?.username}
                                                 </span>
-                                                {icon.extraData?.username && icon.extraData.username.length > 15 && (
-                                                    <span className="profile-username marquee-active" style={{ paddingRight: '40px' }}>
-                                                        {icon.extraData?.username}
-                                                    </span>
-                                                )}
                                             </div>
                                             <div className={`profile-status`}>
                                                 {icon.extraData?.playingIcon ? (
@@ -236,16 +279,11 @@ function NavigationHeader({
                                                     <span className={`status-dot status-dot--${icon.extraData?.status || 'offline'}`} />
                                                 )}
                                                 <div 
-                                                    className={`profile-status-marquee-container ${icon.extraData?.isPlaying ? 'active' : ''}`}
+                                                    className={`profile-status-marquee-container ${icon.extraData?.isPlaying && icon.extraData.isPlaying.length > 12 ? 'active' : ''}`}
                                                 >
-                                                    <span className={icon.extraData?.isPlaying ? 'marquee-active' : ''} style={{ paddingRight: icon.extraData?.isPlaying ? '40px' : '0' }}>
+                                                    <span className={icon.extraData?.isPlaying && icon.extraData.isPlaying.length > 12 ? 'marquee-active' : ''}>
                                                         {icon.extraData?.isPlaying ? `Jugando a ${icon.extraData.isPlaying}` : icon.extraData?.status}
                                                     </span>
-                                                    {icon.extraData?.isPlaying && (
-                                                        <span className="marquee-active" style={{ paddingRight: '40px' }}>
-                                                            {`Jugando a ${icon.extraData.isPlaying}`}
-                                                        </span>
-                                                    )}
                                                 </div>
                                             </div>
                                         </div>

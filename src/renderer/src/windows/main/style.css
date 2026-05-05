@@ -350,11 +350,19 @@ body {
   width: auto !important;
   min-width: 44px;
   height: 44px !important;
-  padding: 0 8px !important;
+  padding: 4px 14px 4px 6px !important;
   background: transparent !important;
   border: none !important;
   display: flex !important;
   border-radius: var(--radius-xl) !important;
+  gap: 12px;
+}
+
+.friends-stack-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .friends-stack {
@@ -376,8 +384,8 @@ body {
 }
 
 .friend-avatar {
-  width: 100%;
-  height: 100%;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: var(--bg-hover);
   border: 2px solid var(--bg-surface);
@@ -387,6 +395,36 @@ body {
   overflow: visible;
   color: var(--text-primary);
   font-size: 18px;
+  flex-shrink: 0;
+}
+
+.friends-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0px;
+  overflow: visible;
+  text-align: left;
+}
+
+.friends-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.friends-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+  overflow: visible;
+  white-space: nowrap;
 }
 
 .status-dot-mini {
@@ -528,32 +566,38 @@ body {
   100% { transform: translateX(-50%); } /* Pause at end (which is same as start of next instance) */
 }
 
-.profile-status-marquee-container {
+.profile-status-marquee-container,
+.friends-status-marquee-container {
   overflow: hidden;
   white-space: nowrap;
-  max-width: 110px;
+  max-width: clamp(110px, 12vw, 250px);
 }
 
-.profile-status-marquee-container.active {
+.profile-status-marquee-container.active,
+.friends-status-marquee-container.active {
   mask-image: linear-gradient(to right, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
 }
 
 .profile-status-marquee-container span.marquee-active,
-.profile-username-marquee-container span.marquee-active {
+.profile-username-marquee-container span.marquee-active,
+.friends-status-marquee-container span.marquee-active,
+.friends-label-marquee-container span.marquee-active {
   display: inline-block;
   animation: marquee-scroll 15s linear infinite;
 }
 
-.profile-username-marquee-container {
+.profile-username-marquee-container,
+.friends-label-marquee-container {
   overflow: hidden;
   white-space: nowrap;
-  max-width: 140px;
+  max-width: clamp(140px, 18vw, 350px);
   display: flex;
 }
 
 /* Add mask for username marquee */
-.profile-username-marquee-container:has(.marquee-active) {
+.profile-username-marquee-container:has(.marquee-active),
+.friends-label-marquee-container:has(.marquee-active) {
   mask-image: linear-gradient(to right, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
 }
