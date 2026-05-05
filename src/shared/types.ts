@@ -5,16 +5,29 @@ export interface IconOption {
     onClick?: string
     onMouseEnter?: string
     onMouseLeave?: string
+    extraData?: {
+        username?: string
+        status?: 'online' | 'idle' | 'dnd' | 'offline'
+        avatar?: string
+        isPlaying?: string
+        playingIcon?: string
+        friends?: Array<{
+            id: string
+            avatar?: string
+            status?: 'online' | 'idle' | 'dnd' | 'offline'
+            playingIcon?: string
+        }>
+    }
 }
 
 export type AppAction =
     | { type: 'CHANGE_INFO_ISLAND'; payload: string }
     | { type: 'EXPAND_INFO_ISLAND' }
     | { type: 'COLLAPSE_INFO_ISLAND' }
-    | { type: 'ADD_MAIN_ICON'; payload: IconOption }
     | { type: 'ADD_SOCIAL_ICON'; payload: IconOption }
-    | { type: 'TOGGLE_MAIN_OPTIONS' }
-    | { type: 'TOGGLE_SOCIAL_OPTIONS' }
+    | { type: 'ADD_PERSONAL_ICON'; payload: IconOption }
+    | { type: 'TOGGLE_SOCIAL_MENU' }
+    | { type: 'TOGGLE_PERSONAL_MENU' }
     // Grid Actions
     | { type: 'UPDATE_GRID_CONFIG'; payload: Partial<Omit<HomeGrid, 'items'>> }
     | { type: 'SET_GRID_ITEMS'; payload: HomeSlot[] }

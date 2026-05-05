@@ -81,10 +81,10 @@ function MainApp(): React.JSX.Element {
     const [backgroundImage, setBackgroundImage] = useState<string | null>(null)
 
     // --- Icons ---
-    const [mainIcons, setMainIcons] = useState<IconOption[]>([])
-    const [mainExpanded, setMainExpanded] = useState(false)
     const [socialIcons, setSocialIcons] = useState<IconOption[]>([])
     const [socialExpanded, setSocialExpanded] = useState(false)
+    const [personalIcons, setPersonalIcons] = useState<IconOption[]>([])
+    const [personalExpanded, setPersonalExpanded] = useState(false)
 
     // --- Info Island ---
     const { displayText, islandWidth, textOpacity, setInfoText, setIslandWidth, collapse: collapseIsland } = useInfoIsland()
@@ -133,7 +133,7 @@ function MainApp(): React.JSX.Element {
     )
 
     useEffect(() => {
-        window.api.movementControl.send('SET_TOTAL_PAGES', totalPages)
+        window.api?.movementControl?.send('SET_TOTAL_PAGES', totalPages)
     }, [totalPages])
 
     // --- Header Navigation ---
@@ -172,7 +172,7 @@ function MainApp(): React.JSX.Element {
 
     const persistItems = useCallback(async (items: HomeSlot[]) => {
         // Save all items to backend by calling slot-add-multiple
-        await window.api.slots.addMultiple(items)
+        await window.api?.slots?.addMultiple(items)
         setHomeGrid(prev => ({ ...prev, items }))
     }, [])
 
@@ -247,7 +247,7 @@ function MainApp(): React.JSX.Element {
         setLastGridIndex(stateRef.current.selectedSlotIndex ?? 0)
         setSelectedSlotIndex(null)
         setInfoText('Añadir Juego')
-        setIslandWidth('50%')
+        setIslandWidth('fit-content')
         window.api.movementControl.send('SET_SECTION', 'add-game-modal')
     }
 
@@ -258,7 +258,7 @@ function MainApp(): React.JSX.Element {
         setAddGameSelectedIndex(0)
         window.api.contextMenuControl.send('toggle', false)
         setInfoText(`Editando: ${slot.label}`)
-        setIslandWidth('60%')
+        setIslandWidth('fit-content')
         window.api.movementControl.send('SET_SECTION', 'add-game-modal')
     }
 
@@ -274,7 +274,7 @@ function MainApp(): React.JSX.Element {
     // ─── Notify main process of selection changes ────────────────────────────────
 
     useEffect(() => {
-        window.api.movementControl.send('SELECTION_CHANGED', selectedSlotItem ?? null)
+        window.api?.movementControl?.send('SELECTION_CHANGED', selectedSlotItem ?? null)
         if (selectedSlotItem?.squareImage) {
             setBackgroundImage(selectedSlotItem.squareImage)
         } else {
@@ -301,29 +301,29 @@ function MainApp(): React.JSX.Element {
     }, [homeGrid.items])
 
     useEffect(() => {
-        window.api.movementControl.send('SET_SECTION', 'grid')
+        window.api?.movementControl?.send('SET_SECTION', 'grid')
     }, [])
 
     // --- Dynamic Breadcrumbs / Header Labels ---
     useEffect(() => {
         if (focusedHeader === 'left') {
-            const icon = mainIcons[focusedHeaderIndex]
-            if (icon) { setInfoText(icon.label); setIslandWidth('50%') }
-        } else if (focusedHeader === 'right') {
             const icon = socialIcons[focusedHeaderIndex]
-            if (icon) { setInfoText(icon.label); setIslandWidth('50%') }
+            if (icon) { setInfoText(icon.label); setIslandWidth('fit-content') }
+        } else if (focusedHeader === 'right') {
+            const icon = personalIcons[focusedHeaderIndex]
+            if (icon) { setInfoText(icon.label); setIslandWidth('fit-content') }
         } else if (!addGamePanelVisible && !settingsPanelVisible && !contextMenuVisible && !moveMode && !resizeMode) {
             if (selectedSlotIndex !== null) {
                 if (selectedSlotItem) {
-                    setInfoText(selectedSlotItem.label); setIslandWidth('50%')
+                    setInfoText(selectedSlotItem.label); setIslandWidth('fit-content')
                 } else {
-                    setInfoText('Ranura Vacía'); setIslandWidth('50%')
+                    setInfoText('Ranura Vacía'); setIslandWidth('fit-content')
                 }
             } else {
                 setInfoText('LaLa Hub'); setIslandWidth('56px')
             }
         }
-    }, [focusedHeader, focusedHeaderIndex, mainIcons, socialIcons, selectedSlotItem, selectedSlotIndex, addGamePanelVisible, settingsPanelVisible, contextMenuVisible, moveMode, resizeMode])
+    }, [focusedHeader, focusedHeaderIndex, socialIcons, personalIcons, selectedSlotItem, selectedSlotIndex, addGamePanelVisible, settingsPanelVisible, contextMenuVisible, moveMode, resizeMode])
 
     // ─── IPC Messages from Main Process ─────────────────────────────────────────
 
@@ -333,16 +333,18 @@ function MainApp(): React.JSX.Element {
     useEffect(() => { stateRefForIPC.current = { currentPage } }, [currentPage])
 
     useEffect(() => {
+        if (!window.api?.onMainMessage) return
+
         window.api.onMainMessage((action: AppAction) => {
             console.log(`[Renderer] IPC Received: ${action.type}`)
             switch (action.type) {
                 case 'CHANGE_INFO_ISLAND': setInfoText(action.payload); break
-                case 'EXPAND_INFO_ISLAND': setIslandWidth('50%'); break
+                case 'EXPAND_INFO_ISLAND': setIslandWidth('fit-content'); break
                 case 'COLLAPSE_INFO_ISLAND': setIslandWidth('56px'); break
-                case 'ADD_MAIN_ICON': setMainIcons((prev) => [...prev, action.payload]); break
                 case 'ADD_SOCIAL_ICON': setSocialIcons((prev) => [...prev, action.payload]); break
-                case 'TOGGLE_MAIN_OPTIONS': setMainExpanded((prev) => !prev); break
-                case 'TOGGLE_SOCIAL_OPTIONS': setSocialExpanded((prev) => !prev); break
+                case 'ADD_PERSONAL_ICON': setPersonalIcons((prev) => [...prev, action.payload]); break
+                case 'TOGGLE_SOCIAL_MENU': setSocialExpanded((prev) => !prev); break
+                case 'TOGGLE_PERSONAL_MENU': setPersonalExpanded((prev) => !prev); break
                 case 'UPDATE_GRID_CONFIG': setHomeGrid((prev) => ({ ...prev, ...action.payload })); break
                 case 'SET_GRID_ITEMS': setHomeGrid((prev) => ({ ...prev, items: action.payload })); break
                 case 'ADD_GRID_ITEM': setHomeGrid((prev) => ({ ...prev, items: [...prev.items, action.payload] })); break
@@ -372,8 +374,8 @@ function MainApp(): React.JSX.Element {
                     setSettingsPanelVisible(true)
                     setAddGamePanelVisible(false)
                     setFocusedHeader(null)
-                    setMainExpanded(false)
                     setSocialExpanded(false)
+                    setPersonalExpanded(false)
                     setIslandWidth('56px')
                     setLastGridIndex(stateRef.current.selectedSlotIndex ?? 0)
                     setSelectedSlotIndex(null)
@@ -382,10 +384,8 @@ function MainApp(): React.JSX.Element {
                 case 'GO_HOME':
                     sfx.close()
                     setSettingsPanelVisible(false)
-                    setAddGamePanelVisible(false)
-                    setEditSlot(null)
-                    setMoveMode(null)
-                    setResizeMode(null)
+                    setPersonalExpanded(false)
+                    setSocialExpanded(false)
                     setFocusedHeader(null)
                     setContextMenuVisible(false)
                     setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
@@ -544,13 +544,13 @@ function MainApp(): React.JSX.Element {
             if (action === 'openMain') {
                 sfx.confirm()
                 if (focusedHeader === 'left') {
-                    setMainExpanded(false)
+                    setSocialExpanded(false)
                     setFocusedHeader(null)
                     setSelectedSlotIndex(lastGridIndex || 0)
                     window.api.movementControl.send('SET_SECTION', 'grid')
                 } else {
-                    setMainExpanded(true)
-                    setSocialExpanded(false)
+                    setSocialExpanded(true)
+                    setPersonalExpanded(false)
                     if (selectedSlotIndex !== null) setLastGridIndex(selectedSlotIndex)
                     setFocusedHeader('left')
                     setFocusedHeaderIndex(0)
@@ -562,13 +562,13 @@ function MainApp(): React.JSX.Element {
             if (action === 'openSocial') {
                 sfx.confirm()
                 if (focusedHeader === 'right') {
-                    setSocialExpanded(false)
+                    setPersonalExpanded(false)
                     setFocusedHeader(null)
                     setSelectedSlotIndex(lastGridIndex || 0)
                     window.api.movementControl.send('SET_SECTION', 'grid')
                 } else {
-                    setSocialExpanded(true)
-                    setMainExpanded(false)
+                    setPersonalExpanded(true)
+                    setSocialExpanded(false)
                     if (selectedSlotIndex !== null) setLastGridIndex(selectedSlotIndex)
                     setFocusedHeader('right')
                     setFocusedHeaderIndex(0)
@@ -585,8 +585,8 @@ function MainApp(): React.JSX.Element {
                     setLastGridIndex(selectedSlotIndex)
                     const isLeftHalf = (selectedSlotIndex % homeGrid.cols) < (homeGrid.cols / 2)
                     const side = isLeftHalf ? 'left' : 'right'
-                    if (side === 'left' && mainIcons.length === 0) return
-                    if (side === 'right' && socialIcons.length === 0) return
+                    if (side === 'left' && socialIcons.length === 0) return
+                    if (side === 'right' && personalIcons.length === 0) return
                     setFocusedHeader(side)
                     setFocusedHeaderIndex(0)
                     window.api.movementControl.send('SET_SECTION', 'header')
@@ -599,8 +599,8 @@ function MainApp(): React.JSX.Element {
                 if (action === 'down' || action === 'back') {
                     sfx.navigate()
                     setFocusedHeader(null)
-                    setMainExpanded(false)
                     setSocialExpanded(false)
+                    setPersonalExpanded(false)
                     if (settingsPanelVisible) {
                         window.api.movementControl.send('SET_SECTION', 'settings')
                     } else {
@@ -608,22 +608,35 @@ function MainApp(): React.JSX.Element {
                         window.api.movementControl.send('SET_SECTION', 'grid')
                     }
                 } else if (action === 'left') {
-                    if (focusedHeader === 'right' && focusedHeaderIndex === 0) {
-                        if (mainIcons.length > 0) {
-                            sfx.navigate(); setFocusedHeader('left'); setFocusedHeaderIndex(mainIcons.length - 1)
+                    if (focusedHeader === 'right') {
+                        const maxLen = personalIcons.length
+                        if (focusedHeaderIndex < maxLen - 1) {
+                            sfx.navigate(); setFocusedHeaderIndex(p => p + 1)
+                        } else if (socialIcons.length > 0) {
+                            // Move from right group's leftmost to left group's rightmost
+                            sfx.navigate(); setFocusedHeader('left'); setFocusedHeaderIndex(socialIcons.length - 1)
                         }
-                    } else if (focusedHeaderIndex > 0) {
-                        sfx.navigate(); setFocusedHeaderIndex(p => p - 1)
+                    } else if (focusedHeader === 'left') {
+                        if (focusedHeaderIndex > 0) {
+                            sfx.navigate(); setFocusedHeaderIndex(p => p - 1)
+                        }
                     }
                 } else if (action === 'right') {
-                    const maxLen = focusedHeader === 'left' ? mainIcons.length : socialIcons.length
-                    if (focusedHeaderIndex < maxLen - 1) {
-                        sfx.navigate(); setFocusedHeaderIndex(p => p + 1)
-                    } else if (focusedHeader === 'left' && socialIcons.length > 0) {
-                        sfx.navigate(); setFocusedHeader('right'); setFocusedHeaderIndex(0)
+                    if (focusedHeader === 'left') {
+                        const maxLen = socialIcons.length
+                        if (focusedHeaderIndex < maxLen - 1) {
+                            sfx.navigate(); setFocusedHeaderIndex(p => p + 1)
+                        } else if (personalIcons.length > 0) {
+                            // Move from left group's rightmost to right group's leftmost (highest index in row-reverse)
+                            sfx.navigate(); setFocusedHeader('right'); setFocusedHeaderIndex(personalIcons.length - 1)
+                        }
+                    } else if (focusedHeader === 'right') {
+                        if (focusedHeaderIndex > 0) {
+                            sfx.navigate(); setFocusedHeaderIndex(p => p - 1)
+                        }
                     }
                 } else if (action === 'select') {
-                    const iconList = focusedHeader === 'left' ? mainIcons : socialIcons
+                    const iconList = focusedHeader === 'left' ? socialIcons : personalIcons
                     const icon = iconList[focusedHeaderIndex]
                     if (icon?.onClick) { sfx.confirm(); window.api.mainOptionControl(icon.onClick) }
                 }
@@ -645,13 +658,14 @@ function MainApp(): React.JSX.Element {
             }
         }
 
+        if (!window.api?.movementControl?.onAction) return
         const removeListener = window.api.movementControl.onAction(handleMovementAction)
         return () => removeListener()
     }, [
         homeGrid.rows, homeGrid.cols, homeGrid.items,
         currentPage, contextOptions, contextMenuSelectedIndex,
         addGameSelectedIndex, focusedHeader, focusedHeaderIndex,
-        lastGridIndex, selectedSlotIndex, mainIcons, socialIcons,
+        lastGridIndex, selectedSlotIndex, socialIcons, personalIcons,
         settingsPanelVisible, exitMoveMode, exitResizeMode, persistItems
     ])
 
@@ -689,10 +703,10 @@ function MainApp(): React.JSX.Element {
 
             {/* ── Header ── */}
             <NavigationHeader
-                mainIcons={mainIcons}
                 socialIcons={socialIcons}
-                mainExpanded={mainExpanded}
+                personalIcons={personalIcons}
                 socialExpanded={socialExpanded}
+                personalExpanded={personalExpanded}
                 displayText={displayText}
                 islandWidth={islandWidth}
                 textOpacity={textOpacity}

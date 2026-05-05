@@ -6,11 +6,11 @@ function LoadingApp(): React.JSX.Element {
     const [bgImage, setBgImage] = useState<string | null>(null)
 
     useEffect(() => {
-        const removeBgListener = window.api.onLoadingBg?.((url) => {
+        const removeBgListener = window.api?.onLoadingBg?.((url) => {
             setBgImage(url)
         })
         
-        const removeLoadingDataListener = window.api.onLoadingData?.((item) => {
+        const removeLoadingDataListener = window.api?.onLoadingData?.((item) => {
             setGameData(item)
         })
 
@@ -87,8 +87,8 @@ function LoadingApp(): React.JSX.Element {
                         <h1 className="game-title">{gameData?.label || 'Cargando Juego...'}</h1>
                         
                         <div className="meta-info">
-                            {gameData?.game?.console && (
-                                <span className="platform-tag">{gameData.game.console.name}</span>
+                            {gameData?.game?.platform && (
+                                <span className="platform-tag">{gameData.game.platform.name}</span>
                             )}
                             
                             {gameData?.game?.playtimeMinutes !== undefined && gameData.game.playtimeMinutes > 0 && (

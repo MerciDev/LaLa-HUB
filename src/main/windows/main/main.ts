@@ -57,22 +57,22 @@ export function collapseInfoIsland(): void {
     appWindow?.webContents.send('dispatch-action', { type: 'COLLAPSE_INFO_ISLAND' })
 }
 
-// - - - Main Options Functions - - - //
-export function addMainIcon(icon: IconOption): void {
-    appWindow?.webContents.send('dispatch-action', { type: 'ADD_MAIN_ICON', payload: icon })
-}
-
-export function toggleMainOptions(): void {
-    appWindow?.webContents.send('dispatch-action', { type: 'TOGGLE_MAIN_OPTIONS' })
-}
-
-// - - - Social Options Functions - - - //
+// - - - Social Options Functions (Left) - - - //
 export function addSocialIcon(icon: IconOption): void {
     appWindow?.webContents.send('dispatch-action', { type: 'ADD_SOCIAL_ICON', payload: icon })
 }
 
-export function toggleSocialOptions(): void {
-    appWindow?.webContents.send('dispatch-action', { type: 'TOGGLE_SOCIAL_OPTIONS' })
+export function toggleSocialMenu(): void {
+    appWindow?.webContents.send('dispatch-action', { type: 'TOGGLE_SOCIAL_MENU' })
+}
+
+// - - - Personal Options Functions (Right) - - - //
+export function addPersonalIcon(icon: IconOption): void {
+    appWindow?.webContents.send('dispatch-action', { type: 'ADD_PERSONAL_ICON', payload: icon })
+}
+
+export function togglePersonalMenu(): void {
+    appWindow?.webContents.send('dispatch-action', { type: 'TOGGLE_PERSONAL_MENU' })
 }
 
 

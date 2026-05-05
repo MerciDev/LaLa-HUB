@@ -11,13 +11,16 @@ export function useInfoIsland() {
     const [textOpacity, setTextOpacity] = useState<number>(1)
 
     useEffect(() => {
-        if (infoText === displayText) return
+        if (infoText === displayText) {
+            setTextOpacity(1)
+            return
+        }
 
         setTextOpacity(0)
         const timeout = setTimeout(() => {
             setDisplayText(infoText)
             setTextOpacity(1)
-        }, 300)
+        }, 150)
 
         return () => clearTimeout(timeout)
     }, [infoText, displayText])

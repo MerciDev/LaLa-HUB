@@ -17,11 +17,11 @@ export function registerKeymapHandlers(onUpdate?: () => void): void {
         return { ...keymaps }
     })
 
-    ipcMain.handle('keymaps-save', async (_, updated: Record<string, string>) => {
+    ipcMain.handle('keymaps-save', async (_, updated: Record<string, string | boolean>) => {
         const allowedKeys = Object.keys(keymaps) as (keyof typeof keymaps)[]
         for (const key of allowedKeys) {
             if (updated[key] !== undefined) {
-                (keymaps as Record<string, string>)[key] = updated[key]
+                (keymaps as Record<string, string | boolean>)[key] = updated[key]
             }
         }
         saveJson('config', 'keymaps', keymaps)

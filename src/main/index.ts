@@ -267,46 +267,22 @@ async function main(): Promise<void> {
     mainApp.toggleContextMenu(false)
     mainApp.setSection('grid')
 
-    mainApp.addMainIcon({
-      id: 'home',
-      icon: 'mynaui:home-solid',
-      label: 'Inicio',
-      onClick: 'click-home',
-      onMouseEnter: 'mouse-enter-home',
-      onMouseLeave: 'mouse-leave-home'
-    })
-    mainApp.addMainIcon({
-      id: 'settings',
-      icon: 'mynaui:cog-four',
-      label: 'Configuración',
-      onClick: 'click-settings',
-      onMouseEnter: 'mouse-enter-settings',
-      onMouseLeave: 'mouse-leave-settings'
-    })
-    mainApp.addMainIcon({
-      id: 'add',
-      icon: 'mynaui:plus-square',
-      label: 'Agregar Juego',
-      onClick: 'click-add',
-      onMouseEnter: 'mouse-enter-add',
-      onMouseLeave: 'mouse-leave-add'
-    })
-
-    mainApp.addSocialIcon({
-      id: 'profile',
-      icon: 'mynaui:user',
-      label: 'Perfil',
-      onClick: 'click-profile',
-      onMouseEnter: 'mouse-enter-profile',
-      onMouseLeave: 'mouse-leave-profile'
-    })
+    // Left: Social
     mainApp.addSocialIcon({
       id: 'friends',
       icon: 'mynaui:users-group',
       label: 'Amigos',
       onClick: 'click-friends',
       onMouseEnter: 'mouse-enter-friends',
-      onMouseLeave: 'mouse-leave-friends'
+      onMouseLeave: 'mouse-leave-friends',
+      extraData: {
+        friends: [
+          { id: '1', status: 'online', playingIcon: 'simple-icons:playstation5' },
+          { id: '2', status: 'online' },
+          { id: '3', status: 'online' },
+          { id: '4', status: 'online' }
+        ]
+      }
     })
     mainApp.addSocialIcon({
       id: 'trophies',
@@ -315,6 +291,47 @@ async function main(): Promise<void> {
       onClick: 'click-trophies',
       onMouseEnter: 'mouse-enter-trophies',
       onMouseLeave: 'mouse-leave-trophies'
+    })
+    mainApp.addSocialIcon({
+      id: 'add',
+      icon: 'mynaui:plus-square',
+      label: 'Agregar Juego',
+      onClick: 'click-add',
+      onMouseEnter: 'mouse-enter-add',
+      onMouseLeave: 'mouse-leave-add'
+    })
+
+    // Right: Personal
+    mainApp.addPersonalIcon({
+      id: 'profile',
+      icon: 'mynaui:user',
+      label: 'Perfil',
+      onClick: 'click-profile',
+      onMouseEnter: 'mouse-enter-profile',
+      onMouseLeave: 'mouse-leave-profile',
+      extraData: {
+        username: 'Marco Antonio de la Santísima Trinidad',
+        status: 'online',
+        avatar: '',
+        isPlaying: 'The Legend of Zelda: Tears of the Kingdom - Digital Deluxe Edition',
+        playingIcon: 'simple-icons:nintendoswitch'
+      }
+    })
+    mainApp.addPersonalIcon({
+      id: 'settings',
+      icon: 'mynaui:cog-four',
+      label: 'Configuración',
+      onClick: 'click-settings',
+      onMouseEnter: 'mouse-enter-settings',
+      onMouseLeave: 'mouse-leave-settings'
+    })
+    mainApp.addPersonalIcon({
+      id: 'home',
+      icon: 'mynaui:home-solid',
+      label: 'Inicio',
+      onClick: 'click-home',
+      onMouseEnter: 'mouse-enter-home',
+      onMouseLeave: 'mouse-leave-home'
     })
 
     // Load and set all slots from storage

@@ -58,7 +58,7 @@
   --shadow-slot:    0 12px 40px rgba(0, 0, 0, 0.5);
   --shadow-selected: 0 0 0 4px var(--accent), 0 0 30px var(--accent-glow);
 
-  --header-h:       64px;
+  --header-h:       72px;
   --footer-h:       56px;
 
   font-family: 'Inter', system-ui, sans-serif;
@@ -126,7 +126,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 40px;
+  padding: 0 2vw;
   gap: 20px;
 }
 
@@ -137,8 +137,8 @@ body {
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  height: 54px;
-  padding: 8px;
+  height: 60px;
+  padding: 8px 10px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
@@ -146,27 +146,152 @@ body {
   -webkit-backdrop-filter: blur(20px);
 
   width: fit-content;
-  min-width: 54px;
-  max-width: 54px;
-  overflow: hidden;
-  flex-shrink: 0;
+  min-width: 60px;
+  max-width: 60px;
+  overflow: visible; /* Allow focus borders to show */
+  flex-shrink: 0; /* Side islands should NOT shrink */
 
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
-.mainOptions:hover,
+.infoIsland.is-overflowing {
+  mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+}
+
+.mainOptions {
+  max-width: 500px;
+  min-width: 60px;
+  width: fit-content;
+  overflow: visible;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 0;
+}
+
 .mainOptions.expanded,
-.socialOptions:hover,
-.socialOptions.expanded {
-  max-width: 400px !important;
-  padding: 8px 14px !important;
+.mainOptions:hover {
+  gap: 8px;
   background: var(--bg-elevated);
   border-color: rgba(255, 255, 255, 0.12);
 }
 
+/* Hide non-rich icons by default in Main menu */
+.mainOptions .icon-button:not(.icon-button--profile):not(.icon-button--friends) {
+  opacity: 0;
+  width: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mainOptions.expanded .icon-button:not(.icon-button--profile):not(.icon-button--friends),
+.mainOptions:hover .icon-button:not(.icon-button--profile):not(.icon-button--friends) {
+  opacity: 1;
+  width: 36px;
+  min-width: 36px;
+  margin: 0 4px;
+  pointer-events: auto;
+}
+
+.socialOptions {
+  max-width: 500px; /* Allow it to be large enough for all icons */
+  min-width: 60px;
+  width: fit-content;
+  overflow: visible; /* Allow pulse animation to show outside */
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 0; /* No gap when icons are hidden */
+}
+
+.socialOptions.expanded,
+.socialOptions:hover {
+  gap: 8px; /* Restore gap when expanded */
+}
+
+/* Hide non-rich icons by default in Personal menu */
+.socialOptions .icon-button:not(.icon-button--profile):not(.icon-button--friends) {
+  opacity: 0;
+  width: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Show them when expanded or hovered */
+.socialOptions.expanded .icon-button:not(.icon-button--profile):not(.icon-button--friends),
+.socialOptions:hover .icon-button:not(.icon-button--profile):not(.icon-button--friends) {
+  opacity: 1;
+  width: 36px;
+  min-width: 36px;
+  margin: 0 4px;
+  pointer-events: auto;
+}
+
+.social-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-content: flex-start;
+}
+
+.personal-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-content: flex-end;
+}
+
+.center-group {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.expansion-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.expansion-indicator.expanded,
+.personal-group:hover .expansion-indicator,
+.social-group:hover .expansion-indicator {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+.socialOptions:hover,
+.socialOptions.expanded {
+  max-width: 500px !important;
+  background: var(--bg-elevated);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Allow overflow when a button is focused inside the pill */
+.island:has(.icon-button.focused) {
+  overflow: visible !important;
+}
+
 .mainOptions { justify-content: flex-start; }
-.socialOptions { justify-content: flex-end; }
+.socialOptions { 
+  justify-content: flex-start; 
+  flex-direction: row-reverse;
+}
 
 /* ── Icon Buttons ──────────────────────────────────────── */
 .icon-button {
@@ -200,12 +325,179 @@ body {
 
 .icon-button:active { transform: scale(0.95); }
 
+/* ── Special Profile Button ─────────────────────────── */
+.icon-button--profile {
+  width: auto !important;
+  min-width: 44px;
+  height: 44px !important;
+  padding: 4px 6px 4px 14px !important;
+  border-radius: var(--radius-xl) !important;
+  gap: 12px;
+  background: transparent !important;
+  border: none !important;
+  display: flex !important;
+}
+
+.icon-button--profile:hover,
+.icon-button--profile.focused,
+.icon-button--friends:hover,
+.icon-button--friends.focused {
+  background: var(--bg-hover) !important;
+}
+
+/* ── Friends Stack ────────────────────────────────── */
+.icon-button--friends {
+  width: auto !important;
+  min-width: 44px;
+  height: 44px !important;
+  padding: 0 8px !important;
+  background: transparent !important;
+  border: none !important;
+  display: flex !important;
+  border-radius: var(--radius-xl) !important;
+}
+
+.friends-stack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.friend-avatar-wrapper {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  margin-right: -10px;
+  transition: all 0.3s ease;
+}
+
+.friend-avatar-wrapper:last-child {
+  margin-right: 0;
+}
+
+.friend-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  border: 2px solid var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.status-dot-mini {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-surface);
+  z-index: 5;
+}
+
+.status-dot-mini.status-dot--online {
+  background: #23a559;
+  box-shadow: 0 0 6px rgba(35, 165, 89, 0.4);
+  animation: status-pulse-mini 2s infinite;
+}
+
+@keyframes status-pulse-mini {
+  0% { box-shadow: 0 0 0 0 rgba(35, 165, 89, 0.5); }
+  70% { box-shadow: 0 0 0 5px rgba(35, 165, 89, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(35, 165, 89, 0); }
+}
+
+.friends-remaining {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  border: 2px solid var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-left: 14px;
+  flex-shrink: 0;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0px;
+  overflow: visible;
+  text-align: left;
+}
+
+.profile-username {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.profile-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+  overflow: visible;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot--online { 
+  background: #23a559; 
+  box-shadow: 0 0 8px rgba(35, 165, 89, 0.4); 
+  animation: status-pulse 2s infinite;
+}
+
+@keyframes status-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(35, 165, 89, 0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(35, 165, 89, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(35, 165, 89, 0); }
+}
+.status-dot--idle { background: #f0b232; }
+.status-dot--dnd { background: #f23f43; }
+.status-dot--offline { background: #80848e; }
+
+.profile-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: none;
+  flex-shrink: 0;
+  color: var(--text-primary);
+  font-size: 20px;
+}
+
 /* ── Info Island (Dynamic Island) ──────────────────────── */
 .infoIsland {
-  flex: none;
-  height: 54px;
-  min-width: 120px;
-  max-width: 40%;
+  height: 60px;
+  min-width: 60px;
+  max-width: 60%; /* Allow it to grow significantly if needed */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -223,6 +515,77 @@ body {
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: 0.01em;
+}
+
+.marquee-container.active {
+  animation: marquee-scroll 15s linear infinite;
+}
+
+@keyframes marquee-scroll {
+  0% { transform: translateX(0); }
+  10% { transform: translateX(0); } /* Pause at start */
+  90% { transform: translateX(-50%); }
+  100% { transform: translateX(-50%); } /* Pause at end (which is same as start of next instance) */
+}
+
+.profile-status-marquee-container {
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 110px;
+}
+
+.profile-status-marquee-container.active {
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+}
+
+.profile-status-marquee-container span.marquee-active,
+.profile-username-marquee-container span.marquee-active {
+  display: inline-block;
+  animation: marquee-scroll 15s linear infinite;
+}
+
+.profile-username-marquee-container {
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 140px;
+  display: flex;
+}
+
+/* Add mask for username marquee */
+.profile-username-marquee-container:has(.marquee-active) {
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+}
+
+/* ── Status Icons (Platform Specific) ─────────────── */
+.status-icon-wrapper,
+.status-icon-wrapper-mini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #23a559;
+  animation: status-pulse-mini 2s infinite;
+  overflow: visible;
+}
+
+.status-icon-wrapper {
+  width: 14px;
+  height: 14px;
+  margin-right: 2px;
+}
+
+.status-platform-icon {
+  font-size: 14px;
+}
+
+.status-platform-icon-mini {
+  font-size: 7px;
+}
+
+.status-icon-wrapper-mini {
+  background: var(--bg-surface);
+  border-radius: 2px; /* Slight roundness for platform logo */
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -2082,6 +2445,8 @@ select:focus {
   padding: 8px 9px 9px;
   flex: 1;
 }
+
+
 
 .ag-import-card__name {
   font-size: 11px;

@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { electronAPI } from '@electron-toolkit/preload'
 import { AppAction, HomeSlot } from '../shared/types'
 
 // Custom APIs for renderer
@@ -105,8 +106,8 @@ const api = {
       ipcRenderer.invoke('platform-save', platform),
     remove: (id: string): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('platform-remove', id),
-    sync: (): Promise<{ success: boolean; count?: number; error?: string }> =>
-      ipcRenderer.invoke('platforms-sync')
+    sync: (options?: { overwrite?: boolean }): Promise<{ success: boolean; count?: number; error?: string }> =>
+      ipcRenderer.invoke('platforms-sync', options)
   },
 
   /** Playtime queries (read-only from renderer side). */
@@ -125,9 +126,9 @@ const api = {
 
   /** Keymap management — read and save key bindings. */
   keymaps: {
-    getAll: (): Promise<Record<string, string>> =>
+    getAll: (): Promise<Record<string, string | boolean>> =>
       ipcRenderer.invoke('keymaps-get'),
-    save: (keymaps: Record<string, string>): Promise<{ success: boolean }> =>
+    save: (keymaps: Record<string, string | boolean>): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('keymaps-save', keymaps)
   },
   
@@ -164,11 +165,14 @@ const api = {
 // just add to the DOM global.
 if (process.contextIsolated) {
   try {
+    contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
   } catch (error) {
     console.error(error)
   }
 } else {
+  // @ts-ignore (define in dts)
+  window.electron = electronAPI
   // @ts-ignore (define in dts)
   window.api = api
 }

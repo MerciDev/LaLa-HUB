@@ -1,3 +1,4 @@
+import { ElectronAPI } from '@electron-toolkit/preload'
 import { AppAction, HomeSlot, Emulator, RetroArchSettings } from '../shared/types'
 
 export interface API {
@@ -13,6 +14,7 @@ export interface API {
   movementControl: {
     send: (action: string, data?: any) => void
     setInputFocused: (focused: boolean) => void
+    setInputCapture: (active: boolean) => void
     onAction: (callback: (section: string, action: string) => void) => () => void
   }
   
@@ -47,7 +49,7 @@ export interface API {
     getAll: () => Promise<import('../shared/types').Platform[]>
     save: (platform: import('../shared/types').Platform) => Promise<{ success: boolean }>
     remove: (id: string) => Promise<{ success: boolean }>
-    sync: () => Promise<{ success: boolean; count?: number; error?: string }>
+    sync: (options?: { overwrite?: boolean }) => Promise<{ success: boolean; count?: number; error?: string }>
   }
   
   /** Playtime queries (read-only). */
@@ -63,8 +65,8 @@ export interface API {
   
   /** Read and persist key/gamepad bindings. */
   keymaps: {
-    getAll: () => Promise<Record<string, string>>
-    save: (keymaps: Record<string, string>) => Promise<{ success: boolean }>
+    getAll: () => Promise<Record<string, string | boolean>>
+    save: (keymaps: Record<string, string | boolean>) => Promise<{ success: boolean }>
   }
 
   /** Scanner for automatic ROM discovery. */
@@ -93,6 +95,7 @@ export interface API {
 
 declare global {
   interface Window {
+    electron: ElectronAPI
     api: API
   }
 }

@@ -118,6 +118,17 @@ export default function OverlayApp(): React.JSX.Element {
   // ── IPC ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const api = (window as any).api
+    if (!api) {
+      // Dev: auto-open after delay if in browser/no api
+      const showDev = () => {
+        setSection(null); setBarIdx(0); setInPanel(false); setPanelIdx(0)
+        setActiveGame(null)
+        setVisible(true)
+      }
+      const t = setTimeout(showDev, 300)
+      return () => clearTimeout(t)
+    }
+
     const show = (payload?: any) => {
       if (closingRef.current) return
       setSection(null); setBarIdx(0); setInPanel(false); setPanelIdx(0)
@@ -135,16 +146,12 @@ export default function OverlayApp(): React.JSX.Element {
       setTimeout(() => { closingRef.current = false }, 400)
     }
 
-    if (api?.onMainMessage) {
+    if (api.onMainMessage) {
       api.onMainMessage((e: any) => {
         if (e.type === 'OVERLAY_SHOWN')   show(e.payload)
         if (e.type === 'OVERLAY_CLOSING') hide()
       })
       return () => api.offMainMessage?.()
-    } else {
-      // Dev: auto-open after delay
-      const t = setTimeout(show, 300)
-      return () => clearTimeout(t)
     }
   }, [])
 
@@ -298,7 +305,7 @@ export default function OverlayApp(): React.JSX.Element {
 
         {/* Active panel — only one rendered at a time */}
         <div className={`ov-panel${section ? ' visible' : ''}`}>
-          {section === 'game'     && <PanelGame     inPanel={inPanel} panelIdx={panelIdx} activeGame={activeGame} />}
+          {section === 'game'     && <PanelGame     inPanel={inPanel} panelIdx={panelIdx} activeGame={activeGame} sessionTimeStr={sessionTimeStr} />}
           {section === 'social'   && <PanelSocial   inPanel={inPanel} panelIdx={panelIdx} />}
           {section === 'trophies' && <PanelTrophies inPanel={inPanel} panelIdx={panelIdx} />}
           {section === 'settings' && (
@@ -344,7 +351,7 @@ export default function OverlayApp(): React.JSX.Element {
 
 // ── Panel components ──────────────────────────────────────────────────────────
 
-function PanelGame({ inPanel, panelIdx, activeGame }: { inPanel: boolean; panelIdx: number; activeGame: any }) {
+function PanelGame({ inPanel, panelIdx, activeGame, sessionTimeStr }: { inPanel: boolean; panelIdx: number; activeGame: any; sessionTimeStr: string }) {
   const actions = [
     { icon: 'mynaui:camera',      label: 'Captura',  sub: 'Screenshot'     },
     { icon: 'mynaui:video',       label: 'Grabar',   sub: 'Iniciar grabación' },

@@ -30,7 +30,7 @@ const GAMEPAD_KEYS = [
 ]
 
 type Tab = 'platforms' | 'emulators' | 'controls' | 'grid' | 'friends' | 'trophies'
-type FocusArea = 'nav' | 'nav_close' | 'content' | 'footer'
+type FocusArea = 'nav' | 'nav_save' | 'nav_close' | 'content' | 'footer'
 
 interface EmulatorForm { name: string; path: string; args: string; platforms: string[] }
 const EMPTY_EMU: EmulatorForm = { name: '', path: '', args: '', platforms: [] }
@@ -81,7 +81,7 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
     const [platSaving, setPlatSaving]       = useState(false)
     const [isPlatFormExpanded, setIsPlatFormExpanded] = useState(false)
 
-    const [keymaps, setKeymaps]             = useState<Record<string, string>>({})
+    const [keymaps, setKeymaps]             = useState<Record<string, string | boolean>>({})
     const [listeningKey, setListeningKey]   = useState<string | null>(null)
     const [keymapDirty, setKeymapDirty]     = useState(false)
     const [keymapSaving, setKeymapSaving]   = useState(false)
@@ -109,10 +109,11 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
 
     // ── Refs: always-fresh snapshots used inside the event handler ────────────
     const r = useRef({
-        tab, controlsSubTab, focusArea, selectedIndex, footerIndex,
-        emulators, platforms, keymaps, listeningKey, visible, onJumpToHeader,
+        tab, controlsSubTab, focusArea, selectedIndex, isDeleteFocused, footerIndex,
+        emulators, platforms: sortedPlatforms, keymaps, listeningKey, visible, onJumpToHeader,
         gridRows, gridCols, gridGap, gridAspect, hasUnsavedChanges,
-        isInputEditing, platForm
+        isInputEditing, isPlatFormExpanded, editingPlatId, editingEmuId, platForm, emuForm, 
+        focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex
     })
     useEffect(() => {
         r.current = { tab, controlsSubTab, focusArea, selectedIndex, isDeleteFocused, footerIndex, emulators, platforms: sortedPlatforms, keymaps, listeningKey, visible, onJumpToHeader, gridRows, gridCols, gridGap, gridAspect, hasUnsavedChanges, isInputEditing, isPlatFormExpanded, editingPlatId, editingEmuId, platForm, emuForm, focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex }
