@@ -23,7 +23,11 @@ import { registerArtworkHandlers } from './handlers/artworkHandler'
 import { registerScannerHandlers } from './handlers/scannerHandler'
 import { registerRetroArchHandlers } from './handlers/retroarchHandler'
 import { registerKeymapHandlers } from './handlers/keymapHandler'
+import { registerInterfaceHandlers } from './handlers/interfaceHandler'
+import { registerDownloadHandlers } from './handlers/downloadHandler'
+import { registerMetadataHandlers } from './handlers/metadataHandler'
 import { initDiscordRPC, setActivity } from './utils/discord'
+import { loadInterfaceSettings } from './settings/interfaceSettings'
 
 export let appWindow: BrowserWindow | null = null
 export let overlayWindow: BrowserWindow | null = null
@@ -222,6 +226,7 @@ export function refreshGlobalShortcuts(): void {
 async function main(): Promise<void> {
   // Load Keymaps
   keymaps.loadKeymaps()
+  loadInterfaceSettings()
 
   // Start Discord RPC
   initDiscordRPC()
@@ -242,6 +247,9 @@ async function main(): Promise<void> {
   registerScannerHandlers()
   registerRetroArchHandlers()
   registerKeymapHandlers(refreshGlobalShortcuts)
+  registerInterfaceHandlers()
+  registerDownloadHandlers(appWindow!)
+  registerMetadataHandlers()
 
   await app.whenReady()
 
@@ -318,6 +326,14 @@ async function main(): Promise<void> {
       }
     })
     mainApp.addPersonalIcon({
+      id: 'downloads',
+      icon: 'mynaui:download',
+      label: 'Descargas',
+      onClick: 'click-downloads',
+      onMouseEnter: 'mouse-enter-downloads',
+      onMouseLeave: 'mouse-leave-downloads'
+    })
+    mainApp.addPersonalIcon({
       id: 'settings',
       icon: 'mynaui:cog-four',
       label: 'Configuración',
@@ -352,7 +368,7 @@ async function main(): Promise<void> {
 
     // Set default context options
     mainApp.setContextOptions([
-      { id: '1', label: 'Opcion 1', icon: 'mynaui:circle' },
+      { id: '1', label: 'Descargas', icon: 'mynaui:download', action: 'OPEN_DOWNLOADS' },
       { id: '2', label: 'Opcion 2', icon: 'mynaui:circle' },
       { id: '3', label: 'Opcion 3', icon: 'mynaui:circle' }
     ])

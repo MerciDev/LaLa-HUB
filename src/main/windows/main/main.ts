@@ -98,6 +98,20 @@ export function mainOptionControl(actionId: string): void {
             changeInfoIsland('')
             collapseInfoIsland()
         },
+        // Downloads
+        'click-downloads': () => {
+            expandInfoIsland()
+            changeInfoIsland('Descargas')
+            appWindow?.webContents.send('dispatch-action', { type: 'OPEN_DOWNLOADS' })
+        },
+        'mouse-enter-downloads': () => {
+            expandInfoIsland()
+            changeInfoIsland('Descargas')
+        },
+        'mouse-leave-downloads': () => {
+            changeInfoIsland('')
+            collapseInfoIsland()
+        },
         // Settings
         'click-settings': () => {
             expandInfoIsland()

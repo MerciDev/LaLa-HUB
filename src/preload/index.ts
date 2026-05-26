@@ -157,6 +157,45 @@ const api = {
   /** Loading screen control — allows the loading window to dismiss itself */
   loadingControl: {
     dismiss: () => ipcRenderer.send('loading-dismiss')
+  },
+
+  /** Interface settings management. */
+  ui: {
+    getSettings: (): Promise<import('../shared/types').InterfaceSettings> =>
+      ipcRenderer.invoke('interface-settings-get'),
+    saveSettings: (settings: import('../shared/types').InterfaceSettings): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('interface-settings-save', settings)
+  },
+
+  /** Download system — browse sources, manage downloads */
+  downloads: {
+    getSourcesConfig: (): Promise<Array<{ name: string; url: string }>> =>
+      ipcRenderer.invoke('download-get-sources-config'),
+    fetchSource: (url: string): Promise<{ success: boolean; data?: import('../shared/types').DownloadSource; error?: string }> =>
+      ipcRenderer.invoke('download-fetch-source', url),
+    getTasks: (): Promise<import('../shared/types').DownloadTask[]> =>
+      ipcRenderer.invoke('download-get-tasks'),
+    start: (entry: import('../shared/types').DownloadEntry, sourceName: string): Promise<{ success: boolean; task?: import('../shared/types').DownloadTask; error?: string }> =>
+      ipcRenderer.invoke('download-start', entry, sourceName),
+    cancel: (id: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('download-cancel', id),
+    remove: (id: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('download-remove', id),
+    retry: (id: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('download-retry', id),
+    clearCompleted: (): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('download-clear-completed'),
+    onProgress: (callback: (progress: import('../shared/types').DownloadProgress) => void): (() => void) => {
+      const fn = (_, progress) => callback(progress)
+      ipcRenderer.on('download-progress', fn)
+      return () => { ipcRenderer.removeListener('download-progress', fn) }
+    }
+  },
+
+  /** Game metadata lookup (Steam / RAWG / TGDB) */
+  metadata: {
+    searchGame: (title: string, provider: import('../shared/types').MetadataProvider): Promise<{ success: boolean; data?: import('../shared/types').GameMetadata | null; error?: string }> =>
+      ipcRenderer.invoke('metadata-search-game', title, provider)
   }
 }
 

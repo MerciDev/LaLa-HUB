@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react'
 import { Icon } from '@iconify/react'
 import { IconOption } from '../../../shared/types'
+import PersonalMenu from './personal-menu/PersonalMenu'
 
 interface NavigationHeaderProps {
     socialIcons: IconOption[]
@@ -26,7 +27,6 @@ function NavigationHeader({
     focusedIndex = 0
 }: NavigationHeaderProps): React.JSX.Element {
     const socialOptionsRef = useRef<HTMLDivElement>(null)
-    const personalOptionsRef = useRef<HTMLDivElement>(null)
     const textMeasureRef = useRef<HTMLSpanElement>(null)
     const [textWidth, setTextWidth] = React.useState(0)
     const [windowWidth, setWindowWidth] = React.useState(window.innerWidth)
@@ -36,7 +36,6 @@ function NavigationHeader({
     const friendsRef = useRef<HTMLButtonElement>(null)
 
     const isSocialExpanded = socialExpanded || focusedHeader === 'left'
-    const isPersonalExpanded = personalExpanded || focusedHeader === 'right'
 
     // Synchronize side widths (Profile and Friends)
     useEffect(() => {
@@ -79,30 +78,14 @@ function NavigationHeader({
         : islandWidth
 
     useEffect(() => {
-        if (isSocialExpanded || isPersonalExpanded) {
-            console.log(`[DEBUG] NavigationHeader - SocialExpanded: ${isSocialExpanded}, PersonalExpanded: ${isPersonalExpanded}, Focused: ${focusedHeader}`)
-        }
-    }, [isSocialExpanded, isPersonalExpanded, focusedHeader])
-
-    useEffect(() => {
         if (!isSocialExpanded && socialOptionsRef.current) {
             socialOptionsRef.current.scrollLeft = 0
         }
     }, [isSocialExpanded])
 
     useEffect(() => {
-        if (!isPersonalExpanded && personalOptionsRef.current) {
-            personalOptionsRef.current.scrollLeft = 0
-        }
-    }, [isPersonalExpanded])
-
-    // Scroll to focused element so it doesn't get hidden under the pill radius
-    useEffect(() => {
         if (focusedHeader === 'left' && socialOptionsRef.current) {
             const btn = socialOptionsRef.current.children[focusedIndex] as HTMLElement
-            if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
-        } else if (focusedHeader === 'right' && personalOptionsRef.current) {
-            const btn = personalOptionsRef.current.children[focusedIndex] as HTMLElement
             if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
         }
     }, [focusedHeader, focusedIndex])
@@ -236,69 +219,26 @@ function NavigationHeader({
                 </div>
             </div>
 
-            {/* Right pill (Personal) */}
-            <div className="header-group personal-group">
-                <div className={`expansion-indicator expansion-indicator--left ${isPersonalExpanded ? 'expanded' : ''}`}>
-                    <Icon icon="mynaui:chevron-left" />
-                </div>
-                <div
-                    ref={personalOptionsRef}
-                    className={`socialOptions island ${isPersonalExpanded ? 'expanded' : ''}`}
+            <div className="header-actions">
+                <button
+                    className="header-dl-btn"
+                    title="Descargas"
+                    onClick={() => window.api?.mainOptionControl('click-downloads')}
+                    onMouseEnter={() => window.api?.mainOptionControl('mouse-enter-downloads')}
+                    onMouseLeave={() => window.api?.mainOptionControl('mouse-leave-downloads')}
                 >
-                    {personalIcons.map((icon, idx) => {
-                        const focused = focusedHeader === 'right' && focusedIndex === idx
-                        const hasExtraData = icon.extraData
-
-                        return (
-                            <button
-                                key={icon.id}
-                                ref={hasExtraData ? profileRef : null}
-                                className={`icon-button ${focused ? 'focused' : ''} ${hasExtraData ? 'icon-button--profile' : ''}`}
-                                style={hasExtraData && sideWidth > 0 ? { minWidth: `${sideWidth}px` } : {}}
-                                title={icon.label}
-                                onMouseEnter={() => icon.onMouseEnter && window.api.mainOptionControl(icon.onMouseEnter)}
-                                onMouseLeave={() => icon.onMouseLeave && window.api.mainOptionControl(icon.onMouseLeave)}
-                                onClick={() => icon.onClick && window.api.mainOptionControl(icon.onClick)}
-                            >
-                                {hasExtraData ? (
-                                    <>
-                                        <div className="profile-info">
-                                            <div 
-                                                className={`profile-username-marquee-container ${icon.extraData?.username && icon.extraData.username.length > 15 ? 'active' : ''}`}
-                                            >
-                                                <span className={`profile-username ${icon.extraData?.username && icon.extraData.username.length > 15 ? 'marquee-active' : ''}`}>
-                                                    {icon.extraData?.username}
-                                                </span>
-                                            </div>
-                                            <div className={`profile-status`}>
-                                                {icon.extraData?.playingIcon ? (
-                                                    <div className="status-icon-wrapper">
-                                                        <Icon icon={icon.extraData.playingIcon} className="status-platform-icon" />
-                                                    </div>
-                                                ) : (
-                                                    <span className={`status-dot status-dot--${icon.extraData?.status || 'offline'}`} />
-                                                )}
-                                                <div 
-                                                    className={`profile-status-marquee-container ${icon.extraData?.isPlaying && icon.extraData.isPlaying.length > 12 ? 'active' : ''}`}
-                                                >
-                                                    <span className={icon.extraData?.isPlaying && icon.extraData.isPlaying.length > 12 ? 'marquee-active' : ''}>
-                                                        {icon.extraData?.isPlaying ? `Jugando a ${icon.extraData.isPlaying}` : icon.extraData?.status}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="profile-avatar">
-                                            <Icon icon={icon.icon} />
-                                        </div>
-                                    </>
-                                ) : (
-                                    <Icon icon={icon.icon} />
-                                )}
-                            </button>
-                        )
-                    })}
-                </div>
+                    <Icon icon="mynaui:download" />
+                </button>
             </div>
+
+            <PersonalMenu
+                personalIcons={personalIcons}
+                personalExpanded={personalExpanded}
+                focusedHeader={focusedHeader}
+                focusedIndex={focusedIndex}
+                sideWidth={sideWidth}
+                profileRef={profileRef}
+            />
         </div>
     )
 }

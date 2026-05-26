@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AppAction, HomeGrid, HomeSlot, IconOption, ContextOption } from '../../../../shared/types'
+import { AppAction, HomeGrid, HomeSlot, IconOption, ContextOption, InterfaceSettings } from '../../../../shared/types'
 import { Icon } from '@iconify/react'
 
 import { useGamepad } from '../../hooks/useGamepad'
@@ -14,6 +14,7 @@ import PageNavigator from '../../components/PageNavigator'
 import ContextMenu from '../../components/ContextMenu'
 import AddGamePanel from '../../components/AddGameModal'
 import SettingsPanel from '../../components/SettingsPanel'
+import { DownloadManager } from '../../components/download/DownloadManager'
 
 // ─── Grid move/resize utilities ────────────────────────────────────────────────
 
@@ -78,6 +79,7 @@ function MainApp(): React.JSX.Element {
     useGamepad()
 
     // --- Background ---
+    const [interfaceSettings, setInterfaceSettings] = useState<InterfaceSettings>({ showGameBackground: true })
     const [backgroundImage, setBackgroundImage] = useState<string | null>(null)
 
     // --- Icons ---
@@ -133,6 +135,10 @@ function MainApp(): React.JSX.Element {
     )
 
     useEffect(() => {
+        window.api?.ui?.getSettings().then(setInterfaceSettings).catch(console.error)
+    }, [])
+
+    useEffect(() => {
         window.api?.movementControl?.send('SET_TOTAL_PAGES', totalPages)
     }, [totalPages])
 
@@ -153,6 +159,9 @@ function MainApp(): React.JSX.Element {
 
     // --- Settings Panel ---
     const [settingsPanelVisible, setSettingsPanelVisible] = useState(false)
+
+    // --- Download Manager ---
+    const [downloadManagerVisible, setDownloadManagerVisible] = useState(false)
 
     // --- Move Mode ---
     const [moveMode, setMoveMode] = useState<{ slotId: string; ghostPosition: number } | null>(null)
@@ -231,6 +240,8 @@ function MainApp(): React.JSX.Element {
             enterMoveMode(selectedSlotItem)
         } else if (option.action === 'RESIZE_GAME' && selectedSlotItem) {
             enterResizeMode(selectedSlotItem)
+        } else if (option.action === 'OPEN_DOWNLOADS') {
+            openDownloadManager()
         } else if (option.action) {
             window.api.contextMenuControl.send('execute', option.action)
         }
@@ -271,16 +282,38 @@ function MainApp(): React.JSX.Element {
         window.api.movementControl.send('SET_SECTION', 'grid')
     }
 
+    // ─── Download Manager ──────────────────────────────────────────────────────
+
+    const openDownloadManager = useCallback(() => {
+        sfx.open()
+        setDownloadManagerVisible(true)
+        setSettingsPanelVisible(false)
+        setAddGamePanelVisible(false)
+        setLastGridIndex(stateRef.current.selectedSlotIndex ?? 0)
+        setSelectedSlotIndex(null)
+        window.api.movementControl.send('SET_SECTION', 'download-manager')
+        setInfoText('Descargas')
+        setIslandWidth('fit-content')
+    }, [setInfoText, setIslandWidth])
+
+    const closeDownloadManager = useCallback(() => {
+        sfx.close()
+        setDownloadManagerVisible(false)
+        setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
+        window.api.movementControl.send('SET_SECTION', 'grid')
+        collapseIsland()
+    }, [lastGridIndex, collapseIsland])
+
     // ─── Notify main process of selection changes ────────────────────────────────
 
     useEffect(() => {
         window.api?.movementControl?.send('SELECTION_CHANGED', selectedSlotItem ?? null)
-        if (selectedSlotItem?.squareImage) {
+        if (interfaceSettings.showGameBackground && selectedSlotItem?.squareImage) {
             setBackgroundImage(selectedSlotItem.squareImage)
         } else {
             setBackgroundImage(null)
         }
-    }, [selectedSlotItem])
+    }, [selectedSlotItem, interfaceSettings.showGameBackground])
 
     // --- Auto-select first slot on data load ---
     useEffect(() => {
@@ -312,7 +345,7 @@ function MainApp(): React.JSX.Element {
         } else if (focusedHeader === 'right') {
             const icon = personalIcons[focusedHeaderIndex]
             if (icon) { setInfoText(icon.label); setIslandWidth('fit-content') }
-        } else if (!addGamePanelVisible && !settingsPanelVisible && !contextMenuVisible && !moveMode && !resizeMode) {
+        } else if (!addGamePanelVisible && !settingsPanelVisible && !downloadManagerVisible && !contextMenuVisible && !moveMode && !resizeMode) {
             if (selectedSlotIndex !== null) {
                 if (selectedSlotItem) {
                     setInfoText(selectedSlotItem.label); setIslandWidth('fit-content')
@@ -383,12 +416,16 @@ function MainApp(): React.JSX.Element {
                     break
                 case 'GO_HOME':
                     sfx.close()
+                    setDownloadManagerVisible(false)
                     setSettingsPanelVisible(false)
                     setPersonalExpanded(false)
                     setSocialExpanded(false)
                     setFocusedHeader(null)
                     setContextMenuVisible(false)
                     setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
+                    break
+                case 'OPEN_DOWNLOADS':
+                    openDownloadManager()
                     break
                 case 'CLOSE_SETTINGS':
                     sfx.close()
@@ -655,6 +692,8 @@ function MainApp(): React.JSX.Element {
                 window.dispatchEvent(new CustomEvent('panel-move', { detail: action }))
             } else if (section === 'settings') {
                 window.dispatchEvent(new CustomEvent('panel-move', { detail: action }))
+            } else if (section === 'download-manager') {
+                // download-manager handles its own keyboard events
             }
         }
 
@@ -717,7 +756,7 @@ function MainApp(): React.JSX.Element {
             {/* ── Main content area ── */}
             <div className="main-view-area">
                 <AnimatePresence mode="wait">
-                    {!settingsPanelVisible && !addGamePanelVisible ? (
+                    {!settingsPanelVisible && !addGamePanelVisible && !downloadManagerVisible ? (
                         <motion.div
                             key="grid"
                             className="content"
@@ -775,7 +814,14 @@ function MainApp(): React.JSX.Element {
                         >
                             <SettingsPanel
                                 visible={settingsPanelVisible}
-                                onClose={() => { sfx.close(); setSettingsPanelVisible(false); window.api.movementControl.send('SET_SECTION', 'grid') }}
+                                onClose={async () => { 
+                                    sfx.close(); 
+                                    setSettingsPanelVisible(false); 
+                                    window.api.movementControl.send('SET_SECTION', 'grid');
+                                    // Refresh interface settings when closing panel
+                                    const settings = await window.api.ui.getSettings();
+                                    setInterfaceSettings(settings);
+                                }}
                                 onJumpToHeader={(side) => {
                                     setFocusedHeader(side)
                                     setFocusedHeaderIndex(0)
@@ -805,13 +851,27 @@ function MainApp(): React.JSX.Element {
                                 onClose={closeAddGameModal}
                             />
                         </motion.div>
+                    ) : downloadManagerVisible ? (
+                        <motion.div
+                            key="downloads"
+                            className="content content--panel"
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 10 }}
+                            transition={{ duration: 0.2 }}
+                        >
+                            <DownloadManager
+                                visible={downloadManagerVisible}
+                                onClose={closeDownloadManager}
+                            />
+                        </motion.div>
                     ) : null}
                 </AnimatePresence>
             </div>
 
             {/* ── Footer ── */}
             <AnimatePresence>
-                {!settingsPanelVisible && !addGamePanelVisible && !moveMode && !resizeMode && (
+                {!settingsPanelVisible && !addGamePanelVisible && !downloadManagerVisible && !moveMode && !resizeMode && (
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
