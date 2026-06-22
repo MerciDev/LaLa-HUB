@@ -1,14 +1,17 @@
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js'
 import { debugLog, debugError } from './debug'
 
-const SUPABASE_URL = process.env.SUPABASE_URL || ''
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || ''
+let SUPABASE_URL = process.env['SUPABASE_URL'] || ''
+let SUPABASE_ANON_KEY = process.env['SUPABASE_ANON_KEY'] || ''
 
 let supabase: SupabaseClient | null = null
 let currentSession: Session | null = null
 
 export function getSupabaseClient(): SupabaseClient {
   if (!supabase) {
+    if (!SUPABASE_URL) SUPABASE_URL = process.env['SUPABASE_URL'] || ''
+    if (!SUPABASE_ANON_KEY) SUPABASE_ANON_KEY = process.env['SUPABASE_ANON_KEY'] || ''
+    
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       throw new Error('Supabase no configurado. SUPABASE_URL y SUPABASE_ANON_KEY deben estar definidos.')
     }

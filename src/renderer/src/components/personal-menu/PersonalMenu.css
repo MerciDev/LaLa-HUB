@@ -7,41 +7,44 @@
   justify-content: flex-end;
 }
 
-/* Contenedor principal tipo "Píldora" */
 .personal-group .personal-options {
   display: flex;
   align-items: center;
   flex-direction: row-reverse;
   justify-content: flex-start;
-  gap: 6px; /* Gap fijo para evitar saltos al hacer hover */
+  gap: 0;
 
   max-width: 500px;
-  min-width: 60px;
+  min-width: 52px;
   width: fit-content;
   padding: 4px;
-  border-radius: 100px; /* Forma de píldora */
+  border-radius: 100px;
+  overflow: visible;
 
   background: var(--bg-elevated, rgba(20, 20, 20, 0.4));
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
 
-  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .personal-group .personal-options:hover,
 .personal-group .personal-options.expanded {
+  gap: 4px;
   background: var(--bg-elevated, rgba(30, 30, 30, 0.8));
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.12);
   box-shadow:
-    0 6px 20px rgba(0, 0, 0, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    0 6px 25px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
 }
 
-/* Botones sociales (Ocultos por defecto) */
+/* Extra icons hidden by default (like social menu) */
 .personal-group .personal-options .icon-button:not(.icon-button--profile):not(.icon-button--friends) {
   opacity: 0;
-  max-width: 0;
+  width: 0;
+  min-width: 0;
   margin: 0;
   padding: 0;
   pointer-events: none;
@@ -51,29 +54,25 @@
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--text-secondary, #aaa);
+  color: var(--text-secondary);
   border-radius: 50%;
-  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.personal-group
-  .personal-options.expanded
-  .icon-button:not(.icon-button--profile):not(.icon-button--friends),
-.personal-group
-  .personal-options:hover
-  .icon-button:not(.icon-button--profile):not(.icon-button--friends) {
+.personal-options.expanded .icon-button:not(.icon-button--profile):not(.icon-button--friends),
+.personal-options:hover .icon-button:not(.icon-button--profile):not(.icon-button--friends) {
   opacity: 1;
-  max-width: 36px;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
   margin: 0 2px;
   pointer-events: auto;
   cursor: pointer;
 }
 
-.personal-group .personal-options .icon-button:not(.icon-button--profile):hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary, #fff);
+.personal-options .icon-button:not(.icon-button--profile):hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 /* ── Profile Button ────────────────────────────────── */
@@ -81,10 +80,10 @@
 .icon-button--profile {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 140px;
-  height: 44px;
-  padding: 4px 6px 4px 16px;
+  gap: 10px;
+  min-width: 120px;
+  height: 40px;
+  padding: 2px 4px 2px 14px;
 
   background: transparent;
   border: 1px solid transparent;
@@ -125,7 +124,7 @@
 }
 
 .profile-username {
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-primary, #fff);
   line-height: 1.2;
@@ -136,8 +135,8 @@
 .profile-status {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.7rem;
+  gap: 5px;
+  font-size: 0.65rem;
   font-weight: 500;
   color: var(--text-secondary, #aaa);
   text-transform: capitalize;
@@ -147,8 +146,8 @@
 /* ── Avatar ─────────────────────────────────────────── */
 
 .profile-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--bg-hover, rgba(255, 255, 255, 0.1));
   display: flex;
@@ -158,7 +157,7 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
   color: var(--text-primary, #fff);
-  font-size: 18px;
+  font-size: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 

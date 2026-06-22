@@ -6,75 +6,20 @@ import { Icon } from '@iconify/react'
 import { useGamepad } from '../../hooks/useGamepad'
 import { useGridNavigation } from '../../hooks/useGridNavigation'
 import { useInfoIsland } from '../../hooks/useInfoIsland'
+import { useInputFocus } from '../../hooks/useInputFocus'
 import { sfx } from '../../utils/audioManager'
 
 import NavigationHeader from '../../components/NavigationHeader'
-import HomeGridComponent, { buildOccupiedCells, getSlotCells } from '../../components/HomeGrid'
+import HomeGridComponent from '../../components/HomeGrid'
+import { buildOccupiedCells, getSlotCells, repackItemsAfterResize, computeMinGridDimensions } from '../../utils/gridUtils'
 import PageNavigator from '../../components/PageNavigator'
 import ContextMenu from '../../components/ContextMenu'
 import AddGamePanel from '../../components/AddGameModal'
 import SettingsPanel from '../../components/SettingsPanel'
 import { DownloadManager } from '../../components/download/DownloadManager'
 import LoginScreen from '../../components/LoginScreen'
-
-// ─── Grid move/resize utilities ────────────────────────────────────────────────
-
-/** Rearranges items to fill pages after a grid resize, maintaining relative order */
-function repackItemsAfterResize(items: HomeSlot[], cols: number, rows: number): HomeSlot[] {
-    const slotsPerPage = cols * rows
-    const updated: HomeSlot[] = []
-    let page = 0
-    let cellCursor = 0
-
-    // Sort by original page then position
-    const sorted = [...items].sort((a, b) => {
-        const pa = (a.page ?? 0) * 1000 + (a.position ?? 0)
-        const pb = (b.page ?? 0) * 1000 + (b.position ?? 0)
-        return pa - pb
-    })
-
-    for (const item of sorted) {
-        const cSpan = item.colSpan ?? 1
-        const rSpan = item.rowSpan ?? 1
-
-        // Find a position on the current page (or next pages) that fits
-        let placed = false
-        while (!placed) {
-            const occupied = buildOccupiedCells(updated, page, cols)
-            // Search for a position on this page where it fits
-            let found = false
-            for (let pos = 0; pos < slotsPerPage && !found; pos++) {
-                const startRow = Math.floor(pos / cols)
-                const startCol = pos % cols
-                if (startCol + cSpan > cols) continue  // doesn't fit horizontally
-                if (startRow + rSpan > rows) continue  // doesn't fit vertically
-                const cells = getSlotCells(pos, cSpan, rSpan, cols)
-                if (cells.every(c => !occupied.has(c))) {
-                    updated.push({ ...item, position: pos, page })
-                    found = true
-                    placed = true
-                }
-            }
-            if (!found) {
-                page++
-                cellCursor = 0
-            }
-        }
-        cellCursor++
-    }
-    return updated
-}
-
-/** Computes minimum allowed grid dimensions given current items */
-function computeMinGridDimensions(items: HomeSlot[]): { minRows: number; minCols: number } {
-    let maxRowSpan = 1
-    let maxColSpan = 1
-    for (const item of items) {
-        maxRowSpan = Math.max(maxRowSpan, item.rowSpan ?? 1)
-        maxColSpan = Math.max(maxColSpan, item.colSpan ?? 1)
-    }
-    return { minRows: maxRowSpan, minCols: maxColSpan }
-}
+import BackgroundLayer from '../../components/BackgroundLayer'
+import ModeHUD from '../../components/ModeHUD'
 
 function MainApp(): React.JSX.Element {
     useGamepad()
@@ -479,28 +424,7 @@ function MainApp(): React.JSX.Element {
         return () => window.api.offMainMessage()
     }, []) // Now stable, no dependencies
 
-    // ─── Input Focus Tracking ────────────────────────────────────────────────────
-
-    useEffect(() => {
-        const handleFocus = (e: FocusEvent) => {
-            const target = e.target as HTMLElement
-            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
-                window.api.movementControl.setInputFocused(true)
-            }
-        }
-        const handleBlur = (e: FocusEvent) => {
-            const target = e.target as HTMLElement
-            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
-                window.api.movementControl.setInputFocused(false)
-            }
-        }
-        window.addEventListener('focusin', handleFocus)
-        window.addEventListener('focusout', handleBlur)
-        return () => {
-            window.removeEventListener('focusin', handleFocus)
-            window.removeEventListener('focusout', handleBlur)
-        }
-    }, [])
+    useInputFocus()
 
     // ─── Navigation / Input Handling ─────────────────────────────────────────────
     const lastMovementTimeRef = useRef(0)
@@ -771,22 +695,7 @@ function MainApp(): React.JSX.Element {
 
     return (
         <div className="app">
-            {/* ── Dynamic Background ── */}
-            <div className="background-overlay" />
-
-            <AnimatePresence mode="wait">
-                {backgroundImage && (
-                    <motion.div
-                        key={backgroundImage}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.7 }}
-                        className="background-image-layer"
-                        style={{ backgroundImage: `url(${backgroundImage})` }}
-                    />
-                )}
-            </AnimatePresence>
+            <BackgroundLayer backgroundImage={backgroundImage} />
 
             {/* ── Header ── */}
             <NavigationHeader
@@ -935,47 +844,7 @@ function MainApp(): React.JSX.Element {
                 )}
             </AnimatePresence>
 
-            {/* ── Mode HUD ── */}
-            <AnimatePresence>
-                {moveMode && (
-                    <motion.div
-                        className="grid-mode-hud"
-                        initial={{ opacity: 0, y: 10, scale: 0.9, x: '-50%' }}
-                        animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
-                        exit={{ opacity: 0, y: 10, scale: 0.9, x: '-50%' }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                    >
-                        <Icon icon="mynaui:arrow-up-down-left-right" className="grid-mode-hud__icon" />
-                        <span>Selecciona la nueva posición</span>
-                        <kbd>↑↓←→</kbd>
-                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>mover</span>
-                        <kbd>Enter</kbd>
-                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>confirmar</span>
-                        <kbd>Esc</kbd>
-                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>cancelar</span>
-                    </motion.div>
-                )}
-                {resizeMode && (
-                    <motion.div
-                        className="grid-mode-hud grid-mode-hud--resize"
-                        initial={{ opacity: 0, y: 10, scale: 0.9, x: '-50%' }}
-                        animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
-                        exit={{ opacity: 0, y: 10, scale: 0.9, x: '-50%' }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                    >
-                        <Icon icon="mynaui:expand" className="grid-mode-hud__icon" />
-                        <span>Ajusta el tamaño</span>
-                        <kbd>→/↓</kbd>
-                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>ampliar</span>
-                        <kbd>←/↑</kbd>
-                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>reducir</span>
-                        <kbd>Enter</kbd>
-                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>confirmar</span>
-                        <kbd>Esc</kbd>
-                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>cancelar</span>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <ModeHUD moveMode={moveMode} resizeMode={resizeMode} />
 
             {/* ── Context Menu (fixed) ── */}
             <ContextMenu

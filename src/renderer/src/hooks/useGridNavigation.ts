@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { HomeSlot } from '../../../shared/types'
-import { getSlotCells } from '../components/HomeGrid'
+import { getSlotCells } from '../utils/gridUtils'
 
 /**
  * Given any cell index (including covered cells of spanning slots),

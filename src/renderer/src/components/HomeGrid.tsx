@@ -2,47 +2,7 @@ import React, { useRef, useEffect, useState } from 'react'
 import { Icon } from '@iconify/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { HomeGrid as HomeGridType, HomeSlot } from '../../../shared/types'
-
-/**
- * Returns all [row, col] positions covered by a slot given its position index.
- */
-export function getSlotCells(
-    position: number,
-    colSpan: number,
-    rowSpan: number,
-    cols: number
-): number[] {
-    const startRow = Math.floor(position / cols)
-    const startCol = position % cols
-    const cells: number[] = []
-    for (let r = 0; r < rowSpan; r++) {
-        for (let c = 0; c < colSpan; c++) {
-            cells.push((startRow + r) * cols + (startCol + c))
-        }
-    }
-    return cells
-}
-
-/**
- * Builds a Set of all cell indices occupied by any slot on this page.
- * The "anchor" slot (the one being moved/resized) can be excluded so it doesn't conflict with itself.
- */
-export function buildOccupiedCells(
-    items: HomeSlot[],
-    page: number,
-    cols: number,
-    excludeId?: string
-): Set<number> {
-    const occupied = new Set<number>()
-    for (const item of items) {
-        if ((item.page ?? 0) !== page) continue
-        if (item.id === excludeId) continue
-        if (item.position === undefined) continue
-        const cells = getSlotCells(item.position, item.colSpan ?? 1, item.rowSpan ?? 1, cols)
-        cells.forEach(c => occupied.add(c))
-    }
-    return occupied
-}
+import { getSlotCells, buildOccupiedCells } from '../utils/gridUtils'
 
 interface HomeGridProps {
     homeGrid: HomeGridType
@@ -193,11 +153,6 @@ function HomeGrid({
         ghostValid = fitsInGrid && cells.every(c => !occupied.has(c))
         cells.forEach(c => ghostCells.add(c))
     }
-
-    // For resize mode
-    const resizingSlot = resizeMode
-        ? homeGrid.items.find(i => i.id === resizeMode.slotId)
-        : undefined
 
     return (
         <div className="content" ref={contentRef}>

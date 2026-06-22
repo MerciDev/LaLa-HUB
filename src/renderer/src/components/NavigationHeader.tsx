@@ -171,6 +171,8 @@ function NavigationHeader({
                 </div>
             </div>
 
+            <div className="header-divider" />
+
             {/* Center info island */}
             <div className="center-group">
                 <div
@@ -219,17 +221,7 @@ function NavigationHeader({
                 </div>
             </div>
 
-            <div className="header-actions">
-                <button
-                    className="header-dl-btn"
-                    title="Descargas"
-                    onClick={() => window.api?.mainOptionControl('click-downloads')}
-                    onMouseEnter={() => window.api?.mainOptionControl('mouse-enter-downloads')}
-                    onMouseLeave={() => window.api?.mainOptionControl('mouse-leave-downloads')}
-                >
-                    <Icon icon="mynaui:download" />
-                </button>
-            </div>
+            <div className="header-divider" />
 
             <PersonalMenu
                 personalIcons={personalIcons}
