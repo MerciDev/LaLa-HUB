@@ -196,6 +196,50 @@ const api = {
   metadata: {
     searchGame: (title: string, provider: import('../shared/types').MetadataProvider): Promise<{ success: boolean; data?: import('../shared/types').GameMetadata | null; error?: string }> =>
       ipcRenderer.invoke('metadata-search-game', title, provider)
+  },
+
+  /** Authentication */
+  auth: {
+    login: (credentials: import('../shared/types').LoginCredentials): Promise<import('../shared/types').AuthResult> =>
+      ipcRenderer.invoke('auth-login', credentials),
+    register: (credentials: import('../shared/types').RegisterCredentials): Promise<import('../shared/types').AuthResult> =>
+      ipcRenderer.invoke('auth-register', credentials),
+    logout: (): Promise<void> =>
+      ipcRenderer.invoke('auth-logout'),
+    getStatus: (): Promise<import('../shared/types').AuthState> =>
+      ipcRenderer.invoke('auth-get-status'),
+    updateProfile: (profile: Partial<import('../shared/types').UserProfile>): Promise<import('../shared/types').AuthResult> =>
+      ipcRenderer.invoke('auth-update-profile', profile),
+    onAuthChange: (callback: (state: import('../shared/types').AuthState) => void): (() => void) => {
+      const fn = (_, state) => callback(state)
+      ipcRenderer.on('auth-state-changed', fn)
+      return () => { ipcRenderer.removeListener('auth-state-changed', fn) }
+    }
+  },
+
+  /** Game API (replaces direct LaLa-API calls) */
+  gameApi: {
+    getConsoles: (): Promise<any[]> =>
+      ipcRenderer.invoke('gameapi-consoles'),
+    getYears: (): Promise<string[]> =>
+      ipcRenderer.invoke('gameapi-years'),
+    searchGames: (query: string): Promise<any[]> =>
+      ipcRenderer.invoke('gameapi-search', query),
+    getGameById: (id: string): Promise<any | null> =>
+      ipcRenderer.invoke('gameapi-get-by-id', id)
+  },
+
+  /** Sync */
+  sync: {
+    getStatus: (): Promise<import('../shared/types').SyncStatus> =>
+      ipcRenderer.invoke('sync-get-status'),
+    trigger: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('sync-trigger'),
+    onStatusChange: (callback: (status: import('../shared/types').SyncStatus) => void): (() => void) => {
+      const fn = (_, status) => callback(status)
+      ipcRenderer.on('sync-status-changed', fn)
+      return () => { ipcRenderer.removeListener('sync-status-changed', fn) }
+    }
   }
 }
 

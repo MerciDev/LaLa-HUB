@@ -172,6 +172,51 @@ export interface InterfaceSettings {
   gameMetadataProvider?: MetadataProvider
 }
 
+// ─── Auth Types ─────────────────────────────────────────────────────────────
+
+export interface AuthState {
+  isLoggedIn: boolean
+  user: UserProfile | null
+  session: SessionInfo | null
+}
+
+export interface UserProfile {
+  id: string
+  email: string
+  username: string
+  avatarUrl?: string
+  createdAt: string
+}
+
+export interface SessionInfo {
+  accessToken: string
+  refreshToken: string
+  expiresAt?: number
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface RegisterCredentials {
+  email: string
+  password: string
+  username: string
+}
+
+export interface AuthResult {
+  success: boolean
+  error?: string
+  user?: UserProfile
+}
+
+export interface SyncStatus {
+  lastSyncAt: string | null
+  pendingUploads: number
+  isSyncing: boolean
+}
+
 // ─── Download System Types ──────────────────────────────────────────────────
 
 export interface DownloadEntry {

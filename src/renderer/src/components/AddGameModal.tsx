@@ -147,15 +147,8 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     // ── Fetch Consoles ──
     useEffect(() => {
         if (!visible) return
-        fetch('http://localhost:3000/api/consoles?hasGames=true')
-            .then(res => res.json())
-            .then(setApiConsoles)
-            .catch(() => {})
-
-        fetch('http://localhost:3000/api/games/years')
-            .then(res => res.json())
-            .then(setApiYears)
-            .catch(() => {})
+        window.api.gameApi.getConsoles().then(setApiConsoles).catch(() => {})
+        window.api.gameApi.getYears().then(setApiYears).catch(() => {})
     }, [visible])
 
     const getGameConsoles = (res: any) => {
@@ -227,8 +220,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         const query = form.searchId.trim() || form.name.trim()
         if (tab !== 'media' || !query) { setApiImages([]); return }
         const q = encodeURIComponent(query)
-        fetch(`http://localhost:3000/api/games/search?q=${q}`)
-            .then(res => res.json())
+        window.api.gameApi.searchGames(q)
             .then(data => {
                 if (data.results?.length > 0) {
                     const imgs = data.results[0].images || {}
@@ -247,8 +239,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         const timer = setTimeout(() => {
             const q = importQuery.trim() ? encodeURIComponent(importQuery.trim()) : ''
             setImportLoading(true)
-            fetch(`http://localhost:3000/api/games/search${q ? `?q=${q}` : ''}`)
-                .then(res => res.json())
+            window.api.gameApi.searchGames(importQuery.trim())
                 .then(data => {
                     let results = data.results || []
                     

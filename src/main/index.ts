@@ -1,10 +1,15 @@
 import { app, BrowserWindow, globalShortcut, screen, ipcMain, Input, protocol } from 'electron'
+import dotenv from 'dotenv'
+import { join } from 'path'
+
+try {
+  dotenv.config({ path: join(process.cwd(), '.env') })
+} catch { }
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }
 ])
 
-import { join } from 'path'
 import { debugLog, debugError } from './utils/debug'
 import * as overlay from './windows/overlay/overlay'
 import * as loading from './windows/loading/loading'
@@ -26,6 +31,10 @@ import { registerKeymapHandlers } from './handlers/keymapHandler'
 import { registerInterfaceHandlers } from './handlers/interfaceHandler'
 import { registerDownloadHandlers } from './handlers/downloadHandler'
 import { registerMetadataHandlers } from './handlers/metadataHandler'
+import { registerGameApiHandlers } from './handlers/gameApiHandler'
+import { registerAuthHandlers, getAuthState } from './handlers/authHandler'
+import { registerSyncHandlers } from './handlers/syncHandler'
+import { initSyncEngine } from './utils/syncEngine'
 import { initDiscordRPC, setActivity } from './utils/discord'
 import { loadInterfaceSettings } from './settings/interfaceSettings'
 
@@ -237,6 +246,9 @@ async function main(): Promise<void> {
   process.env.OVERLAY ??= 'false'
   process.env.LOADING ??= 'false'
 
+  // Initialize sync engine (wires callbacks)
+  initSyncEngine()
+
   // Register IPC handler modules
   registerFileDialogHandlers()
   registerSlotHandlers()
@@ -250,6 +262,7 @@ async function main(): Promise<void> {
   registerInterfaceHandlers()
   registerDownloadHandlers(appWindow!)
   registerMetadataHandlers()
+  registerGameApiHandlers()
 
   await app.whenReady()
 
@@ -269,6 +282,26 @@ async function main(): Promise<void> {
 
   refreshGlobalShortcuts()
   createWindow()
+
+  // Register auth/sync handlers with the window reference
+  registerAuthHandlers(appWindow)
+  registerSyncHandlers(appWindow)
+
+  // Auto-sync on reconnect
+  const { triggerSync } = await import('./utils/syncEngine')
+  const { net } = await import('electron')
+  const onlineCheckInterval = setInterval(async () => {
+    try {
+      const online = await import('./utils/supabase').then(m => m.isOnline())
+      if (online && getAuthState().isLoggedIn) {
+        clearInterval(onlineCheckInterval)
+        debugLog('[Network] Conexión detectada, sincronizando...')
+        triggerSync()
+      }
+    } catch { }
+  }, 3000)
+
+  setTimeout(() => clearInterval(onlineCheckInterval), 30000)
 
   appWindow?.webContents.on('did-finish-load', () => {
     // Force reset state on boot
@@ -310,6 +343,23 @@ async function main(): Promise<void> {
     })
 
     // Right: Personal
+    const authState = getAuthState()
+    const profileData = authState.isLoggedIn && authState.user
+      ? {
+          username: authState.user.username,
+          status: 'online' as const,
+          avatar: authState.user.avatarUrl || '',
+          isPlaying: 'LaLa Hub',
+          playingIcon: undefined as string | undefined
+        }
+      : {
+          username: 'Marco Antonio de la Santísima Trinidad',
+          status: 'online' as const,
+          avatar: '',
+          isPlaying: 'The Legend of Zelda: Tears of the Kingdom - Digital Deluxe Edition',
+          playingIcon: 'simple-icons:nintendoswitch'
+        }
+
     mainApp.addPersonalIcon({
       id: 'profile',
       icon: 'mynaui:user',
@@ -317,13 +367,7 @@ async function main(): Promise<void> {
       onClick: 'click-profile',
       onMouseEnter: 'mouse-enter-profile',
       onMouseLeave: 'mouse-leave-profile',
-      extraData: {
-        username: 'Marco Antonio de la Santísima Trinidad',
-        status: 'online',
-        avatar: '',
-        isPlaying: 'The Legend of Zelda: Tears of the Kingdom - Digital Deluxe Edition',
-        playingIcon: 'simple-icons:nintendoswitch'
-      }
+      extraData: profileData
     })
     mainApp.addPersonalIcon({
       id: 'downloads',

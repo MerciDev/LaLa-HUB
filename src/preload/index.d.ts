@@ -1,5 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-import { AppAction, HomeSlot, Emulator, RetroArchSettings, DownloadSource, DownloadEntry, DownloadTask, DownloadProgress, MetadataProvider, GameMetadata } from '../shared/types'
+import { AppAction, HomeSlot, Emulator, RetroArchSettings, DownloadSource, DownloadEntry, DownloadTask, DownloadProgress, MetadataProvider, GameMetadata, AuthState, AuthResult, LoginCredentials, RegisterCredentials, UserProfile, SyncStatus } from '../shared/types'
 
 export interface API {
   onMainMessage: (callback: (action: AppAction) => void) => void
@@ -114,6 +114,31 @@ export interface API {
   /** Game metadata lookup (Steam / RAWG / TGDB) */
   metadata: {
     searchGame: (title: string, provider: MetadataProvider) => Promise<{ success: boolean; data?: GameMetadata | null; error?: string }>
+  }
+
+  /** Game API (replaces direct LaLa-API calls from renderer) */
+  gameApi: {
+    getConsoles: () => Promise<any[]>
+    getYears: () => Promise<string[]>
+    searchGames: (query: string) => Promise<any[]>
+    getGameById: (id: string) => Promise<any | null>
+  }
+
+  /** Authentication */
+  auth: {
+    login: (credentials: LoginCredentials) => Promise<AuthResult>
+    register: (credentials: RegisterCredentials) => Promise<AuthResult>
+    logout: () => Promise<void>
+    getStatus: () => Promise<AuthState>
+    updateProfile: (profile: Partial<UserProfile>) => Promise<AuthResult>
+    onAuthChange: (callback: (state: AuthState) => void) => () => void
+  }
+
+  /** Sync */
+  sync: {
+    getStatus: () => Promise<SyncStatus>
+    trigger: () => Promise<{ success: boolean; error?: string }>
+    onStatusChange: (callback: (status: SyncStatus) => void) => () => void
   }
 }
 

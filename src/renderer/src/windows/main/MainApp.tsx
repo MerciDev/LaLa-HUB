@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AppAction, HomeGrid, HomeSlot, IconOption, ContextOption, InterfaceSettings } from '../../../../shared/types'
+import { AppAction, HomeGrid, HomeSlot, IconOption, ContextOption, InterfaceSettings, AuthState, AuthResult, SyncStatus } from '../../../../shared/types'
 import { Icon } from '@iconify/react'
 
 import { useGamepad } from '../../hooks/useGamepad'
@@ -15,6 +15,7 @@ import ContextMenu from '../../components/ContextMenu'
 import AddGamePanel from '../../components/AddGameModal'
 import SettingsPanel from '../../components/SettingsPanel'
 import { DownloadManager } from '../../components/download/DownloadManager'
+import LoginScreen from '../../components/LoginScreen'
 
 // ─── Grid move/resize utilities ────────────────────────────────────────────────
 
@@ -77,6 +78,38 @@ function computeMinGridDimensions(items: HomeSlot[]): { minRows: number; minCols
 
 function MainApp(): React.JSX.Element {
     useGamepad()
+
+    // --- Auth ---
+    const [authState, setAuthState] = useState<AuthState>({ isLoggedIn: false, user: null, session: null })
+    const [authLoading, setAuthLoading] = useState(true)
+    const [, setSyncStatus] = useState<SyncStatus>({ lastSyncAt: null, pendingUploads: 0, isSyncing: false })
+
+    useEffect(() => {
+        window.api.auth.getStatus().then(state => {
+            setAuthState(state)
+            setAuthLoading(false)
+        }).catch(() => setAuthLoading(false))
+
+        const unsub = window.api.auth.onAuthChange((state) => {
+            setAuthState(state)
+        })
+        return unsub
+    }, [])
+
+    useEffect(() => {
+        const unsub = window.api.sync.onStatusChange((status) => {
+            setSyncStatus(status)
+        })
+        return unsub
+    }, [])
+
+    const handleAuthSuccess = useCallback((result: AuthResult) => {
+        if (result.user) {
+            setAuthState({ isLoggedIn: true, user: result.user, session: null })
+        } else {
+            setAuthState({ isLoggedIn: false, user: null, session: null })
+        }
+    }, [])
 
     // --- Background ---
     const [interfaceSettings, setInterfaceSettings] = useState<InterfaceSettings>({ showGameBackground: true })
@@ -720,6 +753,21 @@ function MainApp(): React.JSX.Element {
     }, [homeGrid.items, persistItems])
 
     // ─── Render ───────────────────────────────────────────────────────────────────
+
+    if (authLoading) {
+        return (
+            <div className="app login-loading">
+                <div className="login-loading-content">
+                    <Icon icon="mynaui:gamepad" width={48} />
+                    <p>Cargando...</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (!authState.isLoggedIn) {
+        return <LoginScreen onAuthSuccess={handleAuthSuccess} />
+    }
 
     return (
         <div className="app">

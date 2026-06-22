@@ -24,7 +24,9 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@iconify/react": "^6.0.2",
+    "@supabase/supabase-js": "^2.108.1",
     "discord-rpc": "^4.0.1",
+    "dotenv": "^17.4.2",
     "framer-motion": "^12.38.0",
     "uuid": "^13.0.0"
   },
@@ -37,7 +39,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.1.1",
-    "electron": "^39.2.6",
+    "electron": "^39.8.10",
     "electron-builder": "^26.0.12",
     "electron-vite": "^5.0.0",
     "eslint": "^9.39.1",
