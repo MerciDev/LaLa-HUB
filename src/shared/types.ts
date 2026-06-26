@@ -108,6 +108,20 @@ export interface Game {
   processName?: string
   coverUrl?: string
   backgroundUrl?: string
+  /** Local path where emulator saves memory cards / save states for this game */
+  savesPath?: string
+  /** Extension of save files (e.g. '.sav', '.srm') */
+  savesExtension?: string
+  /** Whether to sync saves to cloud storage */
+  cloudSyncEnabled?: boolean
+}
+
+export interface SaveFileInfo {
+  filename: string
+  path: string
+  sizeBytes: number
+  modifiedTime: number
+  formattedDate: string
 }
 
 export interface HomeSlot {

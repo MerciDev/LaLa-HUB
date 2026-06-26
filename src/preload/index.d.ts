@@ -1,5 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-import { AppAction, HomeSlot, Emulator, RetroArchSettings, DownloadSource, DownloadEntry, DownloadTask, DownloadProgress, MetadataProvider, GameMetadata, AuthState, AuthResult, LoginCredentials, RegisterCredentials, UserProfile, SyncStatus } from '../shared/types'
+import { AppAction, HomeSlot, Emulator, RetroArchSettings, DownloadSource, DownloadEntry, DownloadTask, DownloadProgress, MetadataProvider, GameMetadata, AuthState, AuthResult, LoginCredentials, RegisterCredentials, UserProfile, SyncStatus, SaveFileInfo } from '../shared/types'
 
 export interface API {
   onMainMessage: (callback: (action: AppAction) => void) => void
@@ -29,6 +29,7 @@ export interface API {
   
   /** Opens a native OS file picker and returns the selected path or null. */
   browseFile: (options?: Electron.OpenDialogOptions) => Promise<string | null>
+  browseDirectory: (options?: Electron.OpenDialogOptions) => Promise<string | null>
   
   /** CRUD operations on persisted game slots. */
   slots: {
@@ -38,7 +39,13 @@ export interface API {
     remove: (slotId: string) => Promise<{ success: boolean }>
     clearAll: () => Promise<{ success: boolean }>
   }
-  
+
+  saves: {
+    getFiles: (dirPath: string, extension?: string) => Promise<SaveFileInfo[]>
+    pushCloud: (slotId: string, overrides?: { savesPath?: string; savesExtension?: string }) => Promise<{ success: boolean; error?: string }>
+    pullCloud: (slotId: string, overrides?: { savesPath?: string; savesExtension?: string }) => Promise<{ success: boolean; error?: string }>
+  }
+
   /** Emulator manager — used by the Settings panel. */
   emulators: {
     getAll: () => Promise<Emulator[]>
@@ -133,6 +140,7 @@ export interface API {
     logout: () => Promise<void>
     getStatus: () => Promise<AuthState>
     updateProfile: (profile: Partial<UserProfile>) => Promise<AuthResult>
+    refreshProfile: () => Promise<AuthState>
     onAuthChange: (callback: (state: AuthState) => void) => () => void
   }
 

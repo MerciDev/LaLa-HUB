@@ -170,13 +170,106 @@ function MainApp(): React.JSX.Element {
     // --- Resize Mode ---
     const [resizeMode, setResizeMode] = useState<{ slotId: string } | null>(null)
 
+    // --- Route Navigation Stack ---
+    const navStackRef = useRef<string[]>([])
+    const currentViewRef = useRef<string>('grid')
+
+    const pushRoute = useCallback((view: string) => {
+        const current = currentViewRef.current
+        if (current !== 'grid' && current !== view) {
+            navStackRef.current = [...navStackRef.current, current]
+        }
+        currentViewRef.current = view
+        const parts: string[] = []
+        for (const v of navStackRef.current) {
+            parts.push(viewLabels[v] || v)
+        }
+        if (view !== 'grid') {
+            parts.push(viewLabels[view] || view)
+        }
+        if (parts.length > 0) {
+            setInfoText(parts.join('  ›  '))
+            setIslandWidth('fit-content')
+        }
+    }, [setInfoText, setIslandWidth])
+
+    useEffect(() => {
+        if (settingsPanelVisible) currentViewRef.current = 'settings'
+        else if (addGamePanelVisible) currentViewRef.current = 'add-game'
+        else if (downloadManagerVisible) currentViewRef.current = 'downloads'
+        else if (profilePageVisible) currentViewRef.current = 'profile'
+        else if (libraryPickerVisible) currentViewRef.current = 'library-picker'
+        else currentViewRef.current = 'grid'
+    }, [settingsPanelVisible, addGamePanelVisible, downloadManagerVisible, profilePageVisible, libraryPickerVisible])
+
+    const viewLabels: Record<string, string> = {
+        settings: 'Configuración',
+        profile: 'Perfil',
+        downloads: 'Descargas',
+        'add-game': 'Añadir Juego',
+        'library-picker': 'Biblioteca',
+    }
+
+    const goBack = useCallback(() => {
+        sfx.close()
+        const prev = navStackRef.current.pop()
+        setSettingsPanelVisible(false)
+        setAddGamePanelVisible(false)
+        setDownloadManagerVisible(false)
+        setProfilePageVisible(false)
+        setLibraryPickerVisible(false)
+        setFocusedHeader(null)
+        setSocialExpanded(false)
+        setPersonalExpanded(false)
+
+        if (prev === 'settings' || prev === 'downloads' || prev === 'profile' || prev === 'add-game' || prev === 'library-picker') {
+            currentViewRef.current = prev
+            if (prev === 'settings') {
+                setSettingsPanelVisible(true)
+                setSelectedSlotIndex(null)
+                window.api.movementControl.send('SET_SECTION', 'settings')
+            } else if (prev === 'downloads') {
+                setDownloadManagerVisible(true)
+                setSelectedSlotIndex(null)
+                window.api.movementControl.send('SET_SECTION', 'download-manager')
+            } else if (prev === 'profile') {
+                setProfilePageVisible(true)
+                setSelectedSlotIndex(null)
+                window.api.movementControl.send('SET_SECTION', 'profile')
+            } else if (prev === 'add-game') {
+                setAddGamePanelVisible(true)
+                setSelectedSlotIndex(null)
+                window.api.movementControl.send('SET_SECTION', 'add-game-modal')
+            } else if (prev === 'library-picker') {
+                setLibraryPickerVisible(true)
+                setSelectedSlotIndex(null)
+                window.api.movementControl.send('SET_SECTION', 'library-picker')
+            }
+            setLastGridIndex(stateRef.current.selectedSlotIndex ?? 0)
+            const parts: string[] = []
+            for (const v of navStackRef.current) {
+                parts.push(viewLabels[v] || v)
+            }
+            parts.push(viewLabels[prev] || prev)
+            setInfoText(parts.join('  ›  '))
+            setIslandWidth('fit-content')
+        } else {
+            currentViewRef.current = 'grid'
+            setSelectedSlotIndex(prevIdx => prevIdx === null ? (stateRef.current.selectedSlotIndex ?? 0) : prevIdx)
+            setInfoText('LaLa Hub')
+            setIslandWidth('56px')
+            window.api.movementControl.send('SET_SECTION', 'grid')
+        }
+    }, [setInfoText, setIslandWidth])
+
     // Ref for move/resize (always fresh values in handlers)
     const stateRef = useRef({
-        homeGrid, currentPage, selectedSlotIndex, moveMode, resizeMode
+        homeGrid, currentPage, selectedSlotIndex, moveMode, resizeMode, lastGridIndex: 0
     })
     const persistTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const isGridLoadedRef = useRef(false)
     useEffect(() => {
-        stateRef.current = { homeGrid, currentPage, selectedSlotIndex, moveMode, resizeMode }
+        stateRef.current = { homeGrid, currentPage, selectedSlotIndex, moveMode, resizeMode, lastGridIndex }
     })
 
     // ─── Move Mode Helpers ────────────────────────────────────────────────────────
@@ -238,14 +331,15 @@ function MainApp(): React.JSX.Element {
             openAddGameModal()
         } else if (option.action === 'ASSIGN_GAME_FROM_LIBRARY') {
             sfx.open()
+            pushRoute('library-picker')
             setPickerTargetIndex(stateRef.current.selectedSlotIndex)
             setLibraryPickerVisible(true)
             setProfilePageVisible(false)
             setSettingsPanelVisible(false)
             setAddGamePanelVisible(false)
             setDownloadManagerVisible(false)
-            window.api.movementControl.send('SET_SECTION', 'library-picker')
             window.api.contextMenuControl.send('toggle', false)
+            window.api.movementControl.send('SET_SECTION', 'library-picker')
         } else if (option.action === 'EDIT_GAME' && selectedSlotItem) {
             openEditGameModal(selectedSlotItem)
         } else if (option.action === 'MOVE_GAME' && selectedSlotItem) {
@@ -253,6 +347,7 @@ function MainApp(): React.JSX.Element {
         } else if (option.action === 'RESIZE_GAME' && selectedSlotItem) {
             enterResizeMode(selectedSlotItem)
         } else if (option.action === 'OPEN_DOWNLOADS') {
+            window.api.contextMenuControl.send('toggle', false)
             openDownloadManager()
         } else if (option.action) {
             window.api.contextMenuControl.send('execute', option.action)
@@ -263,6 +358,7 @@ function MainApp(): React.JSX.Element {
 
     const openAddGameModal = () => {
         sfx.open()
+        pushRoute('add-game')
         setEditSlot(null)
         setAddGamePanelVisible(true)
         setAddGameSelectedIndex(0)
@@ -276,6 +372,7 @@ function MainApp(): React.JSX.Element {
 
     const openEditGameModal = (slot: HomeSlot) => {
         sfx.open()
+        pushRoute('add-game')
         setEditSlot(slot)
         setAddGamePanelVisible(true)
         setAddGameSelectedIndex(0)
@@ -286,18 +383,15 @@ function MainApp(): React.JSX.Element {
     }
 
     const closeAddGameModal = () => {
-        sfx.close()
-        setAddGamePanelVisible(false)
         setEditSlot(null)
-        collapseIsland()
-        setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
-        window.api.movementControl.send('SET_SECTION', 'grid')
+        goBack()
     }
 
     // ─── Download Manager ──────────────────────────────────────────────────────
 
     const openDownloadManager = useCallback(() => {
         sfx.open()
+        pushRoute('downloads')
         setDownloadManagerVisible(true)
         setSettingsPanelVisible(false)
         setAddGamePanelVisible(false)
@@ -309,22 +403,14 @@ function MainApp(): React.JSX.Element {
     }, [setInfoText, setIslandWidth])
 
     const closeDownloadManager = useCallback(() => {
-        sfx.close()
-        setDownloadManagerVisible(false)
-        setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
-        window.api.movementControl.send('SET_SECTION', 'grid')
-        collapseIsland()
-    }, [lastGridIndex, collapseIsland])
+        goBack()
+    }, [])
 
     // ─── Profile Page ──────────────────────────────────────────────────────────
 
     const closeProfile = useCallback(() => {
-        sfx.close()
-        setProfilePageVisible(false)
-        setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
-        window.api.movementControl.send('SET_SECTION', 'grid')
-        collapseIsland()
-    }, [lastGridIndex, collapseIsland])
+        goBack()
+    }, [])
 
     // ─── Notify main process of selection changes ────────────────────────────────
 
@@ -359,7 +445,15 @@ function MainApp(): React.JSX.Element {
         window.api?.movementControl?.send('SET_SECTION', 'grid')
     }, [])
 
-    // --- Dynamic Breadcrumbs / Header Labels ---
+    // --- Dynamic Info Island / Route Breadcrumbs ---
+    const VIEW_LABELS: Record<string, string> = {
+        settings: 'Configuración',
+        profile: 'Perfil',
+        downloads: 'Descargas',
+        'add-game': 'Añadir Juego',
+        'library-picker': 'Biblioteca',
+    }
+
     useEffect(() => {
         if (focusedHeader === 'left') {
             const icon = socialIcons[focusedHeaderIndex]
@@ -367,7 +461,7 @@ function MainApp(): React.JSX.Element {
         } else if (focusedHeader === 'right') {
             const icon = personalIcons[focusedHeaderIndex]
             if (icon) { setInfoText(icon.label); setIslandWidth('fit-content') }
-        } else if (!addGamePanelVisible && !settingsPanelVisible && !downloadManagerVisible && !contextMenuVisible && !moveMode && !resizeMode) {
+        } else if (!addGamePanelVisible && !settingsPanelVisible && !downloadManagerVisible && !profilePageVisible && !libraryPickerVisible && !contextMenuVisible && !moveMode && !resizeMode) {
             if (selectedSlotIndex !== null) {
                 if (selectedSlotItem) {
                     setInfoText(selectedSlotItem.label); setIslandWidth('fit-content')
@@ -377,8 +471,21 @@ function MainApp(): React.JSX.Element {
             } else {
                 setInfoText('LaLa Hub'); setIslandWidth('56px')
             }
+        } else if (settingsPanelVisible || addGamePanelVisible || downloadManagerVisible || profilePageVisible || libraryPickerVisible) {
+            const parts: string[] = []
+            for (const v of navStackRef.current) {
+                parts.push(VIEW_LABELS[v] || v)
+            }
+            const current = currentViewRef.current
+            if (current !== 'grid') {
+                parts.push(VIEW_LABELS[current] || current)
+            }
+            if (parts.length > 0) {
+                setInfoText(parts.join('  ›  '))
+                setIslandWidth('fit-content')
+            }
         }
-    }, [focusedHeader, focusedHeaderIndex, socialIcons, personalIcons, selectedSlotItem, selectedSlotIndex, addGamePanelVisible, settingsPanelVisible, contextMenuVisible, moveMode, resizeMode])
+    }, [focusedHeader, focusedHeaderIndex, socialIcons, personalIcons, selectedSlotItem, selectedSlotIndex, addGamePanelVisible, settingsPanelVisible, downloadManagerVisible, profilePageVisible, libraryPickerVisible, contextMenuVisible, moveMode, resizeMode])
 
     // ─── IPC Messages from Main Process ─────────────────────────────────────────
 
@@ -401,7 +508,10 @@ function MainApp(): React.JSX.Element {
                 case 'TOGGLE_SOCIAL_MENU': setSocialExpanded((prev) => !prev); break
                 case 'TOGGLE_PERSONAL_MENU': setPersonalExpanded((prev) => !prev); break
                 case 'UPDATE_GRID_CONFIG': setHomeGrid((prev) => ({ ...prev, ...action.payload })); break
-                case 'SET_GRID_ITEMS': setHomeGrid((prev) => ({ ...prev, items: action.payload })); break
+                case 'SET_GRID_ITEMS':
+                    isGridLoadedRef.current = true
+                    setHomeGrid((prev) => ({ ...prev, items: action.payload }))
+                    break
                 case 'ADD_GRID_ITEM': setHomeGrid((prev) => ({ ...prev, items: [...prev.items, action.payload] })); break
                 case 'REMOVE_GRID_ITEM':
                     setHomeGrid((prev) => ({ ...prev, items: prev.items.filter((i) => i.id !== action.payload) }))
@@ -426,6 +536,7 @@ function MainApp(): React.JSX.Element {
                 case 'REMOVE_CONTEXT_OPTION': setContextOptions((prev) => prev.filter((o) => o.id !== action.payload)); break
                 case 'OPEN_SETTINGS':
                     sfx.open()
+                    pushRoute('settings')
                     setSettingsPanelVisible(true)
                     setAddGamePanelVisible(false)
                     setFocusedHeader(null)
@@ -438,20 +549,26 @@ function MainApp(): React.JSX.Element {
                     break
                 case 'GO_HOME':
                     sfx.close()
+                    navStackRef.current = []
                     setDownloadManagerVisible(false)
                     setSettingsPanelVisible(false)
                     setProfilePageVisible(false)
+                    setAddGamePanelVisible(false)
+                    setLibraryPickerVisible(false)
                     setPersonalExpanded(false)
                     setSocialExpanded(false)
                     setFocusedHeader(null)
                     setContextMenuVisible(false)
+                    collapseIsland()
                     setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
+                    window.api.movementControl.send('SET_SECTION', 'grid')
                     break
                 case 'OPEN_DOWNLOADS':
                     openDownloadManager()
                     break
                 case 'OPEN_PROFILE':
                     sfx.open()
+                    pushRoute('profile')
                     setPickerTargetIndex(null)
                     setProfilePageVisible(true)
                     setSettingsPanelVisible(false)
@@ -467,6 +584,7 @@ function MainApp(): React.JSX.Element {
                     break
                 case 'OPEN_LIBRARY_PICKER':
                     sfx.open()
+                    pushRoute('library-picker')
                     setPickerTargetIndex(stateRef.current.selectedSlotIndex ?? lastGridIndex)
                     setLibraryPickerVisible(true)
                     setProfilePageVisible(false)
@@ -478,23 +596,21 @@ function MainApp(): React.JSX.Element {
                     setPersonalExpanded(false)
                     setIslandWidth('56px')
                     setSelectedSlotIndex(null)
+                    window.api.contextMenuControl.send('toggle', false)
                     window.api.movementControl.send('SET_SECTION', 'library-picker')
                     break
                 case 'CLOSE_PROFILE':
-                    sfx.close()
-                    setProfilePageVisible(false)
-                    setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
+                    goBack()
                     break
                 case 'CLOSE_SETTINGS':
-                    sfx.close()
-                    setSettingsPanelVisible(false)
-                    setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
+                    goBack()
                     break
                 case 'CLOSE_ADD_GAME':
-                    sfx.close()
-                    setAddGamePanelVisible(false)
                     setEditSlot(null)
-                    setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
+                    goBack()
+                    break
+                case 'OPEN_ADD_GAME':
+                    openAddGameModal()
                     break
                 case 'OPEN_EDIT_GAME':
                     openEditGameModal(action.payload)
@@ -717,20 +833,26 @@ function MainApp(): React.JSX.Element {
             } else if (section === 'context-menu') {
                 if (contextOptions.length === 0) return
                 switch (action) {
-                    case 'right': sfx.navigate(); setContextMenuSelectedIndex((prev) => (prev + 1) % contextOptions.length); break
-                    case 'left': sfx.navigate(); setContextMenuSelectedIndex((prev) => (prev - 1 + contextOptions.length) % contextOptions.length); break
+                    case 'right':
+                    case 'down':
+                        sfx.navigate(); setContextMenuSelectedIndex((prev) => (prev + 1) % contextOptions.length); break
+                    case 'left':
+                    case 'up':
+                        sfx.navigate(); setContextMenuSelectedIndex((prev) => (prev - 1 + contextOptions.length) % contextOptions.length); break
                     case 'select': {
                         const selected = contextOptions[contextMenuSelectedIndex]
                         if (selected) { sfx.confirm(); handleContextOptionClick(selected) }
                         break
                     }
+                    case 'back':
+                        sfx.cancel()
+                        window.api.contextMenuControl.send('toggle', false)
+                        break
                 }
-            } else if (section === 'add-game-modal') {
-                window.dispatchEvent(new CustomEvent('panel-move', { detail: action }))
-            } else if (section === 'settings' || section === 'profile') {
+            } else if (section === 'add-game-modal' || section === 'settings' || section === 'profile' || section === 'library-picker') {
                 window.dispatchEvent(new CustomEvent('panel-move', { detail: action }))
             } else if (section === 'download-manager') {
-                // download-manager handles its own keyboard events
+                if (action === 'back' || action === 'escape') { goBack(); return }
             }
         }
 
@@ -742,7 +864,7 @@ function MainApp(): React.JSX.Element {
         currentPage, contextOptions, contextMenuSelectedIndex,
         addGameSelectedIndex, focusedHeader, focusedHeaderIndex,
         lastGridIndex, selectedSlotIndex, socialIcons, personalIcons,
-        settingsPanelVisible, exitMoveMode, exitResizeMode, persistItems
+        settingsPanelVisible, exitMoveMode, exitResizeMode, persistItems, goBack
     ])
 
     // ─── Grid Settings update helper (called from SettingsPanel) ─────────────────
@@ -764,12 +886,19 @@ function MainApp(): React.JSX.Element {
             const safeCols = Math.max(newCols, minCols)
             if (prev.rows === safeRows && prev.cols === safeCols) return prev
 
+            if (!isGridLoadedRef.current || prev.items.length === 0) {
+                return { ...prev, rows: safeRows, cols: safeCols }
+            }
+
             const repacked = repackItemsAfterResize(prev.items, safeCols, safeRows)
 
-            if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current)
-            persistTimeoutRef.current = setTimeout(() => {
-                window.api?.slots?.addMultiple(repacked).catch(console.error)
-            }, 500)
+            const hasChanged = repacked.some((item, i) => item.position !== prev.items[i]?.position || item.page !== prev.items[i]?.page)
+            if (hasChanged) {
+                if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current)
+                persistTimeoutRef.current = setTimeout(() => {
+                    window.api?.slots?.addMultiple(repacked).catch(console.error)
+                }, 500)
+            }
 
             return { ...prev, rows: safeRows, cols: safeCols, items: repacked }
         })
@@ -879,12 +1008,10 @@ function MainApp(): React.JSX.Element {
                             <SettingsPanel
                                 visible={settingsPanelVisible}
                                 onClose={async () => { 
-                                    sfx.close(); 
-                                    setSettingsPanelVisible(false); 
-                                    window.api.movementControl.send('SET_SECTION', 'grid');
                                     // Refresh interface settings when closing panel
                                     const settings = await window.api.ui.getSettings();
                                     setInterfaceSettings(settings);
+                                    goBack();
                                 }}
                                 onJumpToHeader={(side) => {
                                     setFocusedHeader(side)
@@ -914,6 +1041,7 @@ function MainApp(): React.JSX.Element {
                                 selectedIndex={addGameSelectedIndex}
                                 editSlot={editSlot}
                                 onClose={closeAddGameModal}
+                                authState={authState}
                             />
                         </motion.div>
                     ) : downloadManagerVisible ? (
@@ -954,32 +1082,24 @@ function MainApp(): React.JSX.Element {
             <LibraryPickerModal
                 visible={libraryPickerVisible}
                 onClose={() => {
-                    sfx.close()
-                    setLibraryPickerVisible(false)
                     setPickerTargetIndex(null)
-                    window.api.movementControl.send('SET_SECTION', 'grid')
+                    goBack()
                 }}
                 onSelect={slot => {
                     if (pickerTargetIndex !== null) {
-                        const existingIdx = homeGrid.items.findIndex(i => (i.id === slot.id || (i.gameRef && slot.gameRef && i.gameRef.gameId === slot.gameRef.gameId)))
-                        let newItems: HomeSlot[]
-                        if (existingIdx >= 0) {
-                            newItems = homeGrid.items.map((item, idx) =>
-                                idx === existingIdx ? { ...item, position: pickerTargetIndex, page: currentPage } : item
-                            )
-                        } else {
-                            const newGridSlot: HomeSlot = {
-                                ...slot,
-                                id: `slot-${Date.now()}`,
-                                position: pickerTargetIndex,
-                                page: currentPage
-                            }
-                            newItems = [...homeGrid.items, newGridSlot]
+                        const otherItems = homeGrid.items.filter(i => !(i.position === pickerTargetIndex && i.page === currentPage))
+                        const newGridSlot: HomeSlot = {
+                            ...slot,
+                            id: `slot-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                            position: pickerTargetIndex,
+                            page: currentPage,
+                            colSpan: 1,
+                            rowSpan: 1
                         }
+                        const newItems = [...otherItems, newGridSlot]
                         persistItems(newItems)
                         setPickerTargetIndex(null)
-                        setLibraryPickerVisible(false)
-                        window.api.movementControl.send('SET_SECTION', 'grid')
+                        goBack()
                     }
                 }}
             />

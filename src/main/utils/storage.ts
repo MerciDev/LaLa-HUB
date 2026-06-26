@@ -156,13 +156,20 @@ export function loadAllLibrarySlots(): HomeSlot[] {
                     if (existingGridSlot) {
                         librarySlots.push(existingGridSlot)
                     } else {
+                        const imgs = (game as any).data?.images || (game as any).images || {}
+                        const sqImg = imgs.home || imgs.icon || game.coverUrl
+                        const vImg = imgs.v_grid || imgs.home || game.coverUrl
+                        const hImg = imgs.h_grid || imgs.home || game.backgroundUrl || game.coverUrl
+
                         librarySlots.push({
                             id: `lib-${slug}-${gameId}`,
                             label: game.name,
                             game: game,
                             gameRef: { consoleSlug: slug, gameId },
-                            image: game.backgroundUrl || game.coverUrl,
-                            squareImage: game.coverUrl
+                            image: hImg || vImg || sqImg,
+                            squareImage: sqImg,
+                            verticalImage: vImg,
+                            horizontalImage: hImg
                         })
                     }
                 }
@@ -226,40 +233,32 @@ export function addMultipleSlots(newSlots: HomeSlot[]): void {
 
 export function removeSlot(slotId: string): void {
     const slots = loadSlots()
-    const targetGridSlot = slots.find(s => s.id === slotId)
-    const targetGameId = targetGridSlot?.gameRef?.gameId || (slotId.startsWith('lib-') ? slotId.split('-').slice(2).join('-') : slotId)
 
-    let removedFromConsole = false
-    const consolesDir = path.join(USER_DATA_PATH, CONSOLES_FOLDER)
-    if (fs.existsSync(consolesDir)) {
-        const files = fs.readdirSync(consolesDir)
-        for (const file of files) {
-            if (!file.endsWith('.json')) continue
-            const slug = file.replace('.json', '')
+    // Si se elimina desde la página de Biblioteca (id: lib-<console>-<gameId>)
+    if (slotId.startsWith('lib-')) {
+        const parts = slotId.split('-')
+        const slug = parts[1]
+        const targetGameId = parts.slice(2).join('-')
+
+        const consolesDir = path.join(USER_DATA_PATH, CONSOLES_FOLDER)
+        if (fs.existsSync(consolesDir)) {
             const consoleData = readJson<{ console: string, games: Record<string, Game> }>(CONSOLES_FOLDER, slug)
-            if (consoleData && consoleData.games) {
-                for (const gameId of Object.keys(consoleData.games)) {
-                    if (gameId === targetGameId || slotId === `lib-${slug}-${gameId}`) {
-                        delete consoleData.games[gameId]
-                        saveJson(CONSOLES_FOLDER, slug, consoleData)
-                        removedFromConsole = true
-                        debugLog(`[Storage] Juego eliminado de consola JSON (${slug}): ${gameId}`)
-                    }
-                }
+            if (consoleData && consoleData.games && consoleData.games[targetGameId]) {
+                delete consoleData.games[targetGameId]
+                saveJson(CONSOLES_FOLDER, slug, consoleData)
+                debugLog(`[Storage] Juego eliminado de consola JSON (${slug}): ${targetGameId}`)
             }
         }
-    }
 
-    const filteredSlots = slots.filter(s => {
-        if (s.id === slotId) return false
-        if (s.gameRef && s.gameRef.gameId === targetGameId) return false
-        return true
-    })
-
-    if (filteredSlots.length < slots.length || removedFromConsole) {
+        // También eliminamos del grid los slots que hacían referencia a este juego de la biblioteca
+        const filteredSlots = slots.filter(s => !(s.gameRef && s.gameRef.consoleSlug === slug && s.gameRef.gameId === targetGameId))
         saveSlots(filteredSlots)
-        debugLog(`[Storage] Slot/Juego eliminado correctamente: ${slotId}`)
-    } else {
-        debugLog(`[Storage] Slot no encontrado: ${slotId}`)
+        debugLog(`[Storage] Juego y sus referencias eliminados de la biblioteca: ${slotId}`)
+        return
     }
+
+    // Si se elimina un slot concreto de la cuadrícula principal (grid)
+    const filteredSlots = slots.filter(s => s.id !== slotId)
+    saveSlots(filteredSlots)
+    debugLog(`[Storage] Slot eliminado exclusivamente del grid: ${slotId}`)
 }

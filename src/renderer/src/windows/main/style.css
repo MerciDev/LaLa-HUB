@@ -864,19 +864,19 @@ body {
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 8px;
-  background: rgba(18, 22, 30, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
   z-index: 1000;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   pointer-events: none;
   opacity: 0;
-  transform: translate(-50%, 30px) scale(0.9);
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform: translate(-50%, 30px) scale(0.92);
+  transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .contextMenu.visible {
@@ -892,31 +892,48 @@ body {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 10px 20px;
-  min-width: 120px;
+  padding: 12px 24px;
+  min-width: 130px;
   border-radius: var(--radius-lg);
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
+  user-select: none;
+}
+
+.contextOption:active {
+  transform: scale(0.96);
 }
 
 .contextOption .context-icon {
   font-size: 20px;
+  flex-shrink: 0;
 }
 
-.contextOption:hover,
-.contextOption.selected {
+.contextOption .context-label {
+  position: relative;
+}
+
+.contextOption:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
-  transform: scale(1.04);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 .contextOption.selected {
-  background: rgba(79, 158, 255, 0.15);
+  background: rgba(58, 134, 255, 0.12);
   color: var(--accent-bright);
-  outline: 1px solid rgba(79, 158, 255, 0.3);
+  border-color: rgba(58, 134, 255, 0.3);
+  box-shadow: 0 0 20px rgba(58, 134, 255, 0.1), inset 0 0 20px rgba(58, 134, 255, 0.05);
+}
+
+.contextOption.selected:hover {
+  background: rgba(58, 134, 255, 0.18);
+  border-color: rgba(58, 134, 255, 0.5);
 }
 
 /* ═══════════════════════════════════════════════════════

@@ -157,6 +157,23 @@ export function registerAuthHandlers(mainWindow: BrowserWindow | null): void {
     return authState
   })
 
+  ipcMain.handle('auth-refresh-profile', async (): Promise<AuthState> => {
+    if (!authState.isLoggedIn || !authState.user) return authState
+    try {
+      const client = getSupabaseClient()
+      const { data } = await client.from('profiles').select('account_type').eq('id', authState.user.id).single()
+      if (data?.account_type && data.account_type !== authState.user.accountType) {
+        authState.user = { ...authState.user, accountType: data.account_type }
+        persistSession(authState.user)
+        notifyAuthState(mainWindow)
+        debugLog(`[Auth] Perfil refrescado: accountType = ${data.account_type}`)
+      }
+    } catch (err: any) {
+      debugLog(`[Auth] Error refrescando perfil: ${err.message}`)
+    }
+    return authState
+  })
+
   ipcMain.handle('auth-update-profile', async (_, profile: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> => {
     try {
       const userId = getUserId()

@@ -18,12 +18,17 @@ interface HomeGridProps {
 }
 
 function getBestSlotImage(item: HomeSlot, cSpan: number, rSpan: number): string | undefined {
+    const gameImgs = (item.game as any)?.data?.images || (item.game as any)?.images || {}
+    const sq = item.squareImage || gameImgs.home || gameImgs.icon || item.coverImage || item.thumbImage || item.verticalImage || item.horizontalImage || item.image
+    const v = item.verticalImage || gameImgs.v_grid || item.coverImage || item.squareImage || item.thumbImage || item.horizontalImage || item.image
+    const h = item.horizontalImage || gameImgs.h_grid || item.backgroundImage || item.squareImage || item.coverImage || item.thumbImage || item.verticalImage || item.image
+
     if (cSpan === rSpan) {
-        return item.squareImage || item.coverImage || item.thumbImage || item.verticalImage || item.horizontalImage
+        return sq
     } else if (rSpan > cSpan) {
-        return item.verticalImage || item.coverImage || item.squareImage || item.thumbImage || item.horizontalImage
+        return v
     } else {
-        return item.horizontalImage || item.backgroundImage || item.squareImage || item.coverImage || item.thumbImage || item.verticalImage
+        return h
     }
 }
 
@@ -144,7 +149,6 @@ function HomeGrid({
         ? homeGrid.items.find(i => i.id === moveMode.slotId)
         : undefined
 
-    const ghostCells = new Set<number>()
     let ghostValid = false
     if (moveMode && movingSlot && moveMode.ghostPosition !== undefined) {
         const cSpan = movingSlot.colSpan ?? 1
@@ -155,7 +159,6 @@ function HomeGrid({
         const occupied = buildOccupiedCells(homeGrid.items, currentPage, cols, moveMode.slotId)
         const cells = fitsInGrid ? getSlotCells(moveMode.ghostPosition, cSpan, rSpan, cols) : []
         ghostValid = fitsInGrid && cells.every(c => !occupied.has(c))
-        cells.forEach(c => ghostCells.add(c))
     }
 
     const renderPageSlots = (page: number, isInteractive: boolean) => {
@@ -225,7 +228,6 @@ function HomeGrid({
                         : selectedSlotIndex === index && item == null
 
                     const isVisible = animationComplete || visibleSlots.has(index)
-                    const isGhostCell = ghostCells.has(index)
                     const isMoveOrigin = moveMode && item?.id === moveMode.slotId
                     const isResizeTarget = resizeMode && item?.id === resizeMode.slotId
 
@@ -238,7 +240,6 @@ function HomeGrid({
                                 isSelected ? 'selected' : '',
                                 isMoveOrigin ? 'move-origin' : '',
                                 isResizeTarget ? 'resize-target' : '',
-                                isGhostCell && !item ? (ghostValid ? 'ghost-valid' : 'ghost-invalid') : '',
                             ].filter(Boolean).join(' ')}
                             initial={false}
                             animate={{
@@ -261,11 +262,6 @@ function HomeGrid({
                             onMouseEnter={() => onSlotHoverEnter(item ? (item.position ?? index) : index, item)}
                             onMouseLeave={() => onSlotHoverLeave(item)}
                         >
-                            {isGhostCell && !item && (
-                                <div className={`slot-ghost ${ghostValid ? 'slot-ghost--valid' : 'slot-ghost--invalid'}`}>
-                                    <Icon icon={ghostValid ? 'mynaui:check' : 'mynaui:x'} />
-                                </div>
-                            )}
                             {item ? (
                                 <div className="item">
                                     {(() => {
@@ -333,6 +329,28 @@ function HomeGrid({
                         </motion.div>
                     )
                 })}
+                {isInteractive && moveMode && movingSlot && moveMode.ghostPosition !== undefined && (() => {
+                    const cSpan = movingSlot.colSpan ?? 1
+                    const rSpan = movingSlot.rowSpan ?? 1
+                    const startCol = (moveMode.ghostPosition % cols) + 1
+                    const startRow = Math.floor(moveMode.ghostPosition / cols) + 1
+                    return (
+                        <div
+                            className={`homeSlot ghost-merged ${ghostValid ? 'ghost-valid' : 'ghost-invalid'}`}
+                            style={{
+                                gridColumn: `${startCol} / span ${Math.min(cSpan, cols - startCol + 1)}`,
+                                gridRow: `${startRow} / span ${Math.min(rSpan, rows - startRow + 1)}`,
+                                pointerEvents: 'none',
+                                zIndex: 25,
+                                position: 'relative'
+                            }}
+                        >
+                            <div className={`slot-ghost ${ghostValid ? 'slot-ghost--valid' : 'slot-ghost--invalid'}`} style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Icon icon={ghostValid ? 'mynaui:check' : 'mynaui:x'} style={{ fontSize: '2.5rem' }} />
+                            </div>
+                        </div>
+                    )
+                })()}
             </div>
         )
     }

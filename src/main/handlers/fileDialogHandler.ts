@@ -23,4 +23,18 @@ export function registerFileDialogHandlers(): void {
         debugLog(`[FileDialog] Selected: ${filePaths[0]}`)
         return filePaths[0]
     })
+
+    ipcMain.handle('browse-directory', async (_, options: Electron.OpenDialogOptions) => {
+        debugLog(`[FileDialog] Opening directory dialog`)
+        const { canceled, filePaths } = await dialog.showOpenDialog({
+            properties: ['openDirectory'],
+            ...options
+        })
+        if (canceled || filePaths.length === 0) {
+            debugLog('[FileDialog] Directory dialog cancelled')
+            return null
+        }
+        debugLog(`[FileDialog] Selected directory: ${filePaths[0]}`)
+        return filePaths[0]
+    })
 }

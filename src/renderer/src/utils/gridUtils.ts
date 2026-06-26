@@ -37,19 +37,35 @@ export function buildOccupiedCells(
 export function repackItemsAfterResize(items: HomeSlot[], cols: number, rows: number): HomeSlot[] {
     const slotsPerPage = cols * rows
     const updated: HomeSlot[] = []
+    const unplaced: HomeSlot[] = []
+
+    // Pass 1: Keep items at their exact position and page if valid and not colliding
+    for (const item of items) {
+        if (item.position !== undefined && item.page !== undefined) {
+            const pos = item.position
+            const page = item.page
+            const cSpan = item.colSpan ?? 1
+            const rSpan = item.rowSpan ?? 1
+            const startCol = pos % cols
+            const startRow = Math.floor(pos / cols)
+
+            if (pos < slotsPerPage && startCol + cSpan <= cols && startRow + rSpan <= rows) {
+                const occupied = buildOccupiedCells(updated, page, cols)
+                const cells = getSlotCells(pos, cSpan, rSpan, cols)
+                if (cells.every(c => !occupied.has(c))) {
+                    updated.push(item)
+                    continue
+                }
+            }
+        }
+        unplaced.push(item)
+    }
+
+    // Pass 2: Place any unplaced/colliding/out-of-bounds items into first available slots
     let page = 0
-    let cellCursor = 0
-
-    const sorted = [...items].sort((a, b) => {
-        const pa = (a.page ?? 0) * 1000 + (a.position ?? 0)
-        const pb = (b.page ?? 0) * 1000 + (b.position ?? 0)
-        return pa - pb
-    })
-
-    for (const item of sorted) {
+    for (const item of unplaced) {
         const cSpan = item.colSpan ?? 1
         const rSpan = item.rowSpan ?? 1
-
         let placed = false
         while (!placed) {
             const occupied = buildOccupiedCells(updated, page, cols)
@@ -57,8 +73,7 @@ export function repackItemsAfterResize(items: HomeSlot[], cols: number, rows: nu
             for (let pos = 0; pos < slotsPerPage && !found; pos++) {
                 const startRow = Math.floor(pos / cols)
                 const startCol = pos % cols
-                if (startCol + cSpan > cols) continue
-                if (startRow + rSpan > rows) continue
+                if (startCol + cSpan > cols || startRow + rSpan > rows) continue
                 const cells = getSlotCells(pos, cSpan, rSpan, cols)
                 if (cells.every(c => !occupied.has(c))) {
                     updated.push({ ...item, position: pos, page })
@@ -66,13 +81,10 @@ export function repackItemsAfterResize(items: HomeSlot[], cols: number, rows: nu
                     placed = true
                 }
             }
-            if (!found) {
-                page++
-                cellCursor = 0
-            }
+            if (!found) page++
         }
-        cellCursor++
     }
+
     return updated
 }
 

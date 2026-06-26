@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { HomeSlot } from '../../shared/types'
-import { addSlot, loadSlots } from '../utils/storage'
+import { addSlot, loadSlots, saveSlots, removeSlot, loadAllLibrarySlots } from '../utils/storage'
 import { setGridItems } from '../windows/main/main'
 import { processGameSlots } from '../utils/gameMetadata'
 import { debugLog } from '../utils/debug'
@@ -14,8 +14,7 @@ export function setSlotSyncCallback(cb: () => void): void {
 }
 
 async function syncSlotsToCloud(): Promise<void> {
-  const userId = getUserId()
-  if (!userId || !syncAfterSlots) return
+  if (!syncAfterSlots) return
   try {
     await syncAfterSlots()
   } catch { }
@@ -39,11 +38,9 @@ export function registerSlotHandlers(): void {
   })
 
   ipcMain.handle('slot-add-multiple', async (_, slots: HomeSlot[]) => {
-    const { addMultipleSlots, loadSlots } = await import('../utils/storage')
-    addMultipleSlots(slots)
+    saveSlots(slots)
 
-    const savedSlots = loadSlots()
-    setGridItems(savedSlots)
+    setGridItems(slots)
 
     syncSlotsToCloud()
 
@@ -52,7 +49,6 @@ export function registerSlotHandlers(): void {
 
   ipcMain.handle('slot-remove', async (_, slotId: string) => {
     debugLog(`[Slots] Removing slot: ${slotId}`)
-    const { removeSlot, loadSlots } = await import('../utils/storage')
     removeSlot(slotId)
 
     const savedSlots = loadSlots()
@@ -73,13 +69,11 @@ export function registerSlotHandlers(): void {
   })
 
   ipcMain.handle('slot-get-all', async () => {
-    const { loadAllLibrarySlots } = await import('../utils/storage')
     return loadAllLibrarySlots()
   })
 
   ipcMain.handle('slot-clear-all', async () => {
     debugLog('[Slots] Clearing grid layout')
-    const { saveSlots, loadSlots } = await import('../utils/storage')
     const current = loadSlots()
     saveSlots([])
     setGridItems([])

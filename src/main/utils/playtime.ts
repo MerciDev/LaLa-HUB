@@ -3,6 +3,7 @@ import { loadSlots, saveSlots } from './storage'
 import { debugLog } from './debug'
 import { setActivity } from './discord'
 import { showMainWindow } from '../windows/main/main'
+import { pushSaveToCloud } from './cloudSaves'
 
 export interface PlaySession {
     slotId: string
@@ -77,6 +78,11 @@ function persistPlaytime(slotId: string, minutes: number): void {
     slot.game.playtimeMinutes = (slot.game.playtimeMinutes || 0) + minutes
     saveSlots(slots)
     debugLog(`[Playtime] Total playtime for ${slot.label}: ${slot.game.playtimeMinutes} min`)
+
+    if (slot.game.cloudSyncEnabled && slot.game.savesPath) {
+        debugLog(`[Playtime] Triggering cloud sync push for ${slot.label}...`)
+        pushSaveToCloud(slot).catch(() => {})
+    }
 }
 
 /** Returns the active session for a slot, or undefined if not playing. */

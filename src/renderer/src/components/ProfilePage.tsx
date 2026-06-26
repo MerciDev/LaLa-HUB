@@ -28,6 +28,11 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
     const isLoggedIn = authState.isLoggedIn
     const user = authState.user
 
+    /** True for Partner, Admin, Moderator — the roles that have cloud sync access */
+    const hasPremiumAccess = ['partner', 'admin', 'moderator'].includes(
+        (user?.accountType || '').toLowerCase()
+    )
+
     const [tab, setTab] = useState<string>('overview')
     const [focusArea, setFocusArea] = useState<'nav' | 'content' | 'nav_close' | 'nav_save' | 'footer'>('nav')
     const [selectedIndex, setSelectedIndex] = useState(0)
@@ -101,6 +106,14 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
             if (user?.avatarUrl) setNewAvatarUrl(user.avatarUrl)
         }
     }, [visible, isLoggedIn, user])
+
+    // Refresh accountType from DB once each time the panel is opened (not on user changes to avoid loops)
+    useEffect(() => {
+        if (visible && isLoggedIn) {
+            window.api.auth.refreshProfile?.().catch(() => {})
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [visible])
 
     // Reset scroll & selection when changing tabs
     useEffect(() => {
@@ -225,7 +238,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
     }
 
     const handleForceSync = async () => {
-        if (user?.accountType === 'standard') return
+        if (!hasPremiumAccess) return
         setLoading(true)
         setError(null)
         try {
@@ -376,33 +389,39 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
             </div>
 
             <div className="profile-stats-grid">
-                <div className={`profile-stat-card ${(!user?.accountType || user.accountType === 'standard') ? 'profile-stat-card--disabled' : ''}`}>
+                <div className={`profile-stat-card ${!hasPremiumAccess ? 'profile-stat-card--disabled' : ''}`}>
                     <div className="profile-stat-icon profile-stat-icon--cloud">
-                        <Icon icon="mynaui:save" />
+                        <Icon icon="mdi:floppy" />
                     </div>
                     <div className="profile-stat-info">
                         <span className="profile-stat-label">Sincronización de Guardados</span>
-                        <span className="profile-stat-value">{(!user?.accountType || user.accountType === 'standard') ? 'Desactivada' : 'Activada'}</span>
+                        <span className="profile-stat-value" style={{ color: hasPremiumAccess ? 'var(--accent)' : 'var(--text-muted)' }}>
+                            {hasPremiumAccess ? 'Activa' : 'No disponible'}
+                        </span>
                     </div>
                 </div>
 
-                <div className={`profile-stat-card ${(!user?.accountType || user.accountType === 'standard') ? 'profile-stat-card--disabled' : ''}`}>
+                <div className={`profile-stat-card ${!hasPremiumAccess ? 'profile-stat-card--disabled' : ''}`}>
                     <div className="profile-stat-icon profile-stat-icon--games">
                         <Icon icon="mynaui:book-open" />
                     </div>
                     <div className="profile-stat-info">
                         <span className="profile-stat-label">Sincronización de Biblioteca</span>
-                        <span className="profile-stat-value">{(!user?.accountType || user.accountType === 'standard') ? 'Desactivada' : 'Activada'}</span>
+                        <span className="profile-stat-value" style={{ color: hasPremiumAccess ? 'var(--accent)' : 'var(--text-muted)' }}>
+                            {hasPremiumAccess ? 'Activa' : 'No disponible'}
+                        </span>
                     </div>
                 </div>
 
-                <div className="profile-stat-card">
+                <div className="profile-stat-card" style={{ border: hasPremiumAccess ? '1px solid var(--accent)' : undefined }}>
                     <div className="profile-stat-icon profile-stat-icon--sync">
-                        <Icon icon="mynaui:shield-check" />
+                        <Icon icon="mynaui:shield-check" style={{ color: hasPremiumAccess ? 'var(--accent)' : undefined }} />
                     </div>
                     <div className="profile-stat-info">
                         <span className="profile-stat-label">Tipo de Cuenta</span>
-                        <span className="profile-stat-value" style={{ textTransform: 'capitalize' }}>{user?.accountType || 'standard'}</span>
+                        <span className="profile-stat-value" style={{ textTransform: 'capitalize', color: hasPremiumAccess ? 'var(--accent)' : undefined, fontWeight: hasPremiumAccess ? 700 : undefined }}>
+                            {user?.accountType || 'Standard'}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -646,7 +665,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                             className="profile-btn profile-btn--secondary"
                             style={{ padding: '6px 14px', fontSize: '0.78rem', borderRadius: 8 }}
                             onClick={handleForceSync}
-                            disabled={loading || user?.accountType === 'standard'}
+                            disabled={loading || !hasPremiumAccess}
                         >
                             <Icon icon="mynaui:cloud-up" /> Subir Guardados
                         </button>

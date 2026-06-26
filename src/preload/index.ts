@@ -78,6 +78,14 @@ const api = {
   browseFile: (options: Electron.OpenDialogOptions = {}): Promise<string | null> =>
     ipcRenderer.invoke('browse-file', options),
 
+  /**
+   * Opens a native directory picker dialog.
+   * @param options Electron OpenDialogOptions
+   * @returns The selected directory path, or null if cancelled.
+   */
+  browseDirectory: (options: Electron.OpenDialogOptions = {}): Promise<string | null> =>
+    ipcRenderer.invoke('browse-directory', options),
+
   /** CRUD operations on persisted game slots. */
   slots: {
     getAll: (): Promise<import('../shared/types').HomeSlot[]> =>
@@ -90,6 +98,16 @@ const api = {
       ipcRenderer.invoke('slot-remove', slotId),
     clearAll: (): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('slot-clear-all')
+  },
+
+  /** Save files scanner & cloud sync */
+  saves: {
+    getFiles: (dirPath: string, extension?: string): Promise<import('../shared/types').SaveFileInfo[]> =>
+      ipcRenderer.invoke('saves-get-files', dirPath, extension),
+    pushCloud: (slotId: string, overrides?: { savesPath?: string; savesExtension?: string }): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('saves-push-cloud', slotId, overrides),
+    pullCloud: (slotId: string, overrides?: { savesPath?: string; savesExtension?: string }): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('saves-pull-cloud', slotId, overrides)
   },
 
   /** Emulator management (used by Settings panel). */
@@ -214,6 +232,8 @@ const api = {
       ipcRenderer.invoke('auth-get-status'),
     updateProfile: (profile: Partial<import('../shared/types').UserProfile>): Promise<import('../shared/types').AuthResult> =>
       ipcRenderer.invoke('auth-update-profile', profile),
+    refreshProfile: (): Promise<import('../shared/types').AuthState> =>
+      ipcRenderer.invoke('auth-refresh-profile'),
     onAuthChange: (callback: (state: import('../shared/types').AuthState) => void): (() => void) => {
       const fn = (_, state) => callback(state)
       ipcRenderer.on('auth-state-changed', fn)

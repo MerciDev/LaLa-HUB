@@ -25,6 +25,9 @@ interface AddGameForm {
     showIcon?: boolean
     iconPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
     iconSize?: number
+    savesPath?: string
+    savesExtension?: string
+    cloudSyncEnabled?: boolean
 }
 
 const EMPTY_FORM: AddGameForm = { 
@@ -32,10 +35,11 @@ const EMPTY_FORM: AddGameForm = {
     squareImage: '', logoImage: '', 
     verticalImage: '', horizontalImage: '', iconImage: '',
     backgroundImage: '', coverImage: '',
-    showLabel: false, labelPosition: 'bottom', showIcon: false, iconPosition: 'bottom-right', iconSize: 64
+    showLabel: false, labelPosition: 'bottom', showIcon: false, iconPosition: 'bottom-right', iconSize: 64,
+    savesPath: '', savesExtension: '.sav', cloudSyncEnabled: true
 }
 
-type Tab = 'import' | 'general' | 'media' | 'options'
+type Tab = 'import' | 'general' | 'media' | 'options' | 'saves'
 type FocusArea = 'nav' | 'nav_save' | 'nav_close' | 'content'
 type MediaTarget = 'squareImage' | 'logoImage' | 'verticalImage' | 'horizontalImage' | 'iconImage'
 
@@ -43,6 +47,7 @@ const TABS: ConsolePanelTab[] = [
     { id: 'import', label: 'Importar', icon: 'mynaui:cloud-download', description: 'Buscar juegos en la nube' },
     { id: 'general', label: 'General', icon: 'mynaui:controller', description: 'Nombre, ruta y emulador' },
     { id: 'media', label: 'Multimedia', icon: 'mynaui:image', description: 'Carátulas y recursos visuales' },
+    { id: 'saves', label: 'Guardados', icon: 'mynaui:save', description: 'Partidas y sincronización' },
     { id: 'options', label: 'Opciones', icon: 'mynaui:cog', description: 'Visualización en la cuadrícula' },
 ]
 
@@ -76,15 +81,19 @@ interface AddGamePanelProps {
     selectedIndex: number
     editSlot?: HomeSlot | null
     onClose: () => void
+    authState?: import('../../../shared/types').AuthState
 }
 
-function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.JSX.Element {
+function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelProps): React.JSX.Element {
+    const hasPremiumAccess = ['partner', 'admin', 'moderator'].includes(
+        (authState?.user?.accountType || '').toLowerCase()
+    )
     const [tab, setTab] = useState<Tab>('general')
     // ── Start in 'nav' so the user navigates tabs first ──
     const [focusArea, setFocusArea] = useState<FocusArea>('nav')
     const [contentIndex, setContentIndex] = useState(0)
     const [contentSubIndex, setContentSubIndex] = useState(0)
-    const [mediaTarget, setMediaTarget] = useState<MediaTarget>('verticalImage')
+    const [mediaTarget, setMediaTarget] = useState<MediaTarget>('coverImage')
     const [isTargetMenuOpen, setIsTargetMenuOpen] = useState(false)
     const [menuHoverIndex, setMenuHoverIndex] = useState(0)
 
@@ -123,6 +132,23 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     const [isSaving, setIsSaving] = useState(false)
     const [isInputEditing, setIsInputEditing] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [saveFiles, setSaveFiles] = useState<import('../../../shared/types').SaveFileInfo[]>([])
+    const [loadingSaves, setLoadingSaves] = useState(false)
+    const [syncingCloud, setSyncingCloud] = useState(false)
+
+    useEffect(() => {
+        if (!visible || tab !== 'saves' || !form.savesPath) {
+            setSaveFiles([])
+            return
+        }
+        let active = true
+        setLoadingSaves(true)
+        window.api.saves.getFiles(form.savesPath, form.savesExtension || undefined)
+            .then(res => { if (active) setSaveFiles(res) })
+            .catch(() => { if (active) setSaveFiles([]) })
+            .finally(() => { if (active) setLoadingSaves(false) })
+        return () => { active = false }
+    }, [visible, tab, form.savesPath, form.savesExtension])
     const isEditing = !!editSlot
 
     const r = useRef({ 
@@ -133,7 +159,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         hasAnyChanges: false, importResults,
         apiConsoles, importConsole, isConsoleMenuOpen, consoleMenuHoverIndex,
         apiYears, importYear, importSort, isYearMenuOpen, yearMenuHoverIndex,
-        isSortMenuOpen, sortMenuHoverIndex
+        isSortMenuOpen, sortMenuHoverIndex, saveFiles
     })
     
     // Check for unsaved changes per section
@@ -160,9 +186,14 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                    (form.iconPosition || 'bottom-right') !== (initialForm.iconPosition || 'bottom-right') ||
                    (form.iconSize || 64) !== (initialForm.iconSize || 64)
         }
+        if (section === 'saves') {
+            return form.savesPath !== initialForm.savesPath ||
+                   form.savesExtension !== initialForm.savesExtension ||
+                   form.cloudSyncEnabled !== initialForm.cloudSyncEnabled
+        }
         return false
     }
-    const hasAnyChanges = hasSectionChanges('general') || hasSectionChanges('media') || hasSectionChanges('options')
+    const hasAnyChanges = hasSectionChanges('general') || hasSectionChanges('media') || hasSectionChanges('options') || hasSectionChanges('saves')
 
     useEffect(() => {
         r.current = { 
@@ -173,7 +204,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
             hasAnyChanges, importResults, apiConsoles, importConsole,
             isConsoleMenuOpen, consoleMenuHoverIndex,
             apiYears, importYear, importSort, isYearMenuOpen, yearMenuHoverIndex,
-            isSortMenuOpen, sortMenuHoverIndex
+            isSortMenuOpen, sortMenuHoverIndex, saveFiles
         }
     })
 
@@ -209,10 +240,11 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         if (!visible) return
         window.api.emulators.getAll().then(setEmulators)
         window.api.platforms.getAll().then(setPlatforms)
-        setTab(editSlot ? 'general' : 'import')
+        setTab('import')
         setFocusArea('nav')
         setContentIndex(0)
         setContentSubIndex(0)
+        setMediaTarget('coverImage')
         setApiImages([])
         setImportQuery('')
         setImportConsole('')
@@ -243,7 +275,10 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 labelPosition: editSlot.labelPosition ?? 'bottom',
                 showIcon: editSlot.showIcon ?? false,
                 iconPosition: editSlot.iconPosition ?? 'bottom-right',
-                iconSize: editSlot.iconSize ?? 64
+                iconSize: editSlot.iconSize ?? 64,
+                savesPath: editSlot.game?.savesPath ?? '',
+                savesExtension: editSlot.game?.savesExtension || '.sav',
+                cloudSyncEnabled: editSlot.game?.cloudSyncEnabled ?? false
             }
             setForm(data)
             setInitialForm(data)
@@ -488,6 +523,12 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 }
             } else if (tab === 'media') {
                 const id = contentIndex === 0 ? 'ag-media-target' : contentIndex === 1 ? 'ag-media-url' : contentIndex === 2 ? 'ag-remove-btn' : `ag-api-btn-${contentIndex - 3}`
+                const el = document.getElementById(id)
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            } else if (tab === 'saves') {
+                const hasBtns = !!(editSlot && form.savesPath)
+                const savesStartAt = hasBtns ? 5 : 3
+                const id = contentIndex === 0 ? 'ag-saves-path' : contentIndex === 1 ? 'ag-saves-ext' : contentIndex === 2 ? 'ag-cloud-sync' : (hasBtns && contentIndex === 3) ? 'ag-btn-push' : (hasBtns && contentIndex === 4) ? 'ag-btn-pull' : `ag-save-card-${contentIndex - savesStartAt}`
                 const el = document.getElementById(id)
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
             }
@@ -930,6 +971,78 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                     } else if (action === 'back') {
                         sfx.navigate(); setFocusArea('nav')
                     }
+                } else if (ct === 'saves') {
+                    const cols = 4
+                    const hasBtns = !!(r.current.editSlot && r.current.form.savesPath)
+                    const savesStartAt = hasBtns ? 5 : 3
+                    const sFiles = r.current.saveFiles || []
+                    const maxSaves = savesStartAt + sFiles.length
+
+                    if (action === 'up') {
+                        if (cIdx >= savesStartAt + cols) {
+                            sfx.navigate(); setContentIndex(cIdx - cols)
+                        } else if (cIdx >= savesStartAt) {
+                            sfx.navigate(); setContentIndex(hasBtns ? (cIdx - savesStartAt >= 2 ? 4 : 3) : 2)
+                        } else if (cIdx === 3 || cIdx === 4) {
+                            sfx.navigate(); setContentIndex(2)
+                        } else if (cIdx > 0) {
+                            sfx.navigate(); setContentIndex(cIdx - 1)
+                        }
+                    } else if (action === 'down') {
+                        if (cIdx < 2) {
+                            sfx.navigate(); setContentIndex(cIdx + 1)
+                        } else if (cIdx === 2) {
+                            if (hasBtns) {
+                                sfx.navigate(); setContentIndex(3)
+                            } else if (sFiles.length > 0) {
+                                sfx.navigate(); setContentIndex(savesStartAt)
+                            }
+                        } else if (cIdx === 3 || cIdx === 4) {
+                            if (sFiles.length > 0) {
+                                sfx.navigate(); setContentIndex(savesStartAt + (cIdx === 4 && sFiles.length > 1 ? 1 : 0))
+                            }
+                        } else {
+                            const row = Math.floor((cIdx - savesStartAt) / cols)
+                            const totalRows = Math.ceil(sFiles.length / cols)
+                            if (row < totalRows - 1) {
+                                sfx.navigate(); setContentIndex(Math.min(cIdx + cols, maxSaves - 1))
+                            }
+                        }
+                    } else if (action === 'left') {
+                        if (cIdx === 4) {
+                            sfx.navigate(); setContentIndex(3)
+                        } else if (cIdx >= savesStartAt) {
+                            if ((cIdx - savesStartAt) % cols !== 0) {
+                                sfx.navigate(); setContentIndex(cIdx - 1)
+                            }
+                        }
+                    } else if (action === 'right') {
+                        if (cIdx === 3) {
+                            sfx.navigate(); setContentIndex(4)
+                        } else if (cIdx >= savesStartAt) {
+                            if ((cIdx - savesStartAt) % cols < cols - 1 && cIdx < maxSaves - 1) {
+                                sfx.navigate(); setContentIndex(cIdx + 1)
+                            }
+                        }
+                    } else if (action === 'select') {
+                        if (cIdx === 0) {
+                            handleBrowseSavesPath()
+                        } else if (cIdx === 1) {
+                            sfx.confirm(); setIsInputEditing(true); document.getElementById('ag-saves-ext-input')?.focus()
+                        } else if (cIdx === 2) {
+                            if (hasPremiumAccess) {
+                                sfx.confirm(); setForm(p => ({ ...p, cloudSyncEnabled: !p.cloudSyncEnabled }))
+                            } else {
+                                sfx.cancel()
+                            }
+                        } else if (cIdx === 3 && hasBtns) {
+                            if (hasPremiumAccess) handlePushCloud(); else sfx.cancel()
+                        } else if (cIdx === 4 && hasBtns) {
+                            if (hasPremiumAccess) handlePullCloud(); else sfx.cancel()
+                        }
+                    } else if (action === 'back') {
+                        sfx.navigate(); setFocusArea('nav')
+                    }
                 } else if (ct === 'options') {
                     if (action === 'up') {
                         if (cIdx > 0) { sfx.navigate(); setContentIndex(cIdx - 1) }
@@ -994,6 +1107,44 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         if (path) setForm(prev => ({ ...prev, path, name: prev.name || path.split('\\').pop()?.replace(/\.[^/.]+$/, '') || '' }))
     }, [])
 
+    const handleBrowseSavesPath = useCallback(async () => {
+        const path = await window.api.browseDirectory({
+            title: 'Seleccionar Carpeta de Guardados',
+        })
+        if (path) setForm(prev => ({ ...prev, savesPath: path }))
+    }, [])
+
+    const handlePushCloud = useCallback(async () => {
+        if (!editSlot || syncingCloud) return
+        setSyncingCloud(true)
+        const res = await window.api.saves.pushCloud(editSlot.id, { savesPath: form.savesPath, savesExtension: form.savesExtension })
+        setSyncingCloud(false)
+        if (res.success) {
+            showToast('Partidas locales subidas a la nube con éxito', 'success')
+            sfx.confirm()
+        } else {
+            showToast(res.error || 'Error al subir a la nube', 'error')
+            sfx.cancel()
+        }
+    }, [editSlot, form.savesPath, form.savesExtension, syncingCloud, showToast])
+
+    const handlePullCloud = useCallback(async () => {
+        if (!editSlot || syncingCloud) return
+        setSyncingCloud(true)
+        const res = await window.api.saves.pullCloud(editSlot.id, { savesPath: form.savesPath, savesExtension: form.savesExtension })
+        setSyncingCloud(false)
+        if (res.success) {
+            showToast('Partidas descargadas de la nube', 'success')
+            sfx.confirm()
+            if (form.savesPath) {
+                window.api.saves.getFiles(form.savesPath, form.savesExtension || undefined).then(setSaveFiles)
+            }
+        } else {
+            showToast(res.error || 'Error al descargar de la nube', 'error')
+            sfx.cancel()
+        }
+    }, [editSlot, syncingCloud, showToast, form.savesPath, form.savesExtension])
+
     const handleBrowseArtwork = useCallback(async () => {
         const target = r.current.mediaTarget
         const path = await window.api.browseFile({
@@ -1050,7 +1201,10 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                     processName: f.processName.trim(),
                     playtimeMinutes: slot?.game?.playtimeMinutes ?? 0,
                     coverUrl: f.coverImage || f.squareImage || slot?.squareImage,
-                    backgroundUrl: f.backgroundImage || f.horizontalImage || slot?.backgroundImage
+                    backgroundUrl: f.backgroundImage || f.horizontalImage || slot?.backgroundImage,
+                    savesPath: f.savesPath?.trim() || undefined,
+                    savesExtension: f.savesExtension?.trim() || undefined,
+                    cloudSyncEnabled: f.cloudSyncEnabled || false
                 }
             }
             const res = await window.api.slots.add(newSlot)
@@ -1557,6 +1711,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 <div className="cp-form ag-media">
                     {/* Media Type Selector */}
                     <div
+                        id="ag-media-target"
                         className={`ag-field-row ${isFocused('content', 0) && !isTargetMenuOpen ? 'ag-field-row--focused' : ''} ${isTargetMenuOpen ? 'ag-field-row--menu-open' : ''}`}
                         onClick={() => { 
                             setFocusArea('content'); 
@@ -1683,7 +1838,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                 </div>
                                 <div className="ag-api-grid">
                                     {apiImages.map((img, i) => {
-                                        const isSel = isFocused('content', i + 4)
+                                        const isSel = isFocused('content', i + 3)
                                         const safeUrl = img.url
                                         const isActive = form[mediaTarget] === img.url
 
@@ -1696,7 +1851,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                                     sfx.confirm();
                                                     setForm(p => ({ ...p, [mediaTarget]: safeUrl }));
                                                     setFocusArea('content');
-                                                    setContentIndex(i + 4);
+                                                    setContentIndex(i + 3);
                                                 }}
                                                 disabled={isSaving}
                                             >
@@ -1724,6 +1879,158 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                             </div>
                         )}
                     </div>
+                </div>
+            )}
+
+            {/* ── SAVES TAB ── */}
+            {tab === 'saves' && (
+                <div className="cp-form ag-saves">
+                    <div className="cp-form__section-title" style={{ marginBottom: 12, fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>
+                        Gestión de Partidas Guardadas
+                    </div>
+                    
+                    {/* Saves Path */}
+                    <div 
+                        id="ag-saves-path"
+                        className={`ag-field-row ${isFocused('content', 0) ? 'ag-field-row--focused' : ''}`}
+                        onClick={() => { setFocusArea('content'); setContentIndex(0); handleBrowseSavesPath() }}
+                        style={{ marginBottom: 12 }}
+                    >
+                        <Icon icon="mynaui:folder" className="ag-field-icon" />
+                        <div className="ag-field-body">
+                            <div className="ag-field-label">Ruta de Partidas Guardadas</div>
+                            <div className="ag-field-path-row">
+                                <div className="ag-field-path-text">{form.savesPath || 'Seleccionar carpeta de saves...'}</div>
+                                <Icon icon="mynaui:external-link" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Saves Extension Input */}
+                    <div 
+                        id="ag-saves-ext"
+                        className={`ag-field-row ${isFocused('content', 1) ? 'ag-field-row--focused' : ''} ${isInputEditing && isFocused('content', 1) ? 'ag-field-row--editing' : ''}`}
+                        onClick={() => { setFocusArea('content'); setContentIndex(1); setIsInputEditing(true) }}
+                        style={{ marginBottom: 16 }}
+                    >
+                        <Icon icon="mynaui:file" className="ag-field-icon" />
+                        <div className="ag-field-body">
+                            <div className="ag-field-label">Extensión de Guardado</div>
+                            <input 
+                                id="ag-saves-ext-input"
+                                className={`ag-field-input ${isInputEditing && isFocused('content', 1) ? 'ag-field-input--editing' : ''}`}
+                                value={form.savesExtension || ''} 
+                                onChange={e => setForm(p => ({ ...p, savesExtension: e.target.value }))}
+                                placeholder=".sav, .srm, .mcr (opcional)..."
+                                disabled={isSaving}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Cloud Sync Toggle */}
+                    <div 
+                        id="ag-cloud-sync"
+                        className={`ag-field-row ${isFocused('content', 2) ? 'ag-field-row--focused' : ''}`}
+                        onClick={() => { 
+                            if (!hasPremiumAccess) return
+                            setFocusArea('content'); setContentIndex(2); setForm(p => ({ ...p, cloudSyncEnabled: !p.cloudSyncEnabled })); sfx.confirm() 
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: hasPremiumAccess ? 'pointer' : 'not-allowed', padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: isFocused('content', 2) ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.06)', marginBottom: 16, opacity: hasPremiumAccess ? 1 : 0.55 }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <Icon icon={hasPremiumAccess ? 'mynaui:cloud-up' : 'mynaui:lock'} className="ag-field-icon" style={{ margin: 0, opacity: form.cloudSyncEnabled ? 1 : 0.5 }} />
+                            <div>
+                                <div className="ag-field-label" style={{ marginBottom: 2, opacity: form.cloudSyncEnabled ? 1 : 0.7 }}>Sincronización en la Nube</div>
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                    {hasPremiumAccess ? 'Copia de seguridad automática de las partidas de este juego' : 'Disponible para cuentas Partner, Admin y Moderator'}
+                                </div>
+                            </div>
+                        </div>
+                        <Icon icon={!hasPremiumAccess ? 'mynaui:lock' : (form.cloudSyncEnabled ? 'mynaui:toggle-right' : 'mynaui:toggle-left')} style={{ fontSize: 32, color: !hasPremiumAccess ? 'var(--text-muted)' : (form.cloudSyncEnabled ? 'var(--accent)' : 'var(--text-muted)') }} />
+                    </div>
+
+                    {/* Manual Sync Actions */}
+                    {isEditing && form.savesPath && (
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+                            <button
+                                id="ag-btn-push"
+                                className={`cp-btn ${isFocused('content', 3) ? 'cp-btn--focused' : ''}`}
+                                onClick={() => { setFocusArea('content'); setContentIndex(3); handlePushCloud() }}
+                                disabled={syncingCloud || !hasPremiumAccess}
+                                title={!hasPremiumAccess ? 'Solo disponible para Partner, Admin y Moderator' : undefined}
+                                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: isFocused('content', 3) ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)', border: isFocused('content', 3) ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.08)', color: 'var(--text)', fontSize: 13, fontWeight: 600, cursor: (syncingCloud || !hasPremiumAccess) ? 'not-allowed' : 'pointer', opacity: hasPremiumAccess ? 1 : 0.4 }}
+                            >
+                                <Icon icon={syncingCloud ? "mynaui:spinner" : (hasPremiumAccess ? "mynaui:cloud-upload" : "mynaui:lock")} className={syncingCloud ? "spin" : ""} style={{ fontSize: 18, color: 'var(--accent)' }} />
+                                <span>Subir a la nube</span>
+                            </button>
+                            <button
+                                id="ag-btn-pull"
+                                className={`cp-btn ${isFocused('content', 4) ? 'cp-btn--focused' : ''}`}
+                                onClick={() => { setFocusArea('content'); setContentIndex(4); handlePullCloud() }}
+                                disabled={syncingCloud || !hasPremiumAccess}
+                                title={!hasPremiumAccess ? 'Solo disponible para Partner, Admin y Moderator' : undefined}
+                                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: isFocused('content', 4) ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)', border: isFocused('content', 4) ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.08)', color: 'var(--text)', fontSize: 13, fontWeight: 600, cursor: (syncingCloud || !hasPremiumAccess) ? 'not-allowed' : 'pointer', opacity: hasPremiumAccess ? 1 : 0.4 }}
+                            >
+                                <Icon icon={syncingCloud ? "mynaui:spinner" : (hasPremiumAccess ? "mynaui:cloud-download" : "mynaui:lock")} className={syncingCloud ? "spin" : ""} style={{ fontSize: 18, color: '#4ade80' }} />
+                                <span>Descargar remotos</span>
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Detected Saves Grid */}
+                    <div className="cp-form__section-title" style={{ marginBottom: 12, fontSize: 14, fontWeight: 700, color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>Partidas Encontradas</span>
+                        {loadingSaves && <Icon icon="mynaui:spinner" className="spin" style={{ fontSize: 16 }} />}
+                    </div>
+
+                    {form.savesPath ? (
+                        saveFiles.length > 0 ? (
+                            <div className="ag-api-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 14 }}>
+                                {saveFiles.map((sf, i) => {
+                                    const hasBtns = !!(isEditing && form.savesPath)
+                                    const cardIdx = (hasBtns ? 5 : 3) + i
+                                    const isFoc = isFocused('content', cardIdx)
+                                    const imgUrl = form.squareImage || editSlot?.squareImage || form.coverImage || editSlot?.coverImage
+                                    return (
+                                        <div 
+                                            key={sf.filename}
+                                            id={`ag-save-card-${i}`}
+                                            className={`ag-api-card ${isFoc ? 'ag-api-card--focused' : ''}`}
+                                            onClick={() => { setFocusArea('content'); setContentIndex(cardIdx) }}
+                                            style={{ cursor: 'default', display: 'flex', flexDirection: 'column', padding: 8, background: isFoc ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)', border: isFoc ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.06)', borderRadius: 10, transition: 'all 0.2s' }}
+                                        >
+                                            <div className="ag-api-card-img-wrap" style={{ aspectRatio: '1/1', width: '100%', borderRadius: 6, overflow: 'hidden', background: 'rgba(0,0,0,0.3)', marginBottom: 8, position: 'relative' }}>
+                                                {imgUrl ? (
+                                                    <img src={imgUrl} alt="Save" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                ) : (
+                                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <Icon icon="mynaui:save" style={{ fontSize: 32, color: 'var(--text-muted)' }} />
+                                                    </div>
+                                                )}
+                                                <div style={{ position: 'absolute', bottom: 4, right: 4, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: '2px 6px', borderRadius: 4, fontSize: 10, color: '#fff', fontWeight: 600 }}>
+                                                    {sf.filename.split('.').pop()?.toUpperCase()}
+                                                </div>
+                                            </div>
+                                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }} title={sf.filename}>
+                                                {sf.filename}
+                                            </div>
+                                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                                                {sf.formattedDate}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 13, background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px dashed rgba(255,255,255,0.06)' }}>
+                                No se han encontrado archivos de guardado en esta carpeta
+                            </div>
+                        )
+                    ) : (
+                        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 13, background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px dashed rgba(255,255,255,0.06)' }}>
+                            Selecciona una ruta arriba para escanear partidas guardadas
+                        </div>
+                    )}
                 </div>
             )}
 

@@ -1,8 +1,10 @@
 import { IconOption, HomeGrid, HomeSlot, ContextOption } from '../../../shared/types'
+import { removeSlot, loadSlots } from '../../utils/storage'
 import { spawn } from 'child_process'
 import { debugLog } from '../../utils/debug'
 import { showLoading, hideLoading, toggleLoading } from '../loading/loading'
 import { startPlaySession, formatPlaytime } from '../../utils/playtime'
+import { pullSaveFromCloud } from '../../utils/cloudSaves'
 
 let isLaunching = false
 
@@ -95,8 +97,7 @@ export function mainOptionControl(actionId: string): void {
             changeInfoIsland('Inicio')
         },
         'mouse-leave-home': () => {
-            changeInfoIsland('')
-            collapseInfoIsland()
+            // Renderer handles info island text restoration
         },
         // Downloads
         'click-downloads': () => {
@@ -109,8 +110,7 @@ export function mainOptionControl(actionId: string): void {
             changeInfoIsland('Descargas')
         },
         'mouse-leave-downloads': () => {
-            changeInfoIsland('')
-            collapseInfoIsland()
+            // Renderer handles info island text restoration
         },
         // Settings
         'click-settings': () => {
@@ -123,21 +123,20 @@ export function mainOptionControl(actionId: string): void {
             changeInfoIsland('Configuración')
         },
         'mouse-leave-settings': () => {
-            changeInfoIsland('')
-            collapseInfoIsland()
+            // Renderer handles info island text restoration
         },
         // Add
         'click-add': () => {
             expandInfoIsland()
             changeInfoIsland('Agregar Juego')
+            appWindow?.webContents.send('dispatch-action', { type: 'OPEN_ADD_GAME' })
         },
         'mouse-enter-add': () => {
             expandInfoIsland()
             changeInfoIsland('Agregar Juego')
         },
         'mouse-leave-add': () => {
-            changeInfoIsland('')
-            collapseInfoIsland()
+            // Renderer handles info island text restoration
         },
         // Profile
         'click-profile': () => {
@@ -150,8 +149,7 @@ export function mainOptionControl(actionId: string): void {
             changeInfoIsland('Perfil')
         },
         'mouse-leave-profile': () => {
-            changeInfoIsland('')
-            collapseInfoIsland()
+            // Renderer handles info island text restoration
         },
         // Friends
         'click-friends': () => {
@@ -163,8 +161,7 @@ export function mainOptionControl(actionId: string): void {
             changeInfoIsland('Amigos')
         },
         'mouse-leave-friends': () => {
-            changeInfoIsland('')
-            collapseInfoIsland()
+            // Renderer handles info island text restoration
         },
         // Trophies
         'click-trophies': () => {
@@ -176,8 +173,7 @@ export function mainOptionControl(actionId: string): void {
             changeInfoIsland('Trofeos')
         },
         'mouse-leave-trophies': () => {
-            changeInfoIsland('')
-            collapseInfoIsland()
+            // Renderer handles info island text restoration
         },
     }
     actionMap[actionId]?.()
@@ -212,15 +208,19 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
             expandInfoIsland()
         },
         'mouse-leave-grid-item': () => {
-            changeInfoIsland('')
-            collapseInfoIsland()
+            // Renderer handles restoring the info island text via its effect
         },
-        'run-game': () => {
+        'run-game': async () => {
             if (isLaunching) {
                 debugLog(`[Launch] Duplicate call blocked`)
                 return
             }
             isLaunching = true
+
+            if (item.game?.cloudSyncEnabled && item.game?.savesPath) {
+                debugLog(`[Launch] Checking cloud saves for ${item.label}...`)
+                await pullSaveFromCloud(item).catch(() => {})
+            }
 
             let gamePath = item.game?.path
             let gameArgs = item.game?.args
@@ -462,7 +462,6 @@ export function executeContextAction(action: string): void {
         toggleContextMenu(false)
         return // Do NOT call setSection('grid'); let OPEN_EDIT_GAME handle the new section
     } else if (action === 'REMOVE_GAME' && selectedElement) {
-        const { removeSlot, loadSlots } = require('../../utils/storage')
         removeSlot(selectedElement.id)
         const slots = loadSlots()
         setGridItems(slots)
