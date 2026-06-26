@@ -143,6 +143,7 @@ export function mainOptionControl(actionId: string): void {
         'click-profile': () => {
             expandInfoIsland()
             changeInfoIsland('Perfil')
+            appWindow?.webContents.send('dispatch-action', { type: 'OPEN_PROFILE' })
         },
         'mouse-enter-profile': () => {
             expandInfoIsland()
@@ -437,10 +438,10 @@ export function toggleContextMenu(show?: boolean): void {
             const playtime = selectedElement.game.playtimeMinutes ?? 0
             const playtimeStr = playtime > 0 ? formatPlaytime(playtime) : 'No jugado'
             setContextOptions([
-                { id: 'info',   label: playtimeStr,  icon: 'mynaui:clock',                action: '' },
+                { id: 'info',   label: playtimeStr,  icon: 'mdi:clock-outline',                action: '' },
                 { id: 'edit',   label: 'Editar',      icon: 'mynaui:edit',                 action: 'EDIT_GAME' },
-                { id: 'move',   label: 'Mover',       icon: 'mynaui:arrow-up-down-left-right', action: 'MOVE_GAME' },
-                { id: 'resize', label: 'Tamaño',      icon: 'mynaui:expand',               action: 'RESIZE_GAME' },
+                { id: 'move',   label: 'Mover',       icon: 'mdi:cursor-move',                 action: 'MOVE_GAME' },
+                { id: 'resize', label: 'Tamaño',      icon: 'mdi:arrow-expand-all',             action: 'RESIZE_GAME' },
                 { id: 'remove', label: 'Eliminar',    icon: 'mynaui:trash',                action: 'REMOVE_GAME' }
             ])
         } else {

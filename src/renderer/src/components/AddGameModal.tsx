@@ -14,33 +14,58 @@ interface AddGameForm {
     platformId: string
     processName: string
     squareImage: string
-    backgroundImage: string
     logoImage: string
-    coverImage: string
     verticalImage: string
     horizontalImage: string
     iconImage: string
+    showLabel?: boolean
+    labelPosition?: 'bottom' | 'top' | 'center'
+    showIcon?: boolean
+    iconPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+    iconSize?: number
 }
 
 const EMPTY_FORM: AddGameForm = { 
     name: '', searchId: '', path: '', emulatorId: '', platformId: '', processName: '',
-    squareImage: '', backgroundImage: '', logoImage: '', 
-    coverImage: '', verticalImage: '', horizontalImage: '', iconImage: '' 
+    squareImage: '', logoImage: '', 
+    verticalImage: '', horizontalImage: '', iconImage: '',
+    showLabel: false, labelPosition: 'bottom', showIcon: false, iconPosition: 'bottom-right', iconSize: 64
 }
 
-type Tab = 'import' | 'general' | 'media'
+type Tab = 'import' | 'general' | 'media' | 'options'
 type FocusArea = 'nav' | 'nav_save' | 'nav_close' | 'content'
-type MediaTarget = 'squareImage' | 'backgroundImage' | 'logoImage' | 'coverImage' | 'verticalImage' | 'horizontalImage' | 'iconImage'
+type MediaTarget = 'squareImage' | 'logoImage' | 'verticalImage' | 'horizontalImage' | 'iconImage'
 
 const TABS: ConsolePanelTab[] = [
     { id: 'import', label: 'Importar', icon: 'mynaui:cloud-download', description: 'Buscar juegos en la nube' },
     { id: 'general', label: 'General', icon: 'mynaui:controller', description: 'Nombre, ruta y emulador' },
     { id: 'media', label: 'Multimedia', icon: 'mynaui:image', description: 'Carátulas y recursos visuales' },
+    { id: 'options', label: 'Opciones', icon: 'mynaui:cog', description: 'Visualización en la cuadrícula' },
+]
+
+const LABEL_POS_OPTIONS = [
+    { id: 'bottom', label: 'Abajo' },
+    { id: 'top', label: 'Arriba' },
+    { id: 'center', label: 'Centro' }
+]
+
+const ICON_POS_OPTIONS = [
+    { id: 'bottom-right', label: 'Abajo Derecha' },
+    { id: 'bottom-left', label: 'Abajo Izquierda' },
+    { id: 'top-right', label: 'Arriba Derecha' },
+    { id: 'top-left', label: 'Arriba Izquierda' }
+]
+
+const ICON_SIZE_OPTIONS = [
+    { id: 32, label: 'Pequeño' },
+    { id: 48, label: 'Mediano' },
+    { id: 64, label: 'Grande' },
+    { id: 80, label: 'Muy Grande' }
 ]
 
 const IMAGE_LABELS: Record<string, string> = {
-    cover: 'Carátula', square: 'Cuadrada', vertical: 'Vertical',
-    horizontal: 'Horizontal', background: 'Fondo', logo: 'Logo', icon: 'Icono'
+    square: 'Cuadrada', vertical: 'Vertical',
+    horizontal: 'Horizontal', logo: 'Logo', icon: 'Icono'
 }
 
 interface AddGamePanelProps {
@@ -56,7 +81,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     const [focusArea, setFocusArea] = useState<FocusArea>('nav')
     const [contentIndex, setContentIndex] = useState(0)
     const [contentSubIndex, setContentSubIndex] = useState(0)
-    const [mediaTarget, setMediaTarget] = useState<MediaTarget>('squareImage')
+    const [mediaTarget, setMediaTarget] = useState<MediaTarget>('verticalImage')
     const [isTargetMenuOpen, setIsTargetMenuOpen] = useState(false)
     const [menuHoverIndex, setMenuHoverIndex] = useState(0)
 
@@ -120,16 +145,21 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         }
         if (section === 'media') {
             return form.squareImage !== initialForm.squareImage ||
-                   form.backgroundImage !== initialForm.backgroundImage ||
                    form.logoImage !== initialForm.logoImage ||
-                   form.coverImage !== initialForm.coverImage ||
                    form.verticalImage !== initialForm.verticalImage ||
                    form.horizontalImage !== initialForm.horizontalImage ||
                    form.iconImage !== initialForm.iconImage
         }
+        if (section === 'options') {
+            return !!form.showLabel !== !!initialForm.showLabel ||
+                   (form.labelPosition || 'bottom') !== (initialForm.labelPosition || 'bottom') ||
+                   !!form.showIcon !== !!initialForm.showIcon ||
+                   (form.iconPosition || 'bottom-right') !== (initialForm.iconPosition || 'bottom-right') ||
+                   (form.iconSize || 64) !== (initialForm.iconSize || 64)
+        }
         return false
     }
-    const hasAnyChanges = hasSectionChanges('general') || hasSectionChanges('media')
+    const hasAnyChanges = hasSectionChanges('general') || hasSectionChanges('media') || hasSectionChanges('options')
 
     useEffect(() => {
         r.current = { 
@@ -200,12 +230,15 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 platformId: editSlot.game?.platform?.id ?? '',
                 processName: editSlot.game?.processName ?? '',
                 squareImage: editSlot.squareImage ?? '',
-                backgroundImage: editSlot.backgroundImage ?? '',
                 logoImage: editSlot.logoImage ?? '',
-                coverImage: editSlot.coverImage ?? '',
                 verticalImage: editSlot.verticalImage ?? '',
                 horizontalImage: editSlot.horizontalImage ?? '',
-                iconImage: editSlot.iconImage ?? ''
+                iconImage: editSlot.iconImage ?? '',
+                showLabel: editSlot.showLabel ?? false,
+                labelPosition: editSlot.labelPosition ?? 'bottom',
+                showIcon: editSlot.showIcon ?? false,
+                iconPosition: editSlot.iconPosition ?? 'bottom-right',
+                iconSize: editSlot.iconSize ?? 64
             }
             setForm(data)
             setInitialForm(data)
@@ -225,13 +258,20 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 if (data.results?.length > 0) {
                     const imgs = data.results[0].images || {}
                     const keys = ['cover', 'square', 'vertical', 'horizontal', 'background', 'logo', 'icon']
-                    setApiImages(keys.filter(k => imgs[k]).map(k => ({ type: k, url: imgs[k] })))
+                    const seenUrls = new Set<string>()
+                    const uniqueImgs = keys.filter(k => {
+                        const url = imgs[k]
+                        if (!url || seenUrls.has(url)) return false
+                        seenUrls.add(url)
+                        return true
+                    }).map(k => ({ type: k, url: imgs[k] }))
+                    setApiImages(uniqueImgs)
                 } else {
                     setApiImages([])
                 }
             })
             .catch(() => setApiImages([]))
-    }, [tab, form.name])
+    }, [tab, form.name, form.searchId])
 
     // ── Fetch Import Results ──
     useEffect(() => {
@@ -371,7 +411,8 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         
         // Only auto-assign if the field is currently empty
         if (found && !form[mediaTarget]) {
-            const url = `http://localhost:3000${found.url}`.replace('localhost:3000//', 'localhost:3000/')
+            const u = found.url
+            const url = u.startsWith('http') || u.startsWith('media://') ? u : `http://localhost:3000${u}`.replace('localhost:3000//', 'localhost:3000/')
             setForm(prev => ({ ...prev, [mediaTarget]: url }))
         }
     }, [mediaTarget, apiImages, visible])
@@ -396,7 +437,11 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
     // ── Handle Import Game ──
     const handleImportGame = useCallback((res: any) => {
         const imgs = res.images || {}
-        const normalize = (u: string) => `http://localhost:3000${u}`.replace('localhost:3000//', 'localhost:3000/')
+        const normalize = (u?: string) => {
+            if (!u) return ''
+            if (u.startsWith('http') || u.startsWith('media://')) return u
+            return `http://localhost:3000${u}`.replace('localhost:3000//', 'localhost:3000/')
+        }
         
         setForm(p => ({
             ...p,
@@ -439,7 +484,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
                 }
             } else if (tab === 'media') {
-                const id = contentIndex === 0 ? 'ag-media-target' : contentIndex === 1 ? 'ag-artwork-btn' : contentIndex === 2 ? 'ag-remove-btn' : `ag-api-btn-${contentIndex - 3}`
+                const id = contentIndex === 0 ? 'ag-media-target' : contentIndex === 1 ? 'ag-media-url' : contentIndex === 2 ? 'ag-remove-btn' : `ag-api-btn-${contentIndex - 3}`
                 const el = document.getElementById(id)
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
             }
@@ -540,11 +585,9 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
 
     // --- Media targets list ---
     const MEDIA_OPTIONS: { id: MediaTarget; label: string }[] = [
-        { id: 'coverImage', label: 'Carátula (Cover)' },
         { id: 'verticalImage', label: 'Cuadrícula Vertical' },
         { id: 'horizontalImage', label: 'Cuadrícula Horizontal' },
         { id: 'squareImage', label: 'Imagen Cuadrada' },
-        { id: 'backgroundImage', label: 'Fondo de Pantalla' },
         { id: 'logoImage', label: 'Logotipo' },
         { id: 'iconImage', label: 'Icono (Pequeño)' }
     ]
@@ -828,7 +871,6 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                         if (cIdx >= apiImgsStartAt + cols) { 
                             sfx.navigate(); setContentIndex(cIdx - cols) 
                         } else if (cIdx >= apiImgsStartAt) {
-                            // Up from anywhere in the first row of grid goes back to Explorar (1)
                             sfx.navigate(); setContentIndex(1)
                         } else if (cIdx === 1 || cIdx === 2) {
                             sfx.navigate(); setContentIndex(0)
@@ -870,16 +912,58 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                             setMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
                             setIsTargetMenuOpen(true)
                         } else if (cIdx === 1) {
-                            document.getElementById('ag-artwork-btn')?.click()
+                            sfx.confirm(); setIsInputEditing(true); document.getElementById('ag-media-url-input')?.focus()
                         } else if (cIdx === 2) {
                             sfx.cancel(); setForm(p => ({ ...p, [r.current.mediaTarget]: '' }))
                         } else {
                             const img = r.current.apiImages[cIdx - apiImgsStartAt]
                             if (img) {
                                 sfx.confirm()
-                                const imgUrlNormalized = `http://localhost:3000${img.url}`.replace('localhost:3000//', 'localhost:3000/')
-                                setForm(p => ({ ...p, [r.current.mediaTarget]: imgUrlNormalized }))
+                                const safeUrl = img.url.startsWith('http') || img.url.startsWith('media://') ? img.url : `http://localhost:3000${img.url}`.replace('localhost:3000//', 'localhost:3000/')
+                                setForm(p => ({ ...p, [r.current.mediaTarget]: safeUrl }))
                             }
+                        }
+                    } else if (action === 'back') {
+                        sfx.navigate(); setFocusArea('nav')
+                    }
+                } else if (ct === 'options') {
+                    if (action === 'up') {
+                        if (cIdx > 0) { sfx.navigate(); setContentIndex(cIdx - 1) }
+                    } else if (action === 'down') {
+                        if (cIdx < 4) { sfx.navigate(); setContentIndex(cIdx + 1) }
+                    } else if (action === 'left') {
+                        if (cIdx === 1) {
+                            const curIdx = LABEL_POS_OPTIONS.findIndex(o => o.id === r.current.form.labelPosition)
+                            const prevIdx = (curIdx - 1 + LABEL_POS_OPTIONS.length) % LABEL_POS_OPTIONS.length
+                            sfx.navigate(); setForm(p => ({ ...p, labelPosition: LABEL_POS_OPTIONS[prevIdx].id as any }))
+                        } else if (cIdx === 3) {
+                            const curIdx = ICON_POS_OPTIONS.findIndex(o => o.id === r.current.form.iconPosition)
+                            const prevIdx = (curIdx - 1 + ICON_POS_OPTIONS.length) % ICON_POS_OPTIONS.length
+                            sfx.navigate(); setForm(p => ({ ...p, iconPosition: ICON_POS_OPTIONS[prevIdx].id as any }))
+                        } else if (cIdx === 4) {
+                            const curIdx = ICON_SIZE_OPTIONS.findIndex(o => o.id === (r.current.form.iconSize || 64))
+                            const prevIdx = (curIdx - 1 + ICON_SIZE_OPTIONS.length) % ICON_SIZE_OPTIONS.length
+                            sfx.navigate(); setForm(p => ({ ...p, iconSize: ICON_SIZE_OPTIONS[prevIdx].id as any }))
+                        }
+                    } else if (action === 'right') {
+                        if (cIdx === 1) {
+                            const curIdx = LABEL_POS_OPTIONS.findIndex(o => o.id === r.current.form.labelPosition)
+                            const nextIdx = (curIdx + 1) % LABEL_POS_OPTIONS.length
+                            sfx.navigate(); setForm(p => ({ ...p, labelPosition: LABEL_POS_OPTIONS[nextIdx].id as any }))
+                        } else if (cIdx === 3) {
+                            const curIdx = ICON_POS_OPTIONS.findIndex(o => o.id === r.current.form.iconPosition)
+                            const nextIdx = (curIdx + 1) % ICON_POS_OPTIONS.length
+                            sfx.navigate(); setForm(p => ({ ...p, iconPosition: ICON_POS_OPTIONS[nextIdx].id as any }))
+                        } else if (cIdx === 4) {
+                            const curIdx = ICON_SIZE_OPTIONS.findIndex(o => o.id === (r.current.form.iconSize || 64))
+                            const nextIdx = (curIdx + 1) % ICON_SIZE_OPTIONS.length
+                            sfx.navigate(); setForm(p => ({ ...p, iconSize: ICON_SIZE_OPTIONS[nextIdx].id as any }))
+                        }
+                    } else if (action === 'select') {
+                        if (cIdx === 0) {
+                            sfx.confirm(); setForm(p => ({ ...p, showLabel: !p.showLabel }))
+                        } else if (cIdx === 2) {
+                            sfx.confirm(); setForm(p => ({ ...p, showIcon: !p.showIcon }))
                         }
                     } else if (action === 'back') {
                         sfx.navigate(); setFocusArea('nav')
@@ -938,12 +1022,15 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 icon: selectedPlatform?.icon || 'mdi:controller',
                 label: f.name.trim(),
                 squareImage: f.squareImage || slot?.squareImage,
-                backgroundImage: f.backgroundImage || slot?.backgroundImage,
                 logoImage: f.logoImage || slot?.logoImage,
-                coverImage: f.coverImage || slot?.coverImage,
                 verticalImage: f.verticalImage || slot?.verticalImage,
                 horizontalImage: f.horizontalImage || slot?.horizontalImage,
                 iconImage: f.iconImage || slot?.iconImage,
+                showLabel: f.showLabel,
+                labelPosition: f.labelPosition,
+                showIcon: f.showIcon,
+                iconPosition: f.iconPosition,
+                iconSize: f.iconSize,
                 onClick: 'run-game',
                 onMouseEnter: 'mouse-enter-grid-item',
                 onMouseLeave: 'mouse-leave-grid-item',
@@ -1216,7 +1303,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                         </div>
                                         {res.images?.cover ? (
                                             <img
-                                                src={`http://localhost:3000${res.images.cover}`}
+                                                src={res.images.cover.startsWith('http') || res.images.cover.startsWith('media://') ? res.images.cover : `http://localhost:3000${res.images.cover}`}
                                                 alt={res.name}
                                                 onError={e => {
                                                     const t = e.target as HTMLImageElement
@@ -1493,6 +1580,13 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                                 key={opt.id} 
                                                 id={`ag-target-opt-${i}`}
                                                 className={`ag-custom-select__option ${menuHoverIndex === i ? 'active' : ''}`}
+                                                onMouseEnter={() => setMenuHoverIndex(i)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setMediaTarget(opt.id as MediaTarget)
+                                                    setIsTargetMenuOpen(false)
+                                                    sfx.confirm()
+                                                }}
                                             >
                                                 {opt.label}
                                                 {menuHoverIndex === i && <Icon icon="mynaui:check" />}
@@ -1521,29 +1615,49 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                      mediaTarget === 'logoImage' ? 'Logotipo' : 'Carátula'}
                                 </div>
                                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
-                                    Selecciona una imagen de la API o importa una local
+                                    Selecciona de la API, pega una URL o importa un archivo local
                                 </div>
-                                <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                                    <button
-                                        id="ag-artwork-btn"
-                                        className={`cp-btn cp-btn--secondary ag-media-browse ${isFocused('content', 1) ? 'cp-btn--focused' : ''}`}
-                                        onClick={handleBrowseArtwork}
+
+                                <div 
+                                    id="ag-media-url"
+                                    className={`ag-field-row ${isFocused('content', 1) ? 'ag-field-row--focused' : ''} ${isInputEditing && isFocused('content', 1) ? 'ag-field-row--editing' : ''}`}
+                                    style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(0,0,0,0.25)', border: isFocused('content', 1) ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.08)', marginBottom: 4 }}
+                                    onClick={() => {
+                                        setFocusArea('content');
+                                        setContentIndex(1);
+                                        setIsInputEditing(true);
+                                        document.getElementById('ag-media-url-input')?.focus();
+                                    }}
+                                >
+                                    <Icon icon="mynaui:link" style={{ fontSize: 18, color: 'var(--text-muted)', marginRight: 10 }} />
+                                    <input 
+                                        id="ag-media-url-input"
+                                        type="text"
+                                        placeholder="https://..."
+                                        value={form[mediaTarget] || ''}
+                                        onChange={e => setForm(p => ({ ...p, [mediaTarget]: e.target.value }))}
+                                        onFocus={() => { setFocusArea('content'); setContentIndex(1); setIsInputEditing(true); }}
+                                        className="ag-field-input"
+                                        style={{ fontSize: 13, padding: 0, color: '#fff', background: 'transparent', border: 'none', width: '100%' }}
                                         disabled={isSaving}
-                                        style={{ flex: 1, padding: '8px 12px' }}
-                                    >
-                                        <Icon icon="mynaui:search" /> Explorar
-                                    </button>
+                                    />
                                     {form[mediaTarget] && (
                                         <button
                                             id="ag-remove-btn"
-                                            className={`cp-btn cp-btn--ghost ${isFocused('content', 2) ? 'cp-btn--focused' : ''}`}
-                                            onClick={() => setForm(p => ({ ...p, [mediaTarget]: '' }))}
+                                            onClick={(e) => { e.stopPropagation(); setForm(p => ({ ...p, [mediaTarget]: '' })) }}
                                             disabled={isSaving}
                                             style={{ 
                                                 fontSize: 12, 
-                                                padding: '8px 12px',
+                                                padding: '4px 8px',
                                                 color: '#ff8080',
-                                                border: isFocused('content', 2) ? '1px solid rgba(255,128,128,0.3)' : '1px solid transparent'
+                                                background: 'rgba(255,128,128,0.1)',
+                                                borderRadius: 6,
+                                                border: isFocused('content', 2) ? '1px solid rgba(255,128,128,0.3)' : '1px solid transparent',
+                                                cursor: 'pointer',
+                                                marginLeft: 10,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 4
                                             }}
                                         >
                                             <Icon icon="mynaui:trash" /> Quitar
@@ -1561,10 +1675,9 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                 </div>
                                 <div className="ag-api-grid">
                                     {apiImages.map((img, i) => {
-                                        const isSel = isFocused('content', i + 3)
-                                        // Normalize both for comparison
+                                        const isSel = isFocused('content', i + 4)
+                                        const safeUrl = img.url.startsWith('http') || img.url.startsWith('media://') ? img.url : `http://localhost:3000${img.url}`.replace('localhost:3000//', 'localhost:3000/')
                                         const normalizeForCheck = (url: string) => url.replace('http://localhost:3000', '').replace('//', '/')
-                                        const imgUrlNormalized = `http://localhost:3000${img.url}`.replace('localhost:3000//', 'localhost:3000/')
                                         const isActive = normalizeForCheck(form[mediaTarget] || '') === normalizeForCheck(img.url)
 
                                         return (
@@ -1574,15 +1687,15 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                                 className={`ag-api-card ${isSel ? 'ag-api-card--focused' : ''} ${isActive ? 'ag-api-card--active' : ''}`}
                                                 onClick={() => {
                                                     sfx.confirm();
-                                                    setForm(p => ({ ...p, [mediaTarget]: imgUrlNormalized }));
+                                                    setForm(p => ({ ...p, [mediaTarget]: safeUrl }));
                                                     setFocusArea('content');
-                                                    setContentIndex(i + 3);
+                                                    setContentIndex(i + 4);
                                                 }}
                                                 disabled={isSaving}
                                             >
                                                 <div className="ag-api-card-img-wrap">
                                                     <img
-                                                        src={`http://localhost:3000${img.url}`}
+                                                        src={safeUrl}
                                                         alt={img.type}
                                                         className="ag-api-card-img"
                                                         onError={e => { (e.target as HTMLImageElement).src = '' }}
@@ -1603,6 +1716,115 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                 }
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* ── OPTIONS TAB ── */}
+            {tab === 'options' && (
+                <div className="cp-form ag-options">
+                    <div className="cp-form__section-title" style={{ marginBottom: 12, fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>
+                        Etiqueta de Nombre
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 16, border: '1px solid rgba(255,255,255,0.06)', marginBottom: 24 }}>
+                        <div 
+                            className={`ag-field-row ${isFocused('content', 0) ? 'ag-field-row--focused' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(0); setForm(p => ({ ...p, showLabel: !p.showLabel })); sfx.confirm() }}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '10px 14px', borderRadius: 10, marginBottom: 12 }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <Icon icon={form.showLabel ? 'mynaui:check-square-solid' : 'mynaui:square'} style={{ fontSize: 24, color: form.showLabel ? 'var(--accent)' : 'var(--text-muted)' }} />
+                                <span style={{ fontWeight: 600, fontSize: 13, color: '#fff' }}>Mostrar nombre sin hacer hover</span>
+                            </div>
+                        </div>
+
+                        <div 
+                            className={`ag-field-row ${isFocused('content', 1) ? 'ag-field-row--focused' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(1); }}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, opacity: form.showLabel ? 1 : 0.4 }}
+                        >
+                            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Posición del nombre <span style={{ fontSize: 11 }}>←→</span></span>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                                {LABEL_POS_OPTIONS.map(opt => (
+                                    <button
+                                        key={opt.id}
+                                        onClick={(e) => { e.stopPropagation(); setForm(p => ({ ...p, labelPosition: opt.id as any })); sfx.confirm() }}
+                                        style={{
+                                            padding: '6px 12px', fontSize: 12, borderRadius: 6, cursor: 'pointer',
+                                            background: form.labelPosition === opt.id ? 'var(--accent)' : 'rgba(255,255,255,0.08)',
+                                            color: form.labelPosition === opt.id ? '#fff' : 'var(--text-muted)',
+                                            border: 'none', fontWeight: 600
+                                        }}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="cp-form__section-title" style={{ marginBottom: 12, fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>
+                        Icono del Juego
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 16, border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div 
+                            className={`ag-field-row ${isFocused('content', 2) ? 'ag-field-row--focused' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(2); setForm(p => ({ ...p, showIcon: !p.showIcon })); sfx.confirm() }}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '10px 14px', borderRadius: 10, marginBottom: 12 }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <Icon icon={form.showIcon ? 'mynaui:check-square-solid' : 'mynaui:square'} style={{ fontSize: 24, color: form.showIcon ? 'var(--accent)' : 'var(--text-muted)' }} />
+                                <span style={{ fontWeight: 600, fontSize: 13, color: '#fff' }}>Mostrar icono sin hacer hover</span>
+                            </div>
+                        </div>
+
+                        <div 
+                            className={`ag-field-row ${isFocused('content', 3) ? 'ag-field-row--focused' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(3); }}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, opacity: form.showIcon ? 1 : 0.4 }}
+                        >
+                            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Posición del icono <span style={{ fontSize: 11 }}>←→</span></span>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                {ICON_POS_OPTIONS.map(opt => (
+                                    <button
+                                        key={opt.id}
+                                        onClick={(e) => { e.stopPropagation(); setForm(p => ({ ...p, iconPosition: opt.id as any })); sfx.confirm() }}
+                                        style={{
+                                            padding: '6px 10px', fontSize: 11, borderRadius: 6, cursor: 'pointer',
+                                            background: form.iconPosition === opt.id ? 'var(--accent)' : 'rgba(255,255,255,0.08)',
+                                            color: form.iconPosition === opt.id ? '#fff' : 'var(--text-muted)',
+                                            border: 'none', fontWeight: 600
+                                        }}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div 
+                            className={`ag-field-row ${isFocused('content', 4) ? 'ag-field-row--focused' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(4); }}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, opacity: form.showIcon ? 1 : 0.4, marginTop: 8 }}
+                        >
+                            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Tamaño del icono <span style={{ fontSize: 11 }}>←→</span></span>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                {ICON_SIZE_OPTIONS.map(opt => (
+                                    <button
+                                        key={opt.id}
+                                        onClick={(e) => { e.stopPropagation(); setForm(p => ({ ...p, iconSize: opt.id as any })); sfx.confirm() }}
+                                        style={{
+                                            padding: '6px 10px', fontSize: 11, borderRadius: 6, cursor: 'pointer',
+                                            background: (form.iconSize || 64) === opt.id ? 'var(--accent)' : 'rgba(255,255,255,0.08)',
+                                            color: (form.iconSize || 64) === opt.id ? '#fff' : 'var(--text-muted)',
+                                            border: 'none', fontWeight: 600
+                                        }}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

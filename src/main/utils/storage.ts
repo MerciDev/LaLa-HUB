@@ -2,7 +2,7 @@ import { app } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
 import { debugError, debugLog } from './debug'
-import { HomeSlot } from '../../shared/types'
+import { HomeSlot, Game } from '../../shared/types'
 
 export const USER_DATA_PATH = app.getPath('userData')
 
@@ -52,20 +52,84 @@ export function readJson<T>(folder: string, fileName: string): T | null {
 
 const SLOTS_FOLDER = 'data'
 const SLOTS_FILE = 'slots'
+const CONSOLES_FOLDER = 'data/consoles'
+
+function slugify(text: string): string {
+    return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || 'pc'
+}
+
+export function getConsoleSlug(game?: Game): string {
+    if (!game) return 'pc'
+    if (game.platform?.name) return slugify(game.platform.name)
+    if (game.emulator?.name) return slugify(game.emulator.name)
+    return 'pc'
+}
 
 export function saveSlots(slots: HomeSlot[]): void {
-    saveJson(SLOTS_FOLDER, SLOTS_FILE, slots)
-    debugLog(`[Storage] ${slots.length} slots guardados`)
+    const consoleGamesMap = new Map<string, Record<string, Game>>()
+    const slotsToSave: HomeSlot[] = []
+
+    for (const slot of slots) {
+        const cleanSlot: HomeSlot = { ...slot }
+        if (cleanSlot.game) {
+            const slug = getConsoleSlug(cleanSlot.game)
+            if (!consoleGamesMap.has(slug)) {
+                const existing = readJson<{ console: string, games: Record<string, Game> }>(CONSOLES_FOLDER, slug)
+                consoleGamesMap.set(slug, existing?.games || {})
+            }
+            const gamesRecord = consoleGamesMap.get(slug)!
+            gamesRecord[cleanSlot.game.id] = cleanSlot.game
+
+            cleanSlot.gameRef = { consoleSlug: slug, gameId: cleanSlot.game.id }
+            delete cleanSlot.game
+        }
+        slotsToSave.push(cleanSlot)
+    }
+
+    for (const [slug, games] of consoleGamesMap.entries()) {
+        saveJson(CONSOLES_FOLDER, slug, { console: slug, games })
+    }
+
+    saveJson(SLOTS_FOLDER, SLOTS_FILE, slotsToSave)
+    debugLog(`[Storage] ${slots.length} slots guardados (con segregación por consola)`)
 }
 
 export function loadSlots(): HomeSlot[] {
-    const slots = readJson<HomeSlot[]>(SLOTS_FOLDER, SLOTS_FILE)
-    if (slots) {
-        debugLog(`[Storage] ${slots.length} slots cargados`)
-        return slots
+    const rawSlots = readJson<HomeSlot[]>(SLOTS_FOLDER, SLOTS_FILE)
+    if (!rawSlots) {
+        debugLog('[Storage] No se encontraron slots guardados, retornando array vacío')
+        return []
     }
-    debugLog('[Storage] No se encontraron slots guardados, retornando array vacío')
-    return []
+
+    const consoleCache = new Map<string, Record<string, Game>>()
+    const hydratedSlots: HomeSlot[] = []
+    let needsMigrationSave = false
+
+    for (const slot of rawSlots) {
+        if (slot.game && !slot.gameRef) {
+            needsMigrationSave = true
+        } else if (slot.gameRef && !slot.game) {
+            const slug = slot.gameRef.consoleSlug
+            if (!consoleCache.has(slug)) {
+                const consoleData = readJson<{ console: string, games: Record<string, Game> }>(CONSOLES_FOLDER, slug)
+                consoleCache.set(slug, consoleData?.games || {})
+            }
+            const games = consoleCache.get(slug)!
+            const game = games[slot.gameRef.gameId]
+            if (game) {
+                slot.game = game
+            }
+        }
+        hydratedSlots.push(slot)
+    }
+
+    if (needsMigrationSave) {
+        debugLog('[Storage] Detectados items con formato antiguo, ejecutando migración automática...')
+        saveSlots(hydratedSlots)
+    }
+
+    debugLog(`[Storage] ${hydratedSlots.length} slots cargados e hidratados`)
+    return hydratedSlots
 }
 
 export function addSlot(slot: HomeSlot): void {

@@ -673,6 +673,7 @@ body {
   transform: translateY(10px);
   transition: all 0.2s ease;
   pointer-events: none;
+  z-index: 10;
 }
 
 .homeSlot.selected .slot-label,

@@ -80,12 +80,16 @@ const api = {
 
   /** CRUD operations on persisted game slots. */
   slots: {
+    getAll: (): Promise<import('../shared/types').HomeSlot[]> =>
+      ipcRenderer.invoke('slot-get-all'),
     add: (slot: import('../shared/types').HomeSlot): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('slot-add', slot),
     addMultiple: (slots: import('../shared/types').HomeSlot[]): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('slot-add-multiple', slots),
     remove: (slotId: string): Promise<{ success: boolean }> =>
-      ipcRenderer.invoke('slot-remove', slotId)
+      ipcRenderer.invoke('slot-remove', slotId),
+    clearAll: (): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('slot-clear-all')
   },
 
   /** Emulator management (used by Settings panel). */

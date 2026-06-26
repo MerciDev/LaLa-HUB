@@ -159,9 +159,17 @@ function PersonalMenu({
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="profile-avatar">
-                                        <Icon icon={icon.icon} />
-                                    </div>
+                                    {icon.extraData?.avatar ? (
+                                        <img
+                                            src={icon.extraData.avatar}
+                                            alt="User"
+                                            className="profile-user-img"
+                                        />
+                                    ) : (
+                                        <div className="profile-avatar-no-circle">
+                                            <Icon icon={icon.icon} width="22" height="22" />
+                                        </div>
+                                    )}
                                 </>
                             ) : (
                                 <Icon icon={icon.icon} width="20" height="20" />

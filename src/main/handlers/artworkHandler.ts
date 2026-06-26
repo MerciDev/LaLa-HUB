@@ -36,7 +36,7 @@ export function registerArtworkHandlers(): void {
             debugLog(`[Artwork] Copied to: ${destPath}`)
 
             // Return a media:// URL consistent with the existing protocol handler
-            const mediaUrl = `media://resources/artwork/${fileName}`
+            const mediaUrl = `media://artwork/${fileName}`
             return { success: true, url: mediaUrl, localPath: destPath }
         } catch (err) {
             debugError(`[Artwork] Copy failed: ${err}`)

@@ -1,0 +1,535 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   LALA HUB — Profile Page Styles (Dark Premium Console UI)
+   3DS / PS5 / Xbox inspired aesthetics with glassmorphism & dynamic glows
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.profile-container {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+  padding-bottom: 40px;
+  animation: profile-fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes profile-fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Hero ID Card (Gamer Card) ────────────────────────────────────────────── */
+.profile-hero-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 32px 36px;
+  background: linear-gradient(135deg, rgba(30, 36, 52, 0.75) 0%, rgba(13, 16, 24, 0.85) 100%);
+  border: 1px solid rgba(58, 134, 255, 0.25);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(30px) saturate(1.8);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(58, 134, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+/* Background ambient glow inside card */
+.profile-hero-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+  opacity: 0.4;
+  pointer-events: none;
+  filter: blur(40px);
+}
+
+.profile-hero-card--guest {
+  background: linear-gradient(135deg, rgba(35, 30, 45, 0.65) 0%, rgba(15, 14, 20, 0.85) 100%);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.profile-avatar-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.profile-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(58, 134, 255, 0.2), rgba(20, 24, 33, 0.9));
+  border: 2px solid var(--accent-bright);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  color: #ffffff;
+  box-shadow: 0 0 25px var(--accent-glow);
+  position: relative;
+  z-index: 2;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.profile-avatar--guest {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(20, 24, 33, 0.9));
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  color: var(--text-muted);
+}
+
+.profile-status-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(10, 12, 18, 0.9);
+  border: 1px solid rgba(35, 165, 89, 0.5);
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #23a559;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  z-index: 3;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.profile-status-badge--offline {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+}
+
+.profile-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #23a559;
+  box-shadow: 0 0 8px #23a559;
+  animation: profile-pulse-green 2s infinite;
+}
+
+@keyframes profile-pulse-green {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(35, 165, 89, 0.6); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(35, 165, 89, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(35, 165, 89, 0); }
+}
+
+.profile-status-dot--offline {
+  background: var(--text-muted);
+  box-shadow: none;
+  animation: none;
+}
+
+.profile-user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  z-index: 2;
+}
+
+.profile-user-name {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.profile-user-email {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.profile-user-since {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  width: fit-content;
+}
+
+/* ─── Stats & Cloud Badges Grid ────────────────────────────────────────────── */
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.profile-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 22px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.profile-stat-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--bg-elevated);
+}
+
+.profile-stat-card--disabled {
+  opacity: 0.5;
+  filter: grayscale(1);
+  pointer-events: none;
+}
+
+.profile-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.profile-stat-icon--cloud {
+  background: rgba(35, 165, 89, 0.12);
+  color: #23a559;
+  border: 1px solid rgba(35, 165, 89, 0.3);
+}
+
+.profile-stat-icon--games {
+  background: rgba(58, 134, 255, 0.12);
+  color: var(--accent-bright);
+  border: 1px solid rgba(58, 134, 255, 0.3);
+}
+
+.profile-stat-icon--sync {
+  background: rgba(240, 178, 50, 0.12);
+  color: #f0b232;
+  border: 1px solid rgba(240, 178, 50, 0.3);
+}
+
+.profile-stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-stat-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.profile-stat-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ─── Actions & Forms Section ──────────────────────────────────────────────── */
+.profile-section-card {
+  background: rgba(20, 24, 34, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-xl);
+  padding: 28px 32px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+}
+
+.profile-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 16px;
+}
+
+.profile-section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-section-title-wrap svg {
+  font-size: 22px;
+  color: var(--accent);
+}
+
+.profile-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.profile-section-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ─── Auth Banner Hero ─────────────────────────────────────────────────────── */
+.profile-auth-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  padding: 40px 32px;
+  background: linear-gradient(180deg, rgba(58, 134, 255, 0.12) 0%, rgba(20, 24, 33, 0.4) 100%);
+  border: 1px solid rgba(58, 134, 255, 0.25);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.4);
+}
+
+.profile-auth-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: var(--accent);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  box-shadow: 0 0 30px var(--accent-glow);
+  margin-bottom: 4px;
+}
+
+.profile-auth-hero h3 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.profile-auth-hero p {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  max-width: 580px;
+  line-height: 1.6;
+}
+
+/* ─── Interactive Buttons Row ──────────────────────────────────────────────── */
+.profile-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.profile-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 24px;
+  border-radius: 14px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-btn--primary {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 6px 20px rgba(58, 134, 255, 0.3);
+}
+
+.profile-btn--primary:hover,
+.profile-btn--primary.focused {
+  background: var(--accent-bright);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px var(--accent-glow);
+  outline: none;
+}
+
+.profile-btn--secondary {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.profile-btn--secondary:hover,
+.profile-btn--secondary.focused {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.profile-btn--danger {
+  background: rgba(242, 63, 67, 0.1);
+  color: #ff6b6b;
+  border-color: rgba(242, 63, 67, 0.25);
+}
+
+.profile-btn--danger:hover,
+.profile-btn--danger.focused {
+  background: rgba(242, 63, 67, 0.25);
+  border-color: rgba(242, 63, 67, 0.6);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(242, 63, 67, 0.35);
+  outline: none;
+}
+
+.profile-btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+  width: 100%;
+}
+
+.profile-btn--ghost:hover,
+.profile-btn--ghost.focused {
+  color: var(--accent-bright);
+  background: rgba(58, 134, 255, 0.08);
+  outline: none;
+}
+
+/* Focused controller state */
+.profile-btn.focused {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
+}
+
+.profile-btn--danger.focused {
+  outline-color: #ff6b6b;
+}
+
+/* ─── Inputs & Form Controls ───────────────────────────────────────────────── */
+.profile-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-field-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.profile-input-icon {
+  position: absolute;
+  left: 14px;
+  font-size: 20px;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.profile-input {
+  width: 100%;
+  box-sizing: border-box !important;
+  padding: 14px 16px 14px 62px !important;
+  background: rgba(12, 15, 22, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.profile-input:focus,
+.profile-input.focused {
+  border-color: var(--accent);
+  background: rgba(58, 134, 255, 0.06);
+  box-shadow: 0 0 0 3px rgba(58, 134, 255, 0.2);
+}
+
+.profile-input:focus + .profile-input-icon,
+.profile-input.focused ~ .profile-input-icon {
+  color: var(--accent);
+}
+
+.profile-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Error Alert Box */
+.profile-alert-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: rgba(242, 63, 67, 0.12);
+  border: 1px solid rgba(242, 63, 67, 0.35);
+  border-radius: 12px;
+  color: #ff8080;
+  font-size: 0.88rem;
+  font-weight: 600;
+  animation: profile-shake 0.3s ease;
+}
+
+@keyframes profile-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+.profile-spin {
+  animation: profile-spin-rot 1s linear infinite;
+}
+
+@keyframes profile-spin-rot {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

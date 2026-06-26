@@ -65,4 +65,26 @@ export function registerSlotHandlers(): void {
 
     return { success: true }
   })
+
+  ipcMain.handle('slot-get-all', async () => {
+    return loadSlots()
+  })
+
+  ipcMain.handle('slot-clear-all', async () => {
+    debugLog('[Slots] Clearing all slots')
+    const { saveSlots, loadSlots } = await import('../utils/storage')
+    const current = loadSlots()
+    saveSlots([])
+    setGridItems([])
+
+    const userId = getUserId()
+    if (userId) {
+      for (const slot of current) {
+        deleteRemoteRecord('slots', slot.id)
+      }
+    }
+
+    syncSlotsToCloud()
+    return { success: true }
+  })
 }

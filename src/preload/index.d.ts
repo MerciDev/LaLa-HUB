@@ -32,9 +32,11 @@ export interface API {
   
   /** CRUD operations on persisted game slots. */
   slots: {
+    getAll: () => Promise<HomeSlot[]>
     add: (slot: HomeSlot) => Promise<{ success: boolean }>
     addMultiple: (slots: HomeSlot[]) => Promise<{ success: boolean }>
     remove: (slotId: string) => Promise<{ success: boolean }>
+    clearAll: () => Promise<{ success: boolean }>
   }
   
   /** Emulator manager — used by the Settings panel. */

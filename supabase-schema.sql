@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   username TEXT NOT NULL,
   email TEXT,
   avatar_url TEXT,
+  account_type TEXT DEFAULT 'standard',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );

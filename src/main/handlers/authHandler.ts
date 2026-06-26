@@ -30,6 +30,19 @@ function loadStoredSession(): void {
       session: null
     }
     debugLog('[Auth] Sesión local cargada')
+
+    if (stored.refreshToken) {
+      const client = getSupabaseClient()
+      client.auth.refreshSession({ refresh_token: stored.refreshToken })
+        .then(({ data }) => {
+          if (data.session) {
+            setSession(data.session)
+            persistSession(stored.user) // Update token on disk if it changed
+            debugLog('[Auth] Sesión de Supabase restaurada con token')
+          }
+        })
+        .catch(err => debugLog(`[Auth] Fallo restaurando token en Supabase: ${err.message}`))
+    }
   }
 }
 
@@ -49,11 +62,22 @@ function clearStoredSession(): void {
 
 async function mapUserToProfile(user: any): Promise<UserProfile> {
   const username = user.user_metadata?.username || user.email?.split('@')[0] || 'Usuario'
+  let accountType = 'standard'
+
+  try {
+    const client = getSupabaseClient()
+    const { data } = await client.from('profiles').select('account_type').eq('id', user.id).single()
+    if (data?.account_type) {
+      accountType = data.account_type
+    }
+  } catch { }
+
   return {
     id: user.id,
     email: user.email || '',
     username,
     avatarUrl: user.user_metadata?.avatar_url || '',
+    accountType,
     createdAt: user.created_at || new Date().toISOString()
   }
 }

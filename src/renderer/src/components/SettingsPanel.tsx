@@ -45,6 +45,7 @@ interface SettingsPanelProps {
     gridConfig?: { rows: number; cols: number; gap: number; aspectRatio: number }
     onGridConfigChange?: (rows: number, cols: number, gap: number, aspectRatio: number) => void
     minGridDimensions?: { minRows: number; minCols: number }
+    onClearGrid?: () => void
 }
 
 const TABS: ConsolePanelTab[] = [
@@ -58,7 +59,7 @@ const TABS: ConsolePanelTab[] = [
 
 const TAB_IDS = TABS.map(t => t.id) as Tab[]
 
-function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridConfigChange, minGridDimensions }: SettingsPanelProps): React.JSX.Element {
+function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridConfigChange, minGridDimensions, onClearGrid }: SettingsPanelProps): React.JSX.Element {
     const [tab, setTab]                     = useState<Tab>('platforms')
     const { showDialog } = useDialog()
     const { showToast } = useToast()
@@ -113,10 +114,10 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
         emulators, platforms: sortedPlatforms, keymaps, listeningKey, visible, onJumpToHeader,
         gridRows, gridCols, gridGap, gridAspect, hasUnsavedChanges,
         isInputEditing, isPlatFormExpanded, editingPlatId, editingEmuId, platForm, emuForm, 
-        focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex
+        focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex, onClearGrid
     })
     useEffect(() => {
-        r.current = { tab, controlsSubTab, focusArea, selectedIndex, isDeleteFocused, footerIndex, emulators, platforms: sortedPlatforms, keymaps, listeningKey, visible, onJumpToHeader, gridRows, gridCols, gridGap, gridAspect, hasUnsavedChanges, isInputEditing, isPlatFormExpanded, editingPlatId, editingEmuId, platForm, emuForm, focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex }
+        r.current = { tab, controlsSubTab, focusArea, selectedIndex, isDeleteFocused, footerIndex, emulators, platforms: sortedPlatforms, keymaps, listeningKey, visible, onJumpToHeader, gridRows, gridCols, gridGap, gridAspect, hasUnsavedChanges, isInputEditing, isPlatFormExpanded, editingPlatId, editingEmuId, platForm, emuForm, focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex, onClearGrid }
     })
 
     // ── Load / reset when panel opens ─────────────────────────────────────────
@@ -536,6 +537,8 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
                     if (cSub === 'menu') count = 2
                     else if (cSub === 'keyboard') count = KEYBOARD_KEYS.length + 1
                     else if (cSub === 'gamepad') count = 1
+                } else if (ct === 'grid') {
+                    count = 3
                 }
 
                 if (action === 'up') {
@@ -711,6 +714,11 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
                         } else if (cSub === 'gamepad') {
                             setControlsSubTab('menu')
                             setSelectedIndex(1)
+                        }
+                    } else if (ct === 'grid') {
+                        if (idx === 2) {
+                            sfx.confirm()
+                            r.current.onClearGrid?.()
                         }
                     }
                 }
@@ -1268,27 +1276,7 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
             {tab === 'grid' && (
                 <div className="cp-section">
                     <div className="cp-form">
-                        <div className="cp-form__title" style={{ marginBottom: 4 }}>Filas</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <input
-                                type="range" min={minGridDimensions?.minRows ?? 1} max={10} value={gridRows}
-                                onChange={e => { setGridRows(+e.target.value); setGridDirty(true) }}
-                                style={{ flex: 1, accentColor: 'var(--accent)' }}
-                            />
-                            <span style={{ minWidth: 24, textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{gridRows}</span>
-                        </div>
-
-                        <div className="cp-form__title" style={{ marginTop: 20, marginBottom: 4 }}>Columnas</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <input
-                                type="range" min={minGridDimensions?.minCols ?? 1} max={12} value={gridCols}
-                                onChange={e => { setGridCols(+e.target.value); setGridDirty(true) }}
-                                style={{ flex: 1, accentColor: 'var(--accent)' }}
-                            />
-                            <span style={{ minWidth: 24, textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{gridCols}</span>
-                        </div>
-
-                        <div className="cp-form__title" style={{ marginTop: 20, marginBottom: 4 }}>Separación (px)</div>
+                        <div className="cp-form__title" style={{ marginBottom: 4 }}>Separación entre carátulas (px)</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             <input
                                 type="range" min={0} max={32} value={gridGap}
@@ -1298,7 +1286,7 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
                             <span style={{ minWidth: 24, textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{gridGap}</span>
                         </div>
 
-                        <div className="cp-form__title" style={{ marginTop: 20, marginBottom: 4 }}>Proporción (ancho/alto)</div>
+                        <div className="cp-form__title" style={{ marginTop: 24, marginBottom: 4 }}>Proporción de carátulas (ancho / alto)</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             <input
                                 type="range" min={0.5} max={2} step={0.05} value={gridAspect}
@@ -1313,7 +1301,6 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
                                 className="cp-btn cp-btn--ghost"
                                 onClick={() => {
                                     if (gridConfig) {
-                                        setGridRows(gridConfig.rows); setGridCols(gridConfig.cols)
                                         setGridGap(gridConfig.gap); setGridAspect(gridConfig.aspectRatio)
                                     }
                                     setGridDirty(false); sfx.cancel()
@@ -1325,7 +1312,7 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
                             <button
                                 className="cp-btn cp-btn--primary"
                                 onClick={() => {
-                                    onGridConfigChange?.(gridRows, gridCols, gridGap, gridAspect)
+                                    onGridConfigChange?.(gridConfig?.rows ?? 3, gridConfig?.cols ?? 5, gridGap, gridAspect)
                                     setGridDirty(false)
                                 }}
                                 disabled={!gridDirty}
@@ -1334,12 +1321,27 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
                             </button>
                         </div>
 
-                        <div style={{ marginTop: 20, padding: '12px 16px', background: 'var(--bg-hover)', borderRadius: 10, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                        <div style={{ marginTop: 40, borderTop: '1px solid var(--border)', paddingTop: 24 }}>
+                            <div className="cp-form__title" style={{ color: '#ff4444', marginBottom: 8 }}>Limpiar Cuadrícula</div>
+                            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
+                                Elimina todos los juegos de la cuadrícula y repara ranuras bloqueadas o corruptas.
+                            </p>
+                            <button
+                                className="cp-btn"
+                                style={{ background: '#ff4444', color: '#fff', border: 'none', width: '100%', padding: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                                onClick={() => {
+                                    if (window.confirm('¿Seguro que quieres vaciar la cuadrícula y borrar todos los juegos añadidos?')) {
+                                        onClearGrid?.()
+                                    }
+                                }}
+                            >
+                                <Icon icon="mynaui:trash" /> Limpiar cuadrícula y borrar todo
+                            </button>
+                        </div>
+
+                        <div style={{ marginTop: 24, padding: '12px 16px', background: 'var(--bg-hover)', borderRadius: 10, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
                             <Icon icon="mynaui:info-circle" style={{ marginRight: 6 }} />
-                            Los juegos que no quepan por el nuevo tamaño se reordenarán automáticamente en páginas.
-                            {minGridDimensions && (minGridDimensions.minRows > 1 || minGridDimensions.minCols > 1) && (
-                                <span> El mínimo actual es <strong>{minGridDimensions.minCols}×{minGridDimensions.minRows}</strong> por un juego ampliado.</span>
-                            )}
+                            El número de filas y columnas ahora se calcula automáticamente de forma dinámica para ajustarse a tu pantalla y resolución.
                         </div>
                     </div>
                 </div>

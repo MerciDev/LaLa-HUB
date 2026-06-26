@@ -47,6 +47,7 @@ export type AppAction =
   | { type: 'CLOSE_ADD_GAME' }
   | { type: 'GO_HOME' }
   | { type: 'OPEN_DOWNLOADS' }
+  | { type: 'OPEN_PROFILE' }
   // Grid Edit Modes
   | { type: 'ENTER_MOVE_MODE'; payload: HomeSlot }
   | { type: 'EXIT_MOVE_MODE' }
@@ -122,6 +123,7 @@ export interface HomeSlot {
   onMouseEnter?: string
   onMouseLeave?: string
   game?: Game
+  gameRef?: { consoleSlug: string; gameId: string }
   position?: number
   /** How many columns this slot spans (default 1) */
   colSpan?: number
@@ -129,6 +131,11 @@ export interface HomeSlot {
   rowSpan?: number
   scale?: { x: number; y: number }
   page?: number
+  showLabel?: boolean
+  labelPosition?: 'bottom' | 'top' | 'center'
+  showIcon?: boolean
+  iconPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  iconSize?: number
 }
 
 export interface HomeGrid {
@@ -185,6 +192,7 @@ export interface UserProfile {
   email: string
   username: string
   avatarUrl?: string
+  accountType?: string
   createdAt: string
 }
 

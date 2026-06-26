@@ -18,6 +18,7 @@ import AddGamePanel from '../../components/AddGameModal'
 import SettingsPanel from '../../components/SettingsPanel'
 import { DownloadManager } from '../../components/download/DownloadManager'
 import LoginScreen from '../../components/LoginScreen'
+import ProfilePage from '../../components/ProfilePage'
 import BackgroundLayer from '../../components/BackgroundLayer'
 import ModeHUD from '../../components/ModeHUD'
 
@@ -65,6 +66,22 @@ function MainApp(): React.JSX.Element {
     const [socialExpanded, setSocialExpanded] = useState(false)
     const [personalIcons, setPersonalIcons] = useState<IconOption[]>([])
     const [personalExpanded, setPersonalExpanded] = useState(false)
+
+    useEffect(() => {
+        setPersonalIcons(prev => prev.map(icon => {
+            if (icon.id === 'profile') {
+                return {
+                    ...icon,
+                    extraData: {
+                        ...icon.extraData,
+                        username: authState.isLoggedIn && authState.user ? authState.user.username : (icon.extraData?.username || 'Usuario'),
+                        avatar: authState.isLoggedIn && authState.user ? (authState.user.avatarUrl || '') : ''
+                    }
+                }
+            }
+            return icon
+        }))
+    }, [authState])
 
     // --- Info Island ---
     const { displayText, islandWidth, textOpacity, setInfoText, setIslandWidth, collapse: collapseIsland } = useInfoIsland()
@@ -141,6 +158,9 @@ function MainApp(): React.JSX.Element {
     // --- Download Manager ---
     const [downloadManagerVisible, setDownloadManagerVisible] = useState(false)
 
+    // --- Profile Page ---
+    const [profilePageVisible, setProfilePageVisible] = useState(false)
+
     // --- Move Mode ---
     const [moveMode, setMoveMode] = useState<{ slotId: string; ghostPosition: number } | null>(null)
 
@@ -151,6 +171,7 @@ function MainApp(): React.JSX.Element {
     const stateRef = useRef({
         homeGrid, currentPage, selectedSlotIndex, moveMode, resizeMode
     })
+    const persistTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     useEffect(() => {
         stateRef.current = { homeGrid, currentPage, selectedSlotIndex, moveMode, resizeMode }
     })
@@ -282,6 +303,16 @@ function MainApp(): React.JSX.Element {
         collapseIsland()
     }, [lastGridIndex, collapseIsland])
 
+    // ─── Profile Page ──────────────────────────────────────────────────────────
+
+    const closeProfile = useCallback(() => {
+        sfx.close()
+        setProfilePageVisible(false)
+        setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
+        window.api.movementControl.send('SET_SECTION', 'grid')
+        collapseIsland()
+    }, [lastGridIndex, collapseIsland])
+
     // ─── Notify main process of selection changes ────────────────────────────────
 
     useEffect(() => {
@@ -396,6 +427,7 @@ function MainApp(): React.JSX.Element {
                     sfx.close()
                     setDownloadManagerVisible(false)
                     setSettingsPanelVisible(false)
+                    setProfilePageVisible(false)
                     setPersonalExpanded(false)
                     setSocialExpanded(false)
                     setFocusedHeader(null)
@@ -404,6 +436,25 @@ function MainApp(): React.JSX.Element {
                     break
                 case 'OPEN_DOWNLOADS':
                     openDownloadManager()
+                    break
+                case 'OPEN_PROFILE':
+                    sfx.open()
+                    setProfilePageVisible(true)
+                    setSettingsPanelVisible(false)
+                    setAddGamePanelVisible(false)
+                    setDownloadManagerVisible(false)
+                    setFocusedHeader(null)
+                    setSocialExpanded(false)
+                    setPersonalExpanded(false)
+                    setIslandWidth('56px')
+                    setLastGridIndex(stateRef.current.selectedSlotIndex ?? 0)
+                    setSelectedSlotIndex(null)
+                    window.api.movementControl.send('SET_SECTION', 'profile')
+                    break
+                case 'CLOSE_PROFILE':
+                    sfx.close()
+                    setProfilePageVisible(false)
+                    setSelectedSlotIndex(prev => prev === null ? (lastGridIndex || 0) : prev)
                     break
                 case 'CLOSE_SETTINGS':
                     sfx.close()
@@ -647,7 +698,7 @@ function MainApp(): React.JSX.Element {
                 }
             } else if (section === 'add-game-modal') {
                 window.dispatchEvent(new CustomEvent('panel-move', { detail: action }))
-            } else if (section === 'settings') {
+            } else if (section === 'settings' || section === 'profile') {
                 window.dispatchEvent(new CustomEvent('panel-move', { detail: action }))
             } else if (section === 'download-manager') {
                 // download-manager handles its own keyboard events
@@ -675,6 +726,32 @@ function MainApp(): React.JSX.Element {
         persistItems(repacked)
         sfx.confirm()
     }, [homeGrid.items, persistItems])
+
+    const handleAutoGridDimensionsChange = useCallback((newRows: number, newCols: number) => {
+        setHomeGrid(prev => {
+            if (prev.rows === newRows && prev.cols === newCols) return prev
+            const { minRows, minCols } = computeMinGridDimensions(prev.items)
+            const safeRows = Math.max(newRows, minRows)
+            const safeCols = Math.max(newCols, minCols)
+            if (prev.rows === safeRows && prev.cols === safeCols) return prev
+
+            const repacked = repackItemsAfterResize(prev.items, safeCols, safeRows)
+
+            if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current)
+            persistTimeoutRef.current = setTimeout(() => {
+                window.api?.slots?.addMultiple(repacked).catch(console.error)
+            }, 500)
+
+            return { ...prev, rows: safeRows, cols: safeCols, items: repacked }
+        })
+    }, [])
+
+    const handleClearGrid = useCallback(async () => {
+        sfx.confirm()
+        setHomeGrid(prev => ({ ...prev, items: [] }))
+        setSelectedSlotIndex(0)
+        await window.api?.slots?.clearAll?.()
+    }, [])
 
     // ─── Render ───────────────────────────────────────────────────────────────────
 
@@ -713,7 +790,7 @@ function MainApp(): React.JSX.Element {
             {/* ── Main content area ── */}
             <div className="main-view-area">
                 <AnimatePresence mode="wait">
-                    {!settingsPanelVisible && !addGamePanelVisible && !downloadManagerVisible ? (
+                    {!settingsPanelVisible && !addGamePanelVisible && !downloadManagerVisible && !profilePageVisible ? (
                         <motion.div
                             key="grid"
                             className="content"
@@ -758,6 +835,7 @@ function MainApp(): React.JSX.Element {
                                     if (moveMode) return
                                     if (item?.onMouseLeave) window.api.gridItemControl(item.onMouseLeave, item)
                                 }}
+                                onGridDimensionsAutoChange={handleAutoGridDimensionsChange}
                             />
                         </motion.div>
                     ) : settingsPanelVisible ? (
@@ -790,6 +868,7 @@ function MainApp(): React.JSX.Element {
                                     setHomeGrid(prev => ({ ...prev, gap, aspectRatio }))
                                 }}
                                 minGridDimensions={computeMinGridDimensions(homeGrid.items)}
+                                onClearGrid={handleClearGrid}
                             />
                         </motion.div>
                     ) : addGamePanelVisible ? (
@@ -822,13 +901,30 @@ function MainApp(): React.JSX.Element {
                                 onClose={closeDownloadManager}
                             />
                         </motion.div>
+                    ) : profilePageVisible ? (
+                        <motion.div
+                            key="profile"
+                            className="content content--panel"
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 10 }}
+                            transition={{ duration: 0.2 }}
+                        >
+                            <ProfilePage
+                                visible={profilePageVisible}
+                                authState={authState}
+                                onLogin={handleAuthSuccess}
+                                onClose={closeProfile}
+                                onOpenAddGame={() => { closeProfile(); setEditSlot(null); setAddGamePanelVisible(true); }}
+                            />
+                        </motion.div>
                     ) : null}
                 </AnimatePresence>
             </div>
 
             {/* ── Footer ── */}
             <AnimatePresence>
-                {!settingsPanelVisible && !addGamePanelVisible && !downloadManagerVisible && !moveMode && !resizeMode && (
+                {!settingsPanelVisible && !addGamePanelVisible && !downloadManagerVisible && !profilePageVisible && !moveMode && !resizeMode && (
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}

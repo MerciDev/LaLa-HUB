@@ -164,3 +164,12 @@
 .context-icon {
   margin-right: 8px;
 }
+
+.slot-label.slot-label--always {
+  opacity: 1 !important;
+}
+.homeSlot:hover .slot-label[style*="top: 50%"],
+.homeSlot.selected .slot-label[style*="top: 50%"],
+.slot-label[style*="top: 50%"] {
+  transform: translateY(-50%) !important;
+}

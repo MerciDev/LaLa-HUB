@@ -94,5 +94,5 @@ export async function fetchFromTable<T>(
     return []
   }
 
-  return data?.map(row => row.data || row) || []
+  return data?.map(row => (row && typeof row === 'object' && 'data' in row && row.data) ? { id: row.id, name: row.name, ...row.data } : row) || []
 }
