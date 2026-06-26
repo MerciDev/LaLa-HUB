@@ -122,6 +122,7 @@ export interface SaveFileInfo {
   sizeBytes: number
   modifiedTime: number
   formattedDate: string
+  description?: string
 }
 
 export interface HomeSlot {

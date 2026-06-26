@@ -41,6 +41,8 @@ function normalizeGameForResponse(game: any): any {
     console: game.console || game.data?.console || null,
     releaseDate: game.releaseDate || game.release_date || game.data?.releaseDate || game.data?.release_date || null,
     platforms: game.platforms || game.data?.platforms || [],
+    savesPath: game.savesPath || game.data?.savesPath || null,
+    savesExtension: game.savesExtension || game.data?.savesExtension || null,
     images: {
       cover,
       square,

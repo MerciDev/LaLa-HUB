@@ -107,7 +107,13 @@ const api = {
     pushCloud: (slotId: string, overrides?: { savesPath?: string; savesExtension?: string }): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('saves-push-cloud', slotId, overrides),
     pullCloud: (slotId: string, overrides?: { savesPath?: string; savesExtension?: string }): Promise<{ success: boolean; error?: string }> =>
-      ipcRenderer.invoke('saves-pull-cloud', slotId, overrides)
+      ipcRenderer.invoke('saves-pull-cloud', slotId, overrides),
+    saveDescription: (savePath: string, description: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('saves-save-description', savePath, description),
+    deleteFile: (savePath: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('saves-delete-file', savePath),
+    deleteCloud: (slotId: string, filename: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('saves-delete-cloud', slotId, filename)
   },
 
   /** Emulator management (used by Settings panel). */

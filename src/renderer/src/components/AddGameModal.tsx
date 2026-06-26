@@ -5,6 +5,7 @@ import { sfx } from '../utils/audioManager'
 import SidePanel, { ConsolePanelTab } from './SidePanel'
 import { useDialog } from '../hooks/useDialog'
 import { useToast } from '../hooks/useToast'
+import { createPortal } from 'react-dom'
 
 interface AddGameForm {
     name: string
@@ -135,6 +136,10 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
     const [saveFiles, setSaveFiles] = useState<import('../../../shared/types').SaveFileInfo[]>([])
     const [loadingSaves, setLoadingSaves] = useState(false)
     const [syncingCloud, setSyncingCloud] = useState(false)
+    const [selectedSaveFile, setSelectedSaveFile] = useState<import('../../../shared/types').SaveFileInfo | null>(null)
+    const [saveDescriptionInput, setSaveDescriptionInput] = useState('')
+    const [savingDesc, setSavingDesc] = useState(false)
+    const [saveDetailFocusIndex, setSaveDetailFocusIndex] = useState(0)
 
     useEffect(() => {
         if (!visible || tab !== 'saves' || !form.savesPath) {
@@ -473,6 +478,13 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
         sfx.confirm()
     }, [])
 
+    // ── Resolve {game_root} in saves path ──
+    const resolveSavesPath = useCallback((savesPath: string, gamePath: string): string => {
+        if (!savesPath || !gamePath) return savesPath || ''
+        const dir = gamePath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
+        return savesPath.replace(/\{game_root\}/g, dir)
+    }, [])
+
     // ── Handle Import Game ──
     const handleImportGame = useCallback((res: any) => {
         const imgs = res.images || {}
@@ -480,6 +492,9 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
             if (!u) return ''
             return u
         }
+
+        const rawSavesPath = res.savesPath || ''
+        const currentPath = r.current.form.path
         
         setForm(p => ({
             ...p,
@@ -492,6 +507,8 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
             verticalImage: imgs.vertical ? normalize(imgs.vertical) : p.verticalImage,
             horizontalImage: imgs.horizontal ? normalize(imgs.horizontal) : p.horizontalImage,
             iconImage: imgs.icon ? normalize(imgs.icon) : p.iconImage,
+            savesPath: currentPath ? resolveSavesPath(rawSavesPath, currentPath) : rawSavesPath || p.savesPath,
+            savesExtension: res.savesExtension || p.savesExtension,
         }))
         setTab('general')
         setFocusArea('content')
@@ -527,8 +544,8 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
             } else if (tab === 'saves') {
                 const hasBtns = !!(editSlot && form.savesPath)
-                const savesStartAt = hasBtns ? 5 : 3
-                const id = contentIndex === 0 ? 'ag-saves-path' : contentIndex === 1 ? 'ag-saves-ext' : contentIndex === 2 ? 'ag-cloud-sync' : (hasBtns && contentIndex === 3) ? 'ag-btn-push' : (hasBtns && contentIndex === 4) ? 'ag-btn-pull' : `ag-save-card-${contentIndex - savesStartAt}`
+                const savesStartAt = 6
+                const id = contentIndex === 0 ? 'ag-saves-path' : contentIndex === 1 ? 'ag-saves-ext' : contentIndex === 2 ? 'ag-cloud-sync' : (hasBtns && contentIndex === 3) ? 'ag-btn-push' : (hasBtns && contentIndex === 4) ? 'ag-btn-pull' : contentIndex === 5 ? 'ag-saves-sync' : `ag-save-card-${contentIndex - savesStartAt}`
                 const el = document.getElementById(id)
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
             }
@@ -974,32 +991,43 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                 } else if (ct === 'saves') {
                     const cols = 4
                     const hasBtns = !!(r.current.editSlot && r.current.form.savesPath)
-                    const savesStartAt = hasBtns ? 5 : 3
+                    const syncIdx = 5
+                    const savesStartAt = 6
                     const sFiles = r.current.saveFiles || []
                     const maxSaves = savesStartAt + sFiles.length
 
                     if (action === 'up') {
-                        if (cIdx >= savesStartAt + cols) {
-                            sfx.navigate(); setContentIndex(cIdx - cols)
-                        } else if (cIdx >= savesStartAt) {
-                            sfx.navigate(); setContentIndex(hasBtns ? (cIdx - savesStartAt >= 2 ? 4 : 3) : 2)
-                        } else if (cIdx === 3 || cIdx === 4) {
+                        if (cIdx >= savesStartAt) {
+                            sfx.navigate(); setContentIndex(hasBtns ? 3 : syncIdx)
+                        } else if (cIdx === 5) {
+                            // sync button: no hacer nada
+                        } else if (hasBtns && cIdx === 4) {
+                            sfx.navigate(); setContentIndex(3)
+                        } else if (hasBtns && cIdx === 3) {
                             sfx.navigate(); setContentIndex(2)
                         } else if (cIdx > 0) {
                             sfx.navigate(); setContentIndex(cIdx - 1)
                         }
                     } else if (action === 'down') {
-                        if (cIdx < 2) {
-                            sfx.navigate(); setContentIndex(cIdx + 1)
+                        if (cIdx === 0) {
+                            sfx.navigate(); setContentIndex(1)
+                        } else if (cIdx === syncIdx) {
+                            sfx.navigate(); setContentIndex(1)
+                        } else if (cIdx === 1) {
+                            sfx.navigate(); setContentIndex(2)
                         } else if (cIdx === 2) {
                             if (hasBtns) {
                                 sfx.navigate(); setContentIndex(3)
                             } else if (sFiles.length > 0) {
                                 sfx.navigate(); setContentIndex(savesStartAt)
                             }
-                        } else if (cIdx === 3 || cIdx === 4) {
+                        } else if (cIdx === 3 && hasBtns) {
                             if (sFiles.length > 0) {
-                                sfx.navigate(); setContentIndex(savesStartAt + (cIdx === 4 && sFiles.length > 1 ? 1 : 0))
+                                sfx.navigate(); setContentIndex(savesStartAt)
+                            }
+                        } else if (cIdx === 4 && hasBtns) {
+                            if (sFiles.length > 0) {
+                                sfx.navigate(); setContentIndex(savesStartAt)
                             }
                         } else {
                             const row = Math.floor((cIdx - savesStartAt) / cols)
@@ -1009,7 +1037,9 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                             }
                         }
                     } else if (action === 'left') {
-                        if (cIdx === 4) {
+                        if (cIdx === syncIdx) {
+                            sfx.navigate(); setContentIndex(0)
+                        } else if (cIdx === 4 && hasBtns) {
                             sfx.navigate(); setContentIndex(3)
                         } else if (cIdx >= savesStartAt) {
                             if ((cIdx - savesStartAt) % cols !== 0) {
@@ -1017,7 +1047,9 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                             }
                         }
                     } else if (action === 'right') {
-                        if (cIdx === 3) {
+                        if (cIdx === 0) {
+                            sfx.navigate(); setContentIndex(syncIdx)
+                        } else if (cIdx === 3 && hasBtns) {
                             sfx.navigate(); setContentIndex(4)
                         } else if (cIdx >= savesStartAt) {
                             if ((cIdx - savesStartAt) % cols < cols - 1 && cIdx < maxSaves - 1) {
@@ -1039,6 +1071,12 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                             if (hasPremiumAccess) handlePushCloud(); else sfx.cancel()
                         } else if (cIdx === 4 && hasBtns) {
                             if (hasPremiumAccess) handlePullCloud(); else sfx.cancel()
+                        } else if (cIdx === syncIdx) {
+                            handleSyncSavesPath()
+                        } else if (cIdx >= savesStartAt) {
+                            const sIdx = cIdx - savesStartAt
+                            const sf = r.current.saveFiles[sIdx]
+                            if (sf) handleOpenSaveDetail(sf)
                         }
                     } else if (action === 'back') {
                         sfx.navigate(); setFocusArea('nav')
@@ -1114,6 +1152,30 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
         if (path) setForm(prev => ({ ...prev, savesPath: path }))
     }, [])
 
+    const handleSyncSavesPath = useCallback(async () => {
+        const searchId = r.current.form.searchId
+        if (!searchId) { sfx.error(); showToast('No hay un ID de búsqueda para sincronizar', 'warning'); return }
+        const gamePath = r.current.form.path
+        if (!gamePath) { sfx.error(); showToast('Establece la ruta del juego primero', 'warning'); return }
+        try {
+            const gameData = await window.api.gameApi.getGameById(searchId)
+            if (!gameData || !gameData.savesPath) {
+                sfx.error(); showToast('No se encontraron datos de guardado en la web', 'warning'); return
+            }
+            const resolved = resolveSavesPath(gameData.savesPath, gamePath)
+            setForm(p => ({
+                ...p,
+                savesPath: resolved,
+                savesExtension: gameData.savesExtension || p.savesExtension,
+            }))
+            sfx.confirm()
+            showToast('Ruta de guardados sincronizada', 'success')
+        } catch {
+            sfx.error()
+            showToast('Error al conectar con la web', 'error')
+        }
+    }, [showToast])
+
     const handlePushCloud = useCallback(async () => {
         if (!editSlot || syncingCloud) return
         setSyncingCloud(true)
@@ -1144,6 +1206,140 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
             sfx.cancel()
         }
     }, [editSlot, syncingCloud, showToast, form.savesPath, form.savesExtension])
+
+    const handleOpenSaveDetail = useCallback((sf: import('../../../shared/types').SaveFileInfo) => {
+        setSelectedSaveFile(sf)
+        setSaveDescriptionInput(sf.description || '')
+    }, [])
+
+    const handleCloseSaveDetail = useCallback(() => {
+        setSelectedSaveFile(null)
+        setSaveDescriptionInput('')
+    }, [])
+
+    const handleDeleteCloudSave = useCallback(async () => {
+        if (!selectedSaveFile || !editSlot) return
+        setSavingDesc(true)
+        const res = await window.api.saves.deleteCloud(editSlot.id, selectedSaveFile.filename)
+        setSavingDesc(false)
+        if (res.success) {
+            setSelectedSaveFile(null)
+            setSaveDescriptionInput('')
+            sfx.confirm()
+            showToast('Archivo eliminado de la nube', 'success')
+        } else {
+            sfx.error()
+            showToast(res.error || 'Error al eliminar de la nube', 'error')
+        }
+    }, [selectedSaveFile, editSlot, showToast])
+
+    const saveDetailFocusRef = useRef(0)
+    const textareaEditingRef = useRef(false)
+    useEffect(() => {
+        if (!selectedSaveFile) return
+        saveDetailFocusRef.current = 1
+        setSaveDetailFocusIndex(1)
+        textareaEditingRef.current = false
+        const handler = (e: Event) => {
+            const action = (e as CustomEvent<string>).detail
+            const idx = saveDetailFocusRef.current
+
+            // ── Textarea editing mode ──
+            if (idx === 1 && textareaEditingRef.current) {
+                if (action === 'back' || action === 'escape') {
+                    textareaEditingRef.current = false
+                    const el = document.getElementById('save-detail-btn-1') as HTMLTextAreaElement
+                    el?.blur()
+                    sfx.cancel()
+                    return
+                }
+                if (action === 'select') {
+                    textareaEditingRef.current = false
+                    sfx.cancel()
+                    return
+                }
+                // arrow keys etc → exit editing and navigate
+                textareaEditingRef.current = false
+            }
+
+            if (action === 'up') {
+                if (idx === 4) { saveDetailFocusRef.current = 2; setSaveDetailFocusIndex(2); sfx.navigate(); return }
+                if (idx === 2) { saveDetailFocusRef.current = 1; setSaveDetailFocusIndex(1); sfx.navigate(); return }
+                if (idx === 1) { saveDetailFocusRef.current = 0; setSaveDetailFocusIndex(0); sfx.navigate(); return }
+                if (idx === 3) { saveDetailFocusRef.current = 2; setSaveDetailFocusIndex(2); sfx.navigate(); return }
+                if (idx === 0) { /* nothing above close */ return }
+            }
+            if (action === 'down') {
+                if (idx === 0) { saveDetailFocusRef.current = 1; setSaveDetailFocusIndex(1); sfx.navigate(); return }
+                if (idx === 1) { saveDetailFocusRef.current = 2; setSaveDetailFocusIndex(2); sfx.navigate(); return }
+                if (idx === 2) { saveDetailFocusRef.current = 4; setSaveDetailFocusIndex(4); sfx.navigate(); return }
+                if (idx === 3) { return }
+                if (idx === 4) { return }
+            }
+            if (action === 'left') {
+                if (idx === 3) { saveDetailFocusRef.current = 2; setSaveDetailFocusIndex(2); sfx.navigate(); return }
+                if (idx === 2) { saveDetailFocusRef.current = 1; setSaveDetailFocusIndex(1); sfx.navigate(); return }
+            }
+            if (action === 'right') {
+                if (idx === 2) { saveDetailFocusRef.current = 3; setSaveDetailFocusIndex(3); sfx.navigate(); return }
+            }
+            if (action === 'select') {
+                if (idx === 1) {
+                    textareaEditingRef.current = true
+                    const el = document.getElementById('save-detail-btn-1') as HTMLTextAreaElement
+                    el?.focus()
+                    sfx.confirm()
+                    return
+                }
+                const el = document.getElementById(`save-detail-btn-${idx}`)
+                if (el) { sfx.confirm(); el.click() }
+                return
+            }
+            if (action === 'back' || action === 'escape') {
+                handleCloseSaveDetail()
+            }
+        }
+        window.addEventListener('panel-move', handler)
+        return () => window.removeEventListener('panel-move', handler)
+    }, [selectedSaveFile, handleCloseSaveDetail])
+
+    const handleSaveDescription = useCallback(async () => {
+        if (!selectedSaveFile) return
+        setSavingDesc(true)
+        const res = await window.api.saves.saveDescription(selectedSaveFile.path, saveDescriptionInput)
+        setSavingDesc(false)
+        if (res.success) {
+            setSaveFiles(prev => prev.map(sf =>
+                sf.path === selectedSaveFile.path
+                    ? { ...sf, description: saveDescriptionInput.trim() || undefined }
+                    : sf
+            ))
+            setSelectedSaveFile(null)
+            setSaveDescriptionInput('')
+            sfx.confirm()
+            showToast('Descripción guardada', 'success')
+        } else {
+            sfx.error()
+            showToast('Error al guardar la descripción', 'error')
+        }
+    }, [selectedSaveFile, saveDescriptionInput, showToast])
+
+    const handleDeleteSaveFile = useCallback(async () => {
+        if (!selectedSaveFile) return
+        setSavingDesc(true)
+        const res = await window.api.saves.deleteFile(selectedSaveFile.path)
+        setSavingDesc(false)
+        if (res.success) {
+            setSaveFiles(prev => prev.filter(sf => sf.path !== selectedSaveFile.path))
+            setSelectedSaveFile(null)
+            setSaveDescriptionInput('')
+            sfx.confirm()
+            showToast('Archivo eliminado', 'success')
+        } else {
+            sfx.error()
+            showToast('Error al eliminar el archivo', 'error')
+        }
+    }, [selectedSaveFile, showToast])
 
     const handleBrowseArtwork = useCallback(async () => {
         const target = r.current.mediaTarget
@@ -1890,20 +2086,31 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                     </div>
                     
                     {/* Saves Path */}
-                    <div 
-                        id="ag-saves-path"
-                        className={`ag-field-row ${isFocused('content', 0) ? 'ag-field-row--focused' : ''}`}
-                        onClick={() => { setFocusArea('content'); setContentIndex(0); handleBrowseSavesPath() }}
-                        style={{ marginBottom: 12 }}
-                    >
-                        <Icon icon="mynaui:folder" className="ag-field-icon" />
-                        <div className="ag-field-body">
-                            <div className="ag-field-label">Ruta de Partidas Guardadas</div>
-                            <div className="ag-field-path-row">
-                                <div className="ag-field-path-text">{form.savesPath || 'Seleccionar carpeta de saves...'}</div>
-                                <Icon icon="mynaui:external-link" />
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                        <div 
+                            id="ag-saves-path"
+                            className={`ag-field-row ${isFocused('content', 0) ? 'ag-field-row--focused' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(0); handleBrowseSavesPath() }}
+                            style={{ flex: 1, marginBottom: 0 }}
+                        >
+                            <Icon icon="mynaui:folder" className="ag-field-icon" />
+                            <div className="ag-field-body">
+                                <div className="ag-field-label">Ruta de Partidas Guardadas</div>
+                                <div className="ag-field-path-row">
+                                    <div className="ag-field-path-text">{form.savesPath || 'Seleccionar carpeta de saves...'}</div>
+                                    <Icon icon="mynaui:external-link" />
+                                </div>
                             </div>
                         </div>
+                        <button
+                            id="ag-saves-sync"
+                            className={`ag-field-row ${isFocused('content', 5) ? 'ag-field-row--focused' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(5); handleSyncSavesPath() }}
+                            style={{ aspectRatio: 1, alignSelf: 'stretch', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 0, cursor: 'pointer', borderRadius: 12, border: isFocused('content', 5) ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}
+                            title="Sincronizar ruta desde la web"
+                        >
+                            <Icon icon="mynaui:refresh" style={{ fontSize: 20, color: 'var(--accent)' }} />
+                        </button>
                     </div>
 
                     {/* Saves Extension Input */}
@@ -1988,7 +2195,7 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                             <div className="ag-api-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 14 }}>
                                 {saveFiles.map((sf, i) => {
                                     const hasBtns = !!(isEditing && form.savesPath)
-                                    const cardIdx = (hasBtns ? 5 : 3) + i
+                                    const cardIdx = 6 + i
                                     const isFoc = isFocused('content', cardIdx)
                                     const imgUrl = form.squareImage || editSlot?.squareImage || form.coverImage || editSlot?.coverImage
                                     return (
@@ -1996,8 +2203,9 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                                             key={sf.filename}
                                             id={`ag-save-card-${i}`}
                                             className={`ag-api-card ${isFoc ? 'ag-api-card--focused' : ''}`}
-                                            onClick={() => { setFocusArea('content'); setContentIndex(cardIdx) }}
-                                            style={{ cursor: 'default', display: 'flex', flexDirection: 'column', padding: 8, background: isFoc ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)', border: isFoc ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.06)', borderRadius: 10, transition: 'all 0.2s' }}
+                                            onClick={() => { setFocusArea('content'); setContentIndex(cardIdx); handleOpenSaveDetail(sf) }}
+                                            onDoubleClick={() => handleOpenSaveDetail(sf)}
+                                            style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', padding: 8, background: isFoc ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)', border: isFoc ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.06)', borderRadius: 10, transition: 'all 0.2s' }}
                                         >
                                             <div className="ag-api-card-img-wrap" style={{ aspectRatio: '1/1', width: '100%', borderRadius: 6, overflow: 'hidden', background: 'rgba(0,0,0,0.3)', marginBottom: 8, position: 'relative' }}>
                                                 {imgUrl ? (
@@ -2014,6 +2222,11 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                                             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 2 }} title={sf.filename}>
                                                 {sf.filename}
                                             </div>
+                                            {sf.description && (
+                                                <div style={{ fontSize: 10, color: 'var(--accent)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontStyle: 'italic', marginBottom: 2 }}>
+                                                    {sf.description}
+                                                </div>
+                                            )}
                                             <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                                                 {sf.formattedDate}
                                             </div>
@@ -2032,6 +2245,104 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                         </div>
                     )}
                 </div>
+            )}
+
+            {/* ── SAVE DETAIL MODAL (portal to body to avoid backdrop-filter clipping) ── */}
+            {selectedSaveFile && createPortal(
+                <div className="ag-dialog-overlay" style={{
+                    position: 'fixed', inset: 0, zIndex: 1000,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+                }} onClick={handleCloseSaveDetail}>
+                    <div className="cp-form ag-save-detail" onClick={e => e.stopPropagation()} style={{
+                        background: 'var(--bg-secondary, #1a1d23)', borderRadius: 16,
+                        padding: 24, width: '90%', maxWidth: 400,
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{selectedSaveFile.filename}</div>
+                            <button id="save-detail-btn-0" onClick={handleCloseSaveDetail} onFocus={() => { saveDetailFocusRef.current = 0; setSaveDetailFocusIndex(0) }} style={{
+                                background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4,
+                                outline: saveDetailFocusIndex === 0 ? '2px solid var(--accent)' : 'none',
+                                outlineOffset: 2, borderRadius: 6
+                            }}>
+                                <Icon icon="mynaui:x" style={{ fontSize: 20 }} />
+                            </button>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
+                            {selectedSaveFile.formattedDate} · {(selectedSaveFile.sizeBytes / 1024).toFixed(1)} KB
+                        </div>
+                        <div style={{ marginBottom: 16 }}>
+                            <div className="ag-field-label" style={{ marginBottom: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Descripción</div>
+                            <textarea
+                                id="save-detail-btn-1"
+                                className="ag-field-input"
+                                value={saveDescriptionInput}
+                                onChange={e => setSaveDescriptionInput(e.target.value)}
+                                onFocus={() => { saveDetailFocusRef.current = 1; setSaveDetailFocusIndex(1) }}
+                                placeholder="Añade una descripción para este guardado..."
+                                style={{
+                                    width: '100%', minHeight: 80, padding: 10, fontSize: 13, borderRadius: 8,
+                                    background: 'rgba(0,0,0,0.3)', border: saveDetailFocusIndex === 1 ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.08)',
+                                    color: '#fff', resize: 'vertical', outline: 'none', pointerEvents: 'auto'
+                                }}
+                                disabled={savingDesc}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                                id="save-detail-btn-2"
+                                onClick={handleSaveDescription}
+                                disabled={savingDesc}
+                                onFocus={() => { saveDetailFocusRef.current = 2; setSaveDetailFocusIndex(2) }}
+                                style={{
+                                    flex: 1, padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                                    background: savingDesc ? 'rgba(99,102,241,0.4)' : saveDetailFocusIndex === 2 ? 'var(--accent)' : 'rgba(99,102,241,0.2)',
+                                    color: '#fff', border: saveDetailFocusIndex === 2 ? '1px solid rgba(255,255,255,0.3)' : 'none',
+                                    cursor: savingDesc ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
+                                    justifyContent: 'center', gap: 6, opacity: savingDesc ? 0.6 : 1
+                                }}
+                            >
+                                {savingDesc ? <Icon icon="mynaui:spinner" className="spin" /> : <Icon icon="mynaui:check" />}
+                                Guardar
+                            </button>
+                            <button
+                                id="save-detail-btn-3"
+                                onClick={handleDeleteSaveFile}
+                                disabled={savingDesc}
+                                onFocus={() => { saveDetailFocusRef.current = 3; setSaveDetailFocusIndex(3) }}
+                                style={{
+                                    padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                                    background: saveDetailFocusIndex === 3 ? 'rgba(255,80,80,0.3)' : 'rgba(255,80,80,0.15)',
+                                    color: '#ff6666', border: saveDetailFocusIndex === 3 ? '1px solid rgba(255,80,80,0.5)' : '1px solid rgba(255,80,80,0.2)',
+                                    cursor: savingDesc ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
+                                    justifyContent: 'center', gap: 6, opacity: savingDesc ? 0.6 : 1
+                                }}
+                            >
+                                <Icon icon="mynaui:trash" />
+                                Eliminar
+                            </button>
+                        </div>
+                        <button
+                            id="save-detail-btn-4"
+                            onClick={handleDeleteCloudSave}
+                            disabled={savingDesc || !editSlot}
+                            onFocus={() => { saveDetailFocusRef.current = 4; setSaveDetailFocusIndex(4) }}
+                            style={{
+                                width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                                background: saveDetailFocusIndex === 4 ? 'rgba(255,160,50,0.25)' : 'rgba(255,160,50,0.12)',
+                                color: '#ffa030', border: saveDetailFocusIndex === 4 ? '1px solid rgba(255,160,50,0.5)' : '1px solid rgba(255,160,50,0.2)',
+                                cursor: savingDesc ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
+                                justifyContent: 'center', gap: 6, opacity: savingDesc ? 0.6 : 1, marginTop: 8
+                            }}
+                        >
+                            <Icon icon="mynaui:cloud-x" />
+                            Eliminar de la nube
+                        </button>
+                    </div>
+                </div>,
+                document.body
             )}
 
             {/* ── OPTIONS TAB ── */}

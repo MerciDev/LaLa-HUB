@@ -44,6 +44,9 @@ export interface API {
     getFiles: (dirPath: string, extension?: string) => Promise<SaveFileInfo[]>
     pushCloud: (slotId: string, overrides?: { savesPath?: string; savesExtension?: string }) => Promise<{ success: boolean; error?: string }>
     pullCloud: (slotId: string, overrides?: { savesPath?: string; savesExtension?: string }) => Promise<{ success: boolean; error?: string }>
+    saveDescription: (savePath: string, description: string) => Promise<{ success: boolean }>
+    deleteFile: (savePath: string) => Promise<{ success: boolean }>
+    deleteCloud: (slotId: string, filename: string) => Promise<{ success: boolean; error?: string }>
   }
 
   /** Emulator manager — used by the Settings panel. */
