@@ -3,6 +3,8 @@ import { Icon } from '@iconify/react'
 import { AuthState, AuthResult, HomeSlot } from '../../../shared/types'
 import { sfx } from '../utils/audioManager'
 import SidePanel, { ConsolePanelTab } from './SidePanel'
+import { useToast } from '../hooks/useToast'
+import { useDialog } from '../hooks/useDialog'
 import './ProfilePage.css'
 
 interface ProfilePageProps {
@@ -25,6 +27,8 @@ const GUEST_TABS: ConsolePanelTab[] = [
 ]
 
 function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: ProfilePageProps): React.JSX.Element {
+    const { showToast } = useToast()
+    const { showDialog } = useDialog()
     const isLoggedIn = authState.isLoggedIn
     const user = authState.user
 
@@ -34,7 +38,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
     )
 
     const [tab, setTab] = useState<string>('overview')
-    const [focusArea, setFocusArea] = useState<'nav' | 'content' | 'nav_close' | 'nav_save' | 'footer'>('nav')
+    const [focusArea, setFocusArea] = useState<'nav' | 'content' | 'nav_close' | 'nav_save' | 'footer' | 'game-actions'>('nav')
     const [selectedIndex, setSelectedIndex] = useState(0)
     const [isInputEditing, setIsInputEditing] = useState(false)
 
@@ -44,6 +48,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
     const [libFilterConsole, setLibFilterConsole] = useState('todas')
 
     // Form states
+    const [autoSync, setAutoSync] = useState(true)
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [username, setUsername] = useState('')
@@ -51,6 +56,35 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
     const [newAvatarUrl, setNewAvatarUrl] = useState('')
     const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
+    const [syncingCloud, setSyncingCloud] = useState(false)
+    const [expandedGameId, setExpandedGameId] = useState<string | null>(null)
+
+    const handleDeleteGame = useCallback(async (slotId: string) => {
+        try {
+            await window.api.slots?.remove?.(slotId)
+            const updated = await window.api.slots?.getAll?.()
+            setLibrarySlots(updated || [])
+            setExpandedGameId(null)
+            setFocusArea('content')
+            setSelectedIndex(0)
+            showToast('Juego eliminado', 'success')
+        } catch (e: any) {
+            console.error(e)
+            showToast(`Error eliminando juego: ${e.message}`, 'error')
+        }
+    }, [showToast])
+
+    const confirmDeleteGame = useCallback((slot: HomeSlot) => {
+        showDialog({
+            title: 'Confirmar eliminación',
+            message: `¿Seguro que quieres eliminar "${slot.label || slot.game?.name}"?`,
+            icon: 'mynaui:trash',
+            actions: [
+                { label: 'Cancelar', variant: 'secondary', onClick: () => { sfx.cancel() } },
+                { label: 'Eliminar', variant: 'danger', onClick: () => { sfx.confirm(); handleDeleteGame(slot.id) } }
+            ]
+        })
+    }, [showDialog, handleDeleteGame])
 
     useEffect(() => {
         if (visible && tab === 'library') {
@@ -89,10 +123,10 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
     const activeTabs = isLoggedIn ? LOGGED_IN_TABS : GUEST_TABS
 
     const stateRef = useRef({
-        visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username
+        visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame
     })
     useEffect(() => {
-        stateRef.current = { visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username }
+        stateRef.current = { visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame }
     })
 
     // Reset when opening panel or auth changes
@@ -237,26 +271,56 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
         }
     }
 
-    const handleForceSync = async () => {
-        if (!hasPremiumAccess) return
-        setLoading(true)
+    const isFocused = (area: string, idx: number) => focusArea === area && selectedIndex === idx
+
+    const handlePushCloud = useCallback(async () => {
+        if (!hasPremiumAccess || syncingCloud) return
+        setSyncingCloud(true)
         setError(null)
         try {
-            await window.api.sync.trigger()
-            sfx.confirm()
-            setError('Sincronización de guardados iniciada en segundo plano')
-        } catch {
+            const res = await window.api.sync?.pushCloud?.()
+            setSyncingCloud(false)
+            if (res?.success) {
+                showToast('Archivos locales de biblioteca subidos a la nube con éxito', 'success')
+                sfx.confirm()
+            } else {
+                showToast(res?.error || 'Error al subir a la nube', 'error')
+                sfx.cancel()
+            }
+        } catch (e: any) {
+            setSyncingCloud(false)
+            showToast(e.message || 'Error de conexión', 'error')
             sfx.error()
-            setError('Error al iniciar la sincronización de guardados')
-        } finally {
-            setLoading(false)
         }
-    }
+    }, [hasPremiumAccess, syncingCloud, showToast])
+
+    const handlePullCloud = useCallback(async () => {
+        if (!hasPremiumAccess || syncingCloud) return
+        setSyncingCloud(true)
+        setError(null)
+        try {
+            const res = await window.api.sync?.pullCloud?.()
+            setSyncingCloud(false)
+            if (res?.success) {
+                showToast('Biblioteca descargada y aplicada correctamente', 'success')
+                sfx.confirm()
+                window.api.slots?.getAll?.().then(res => setLibrarySlots(res || []))
+            } else {
+                showToast(res?.error || 'Error al descargar de la nube', 'error')
+                sfx.cancel()
+            }
+        } catch (e: any) {
+            setSyncingCloud(false)
+            showToast(e.message || 'Error de conexión', 'error')
+            sfx.error()
+        }
+    }, [hasPremiumAccess, syncingCloud, showToast])
 
     // Keyboard & Gamepad navigation
     useEffect(() => {
         if (!visible) return
         const handler = (e: CustomEvent) => {
+            if (document.querySelector('.ag-dialog-overlay')) return
             const action = e.detail
             const { visible: vis, tab: curTab, focusArea: area, selectedIndex: idx, isInputEditing: editing, activeTabs: tabs } = stateRef.current
             if (!vis || editing) return
@@ -288,12 +352,66 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
             }
 
             if (area === 'content') {
+                const hasAdd = stateRef.current.hasAddGame
+                const searchIdx = hasAdd ? 4 : 3
+                const consolesStart = searchIdx + 1
+                const consolesEnd = consolesStart + stateRef.current.consolesList.length - 1
+                const totalLibItems = consolesEnd + 1 + filteredLibSlots.length
+
                 let maxCount = 2
                 if (curTab === 'overview') maxCount = 2
                 if (curTab === 'security') maxCount = 4
-                if (curTab === 'library') maxCount = 2 + filteredLibSlots.length
+                if (curTab === 'library') maxCount = totalLibItems
                 if (curTab === 'login') maxCount = 4
                 if (curTab === 'register') maxCount = 5
+
+                if (curTab === 'library') {
+                    const gamesStart = consolesEnd + 1
+                    const gamesEnd = consolesEnd + filteredLibSlots.length
+
+                    if (action === 'down') {
+                        sfx.navigate()
+                        if (idx === 0) setSelectedIndex(1)
+                        else if (idx === 1 || idx === 2) setSelectedIndex(hasAdd ? 3 : searchIdx)
+                        else if (hasAdd && idx === 3) setSelectedIndex(searchIdx)
+                        else if (idx === searchIdx) setSelectedIndex(consolesStart)
+                        else if (idx >= consolesStart && idx <= consolesEnd) {
+                            if (filteredLibSlots.length > 0) setSelectedIndex(gamesStart)
+                        }
+                        else if (idx >= gamesStart && idx < gamesEnd) setSelectedIndex(idx + 1)
+                        return
+                    }
+
+                    if (action === 'up') {
+                        sfx.navigate()
+                        if (idx === 1 || idx === 2) setSelectedIndex(0)
+                        else if (hasAdd && idx === 3) setSelectedIndex(1)
+                        else if (idx === searchIdx) setSelectedIndex(hasAdd ? 3 : 1)
+                        else if (idx >= consolesStart && idx <= consolesEnd) setSelectedIndex(searchIdx)
+                        else if (idx === gamesStart) setSelectedIndex(consolesStart)
+                        else if (idx > gamesStart) setSelectedIndex(idx - 1)
+                        return
+                    }
+
+                    if (action === 'right') {
+                        if (idx === 1) { sfx.navigate(); setSelectedIndex(2); return }
+                        if (idx >= consolesStart && idx < consolesEnd) { sfx.navigate(); setSelectedIndex(idx + 1); return }
+                        return
+                    }
+
+                    if (action === 'left') {
+                        if (idx === 2) { sfx.navigate(); setSelectedIndex(1); return }
+                        if (idx > consolesStart && idx <= consolesEnd) { sfx.navigate(); setSelectedIndex(idx - 1); return }
+                        if (idx === 0 || idx === 1 || (hasAdd && idx === 3) || idx === searchIdx || idx === consolesStart || idx >= gamesStart) {
+                            sfx.navigate(); setFocusArea('nav'); return
+                        }
+                        return
+                    }
+
+                    if (action === 'back' || action === 'escape') {
+                        sfx.navigate(); setFocusArea('nav'); return
+                    }
+                }
 
                 if (action === 'up') {
                     if (idx > 0) { sfx.navigate(); setSelectedIndex(idx - 1) }
@@ -311,11 +429,21 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                         else if (idx === 2) { handleUpdateProfile() }
                         else if (idx === 3) { handleLogout() }
                     } else if (curTab === 'library') {
-                        if (idx === 0) { sfx.confirm(); (document.querySelector('.profile-input') as HTMLInputElement)?.focus() }
-                        else if (idx > 1) {
-                            const slot = filteredLibSlots[idx - 2]
+                        if (idx === 0) { if (stateRef.current.hasPremiumAccess) { sfx.confirm(); setAutoSync(prev => !prev) } else sfx.cancel() }
+                        else if (idx === 1) { if (stateRef.current.hasPremiumAccess) handlePushCloud(); else sfx.cancel() }
+                        else if (idx === 2) { if (stateRef.current.hasPremiumAccess) handlePullCloud(); else sfx.cancel() }
+                        else if (hasAdd && idx === 3) { sfx.confirm(); onOpenAddGame?.() }
+                        else if (idx === searchIdx) { sfx.confirm(); (document.querySelector('.profile-input') as HTMLInputElement)?.focus() }
+                        else if (idx >= consolesStart && idx <= consolesEnd) {
+                            sfx.navigate(); setLibFilterConsole(stateRef.current.consolesList[idx - consolesStart])
+                        }
+                        else if (idx > consolesEnd) {
+                            const slot = filteredLibSlots[idx - consolesEnd - 1]
                             if (slot) {
-                                sfx.confirm(); window.api.gridItemControl('run-game', slot); onClose()
+                                sfx.confirm()
+                                setExpandedGameId(slot.id)
+                                setFocusArea('game-actions')
+                                setSelectedIndex(0)
                             }
                         }
                     } else if (curTab === 'login') {
@@ -329,6 +457,36 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                         else if (idx === 2) { sfx.confirm(); document.getElementById('profile-input-reg-pass')?.focus() }
                         else if (idx === 3) { handleAuth('register') }
                         else if (idx === 4) { sfx.navigate(); setTab('login'); setSelectedIndex(0); setError(null) }
+                    }
+                }
+            } else if (area === 'game-actions') {
+                if (action === 'left') {
+                    if (idx > 0) { sfx.navigate(); setSelectedIndex(idx - 1) }
+                } else if (action === 'right') {
+                    const maxActions = stateRef.current.hasAddGame ? 2 : 0
+                    if (idx < maxActions) { sfx.navigate(); setSelectedIndex(idx + 1) }
+                } else if (action === 'back' || action === 'escape') {
+                    sfx.navigate()
+                    setFocusArea('content')
+                    setExpandedGameId(null)
+                    const searchIdx = stateRef.current.hasAddGame ? 4 : 3
+                    const consolesEnd = searchIdx + stateRef.current.consolesList.length
+                    const gameIdx = filteredLibSlots.findIndex(s => s.id === stateRef.current.expandedGameId)
+                    if (gameIdx >= 0) {
+                        setSelectedIndex(consolesEnd + 1 + gameIdx)
+                    } else {
+                        setSelectedIndex(consolesEnd + 1)
+                    }
+                } else if (action === 'select') {
+                    const slot = filteredLibSlots.find(s => s.id === stateRef.current.expandedGameId)
+                    if (slot) {
+                        if (idx === 0) {
+                            sfx.confirm(); window.api.gridItemControl('run-game', slot); onClose()
+                        } else if (idx === 1 && stateRef.current.hasAddGame) {
+                            sfx.confirm(); onOpenAddGame?.(slot)
+                        } else if (idx === 2 && stateRef.current.hasAddGame) {
+                            sfx.confirm(); stateRef.current.confirmDeleteGame?.(slot)
+                        }
                     }
                 }
             }
@@ -544,150 +702,210 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
         </div>
     )
 
-    const renderLibraryTab = () => (
-        <div className="profile-container">
-            <div className="profile-section-card" style={{ paddingBottom: 16 }}>
-                <div className="profile-section-header">
-                    <div className="profile-section-title-wrap">
-                        <Icon icon="mynaui:folder" />
-                        <span className="profile-section-title">Gestor de Colección</span>
+    const renderLibraryTab = () => {
+        const hasAdd = !!onOpenAddGame
+        const searchIdx = hasAdd ? 4 : 3
+        const consolesStart = searchIdx + 1
+        const consolesEnd = consolesStart + consolesList.length - 1
+
+        return (
+        <div className="profile-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100%', gap: 16 }}>
+            {/* Cloud Sync Section at the Top */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, background: 'rgba(255,255,255,0.03)', padding: 20, borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <span style={{ fontSize: '1rem', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Icon icon="mynaui:cloud" style={{ color: 'var(--accent)' }} /> 
+                            Sincronización Cloud
+                        </span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {hasPremiumAccess ? 'Respalda automáticamente tu biblioteca y rutas de juegos' : 'Disponible para cuentas Partner, Admin y Moderator'}
+                        </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span className="profile-user-since" style={{ margin: 0 }}>{filteredLibSlots.length} Juegos</span>
-                        {onOpenAddGame && (
-                            <button
-                                className="profile-btn profile-btn--primary"
-                                style={{ padding: '6px 14px', fontSize: '0.78rem', borderRadius: 8 }}
-                                onClick={() => { sfx.confirm(); onOpenAddGame() }}
-                                title="Añadir nuevo juego a la biblioteca"
-                            >
-                                <Icon icon="mynaui:plus" /> Añadir Juego
-                            </button>
-                        )}
+                    <div 
+                        className={`profile-toggle ${isFocused('content', 0) ? 'focused' : ''}`}
+                        style={{ 
+                            width: 44, height: 24, borderRadius: 12, 
+                            background: autoSync ? 'var(--accent)' : 'rgba(255,255,255,0.1)', 
+                            position: 'relative', cursor: hasPremiumAccess ? 'pointer' : 'not-allowed', transition: '0.3s',
+                            opacity: hasPremiumAccess ? 1 : 0.5
+                        }}
+                        onClick={() => { if (hasPremiumAccess) { sfx.confirm(); setAutoSync(!autoSync) } else sfx.cancel() }}
+                    >
+                        <div style={{ 
+                            width: 20, height: 20, borderRadius: '50%', background: '#fff', 
+                            position: 'absolute', top: 2, left: autoSync ? 22 : 2, transition: '0.3s',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        }} />
                     </div>
                 </div>
-
-                <div className="profile-field-group" style={{ marginBottom: 12 }}>
-                    <div className="profile-input-wrap">
-                        <input
-                            type="text"
-                            className="profile-input"
-                            placeholder="Buscar juego por título..."
-                            value={libSearch}
-                            onChange={(e) => setLibSearch(e.target.value)}
-                            onFocus={() => { setFocusArea('content'); setSelectedIndex(0) }}
-                        />
-                        <Icon icon="mynaui:search" className="profile-input-icon" />
-                    </div>
+                
+                <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                        disabled={syncingCloud || !hasPremiumAccess}
+                        title={!hasPremiumAccess ? 'Solo disponible para Partner, Admin y Moderator' : undefined}
+                        style={{
+                            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10,
+                            background: isFocused('content', 1) ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+                            border: isFocused('content', 1) ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.08)',
+                            color: 'var(--text)', fontSize: 13, fontWeight: 600,
+                            cursor: (syncingCloud || !hasPremiumAccess) ? 'not-allowed' : 'pointer',
+                            opacity: hasPremiumAccess ? 1 : 0.4
+                        }}
+                        onClick={handlePushCloud}
+                    >
+                        <Icon icon={syncingCloud ? "mynaui:spinner" : (hasPremiumAccess ? "mynaui:cloud-up" : "mynaui:lock")} className={syncingCloud ? "profile-spin" : ""} style={{ fontSize: 18, color: 'var(--accent)' }} />
+                        Subir a la Nube
+                    </button>
+                    <button
+                        disabled={syncingCloud || !hasPremiumAccess}
+                        title={!hasPremiumAccess ? 'Solo disponible para Partner, Admin y Moderator' : undefined}
+                        style={{
+                            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10,
+                            background: isFocused('content', 2) ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+                            border: isFocused('content', 2) ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.08)',
+                            color: 'var(--text)', fontSize: 13, fontWeight: 600,
+                            cursor: (syncingCloud || !hasPremiumAccess) ? 'not-allowed' : 'pointer',
+                            opacity: hasPremiumAccess ? 1 : 0.4
+                        }}
+                        onClick={handlePullCloud}
+                    >
+                        <Icon icon={syncingCloud ? "mynaui:spinner" : (hasPremiumAccess ? "mynaui:cloud-down" : "mynaui:lock")} className={syncingCloud ? "profile-spin" : ""} style={{ fontSize: 18, color: '#4ade80' }} />
+                        Descargar de la Nube
+                    </button>
                 </div>
+            </div>
 
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-                    {consolesList.map(c => (
-                        <button
-                            key={c}
-                            className={`profile-btn ${libFilterConsole === c ? 'profile-btn--primary' : 'profile-btn--secondary'}`}
-                            style={{ padding: '5px 12px', fontSize: '0.75rem', borderRadius: 20, textTransform: 'capitalize' }}
-                            onClick={() => { sfx.navigate(); setLibFilterConsole(c) }}
+            {/* Header for Library directly */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon icon="mynaui:folder" style={{ color: 'var(--text-muted)' }} />
+                    Juegos Locales ({filteredLibSlots.length})
+                </span>
+                {onOpenAddGame && (
+                    <button
+                        className={`cp-btn cp-btn--primary ${isFocused('content', 3) ? 'cp-btn--focused' : ''}`}
+                        style={{ padding: '6px 14px', fontSize: '0.78rem', borderRadius: 8 }}
+                        onClick={() => { sfx.confirm(); onOpenAddGame() }}
+                        title="Añadir nuevo juego a la biblioteca"
+                    >
+                        <Icon icon="mynaui:plus" /> Añadir Juego
+                    </button>
+                )}
+            </div>
+
+            <div className="profile-field-group" style={{ marginBottom: 4 }}>
+                <div className={`profile-input-wrap ${isFocused('content', searchIdx) ? 'focused' : ''}`}>
+                    <input
+                        type="text"
+                        className="profile-input"
+                        placeholder="Buscar juego por título..."
+                        value={libSearch}
+                        onChange={(e) => setLibSearch(e.target.value)}
+                        onFocus={() => { setFocusArea('content'); setSelectedIndex(searchIdx) }}
+                    />
+                    <Icon icon="mynaui:search" className="profile-input-icon" />
+                </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {consolesList.map((c, idx) => (
+                    <button
+                        key={c}
+                        className={`cp-btn cp-btn--${libFilterConsole === c ? 'primary' : 'secondary'} ${isFocused('content', consolesStart + idx) ? 'cp-btn--focused' : ''}`}
+                        style={{ padding: '5px 12px', fontSize: '0.75rem', borderRadius: 20, textTransform: 'capitalize' }}
+                        onClick={() => { sfx.navigate(); setLibFilterConsole(c) }}
+                    >
+                        {c}
+                    </button>
+                ))}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 150, overflowY: 'auto', paddingRight: 4, marginBottom: 16 }}>
+                {filteredLibSlots.length === 0 ? (
+                    <p className="profile-section-desc" style={{ textAlign: 'center', padding: '24px 0' }}>No se encontraron juegos con estos filtros.</p>
+                ) : (
+                    filteredLibSlots.map((s, idx) => {
+                        const isExpanded = expandedGameId === s.id
+                        const isRowFocused = isFocused('content', consolesEnd + 1 + idx)
+                        return (
+                        <div 
+                            key={s.id} 
+                            className={`cp-list__item ${isRowFocused || isExpanded ? 'cp-list__item--focused' : ''}`} 
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(15, 18, 25, 0.8)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.05)', transition: 'all 0.2s ease', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}
+                            onClick={() => {
+                                sfx.confirm()
+                                setExpandedGameId(s.id)
+                                setFocusArea('game-actions')
+                                setSelectedIndex(0)
+                            }}
                         >
-                            {c}
-                        </button>
-                    ))}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 340, overflowY: 'auto', paddingRight: 4, marginBottom: 16 }}>
-                    {filteredLibSlots.length === 0 ? (
-                        <p className="profile-section-desc" style={{ textAlign: 'center', padding: '24px 0' }}>No se encontraron juegos con estos filtros.</p>
-                    ) : (
-                        filteredLibSlots.map((s, idx) => (
-                            <div key={s.id} className={`profile-library-item ${focusArea === 'content' && selectedIndex === idx + 2 ? 'focused' : ''}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'rgba(15, 18, 25, 0.8)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)', transition: 'all 0.2s ease', position: 'relative', overflow: 'hidden' }}>
-                                {(s.image || s.squareImage) && (
-                                    <div style={{ position: 'absolute', inset: 0, opacity: 0.15, backgroundImage: `url("${s.image || s.squareImage}")`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(12px)' }} />
+                            {(s.image || s.squareImage) && (
+                                <div style={{ position: 'absolute', inset: 0, opacity: 0.15, backgroundImage: `url("${s.image || s.squareImage}")`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(16px)' }} />
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 20, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+                                {s.image || s.squareImage ? (
+                                    <div style={{ minWidth: 88, width: 88, height: 88, borderRadius: 14, backgroundImage: `url("${s.squareImage || s.image}")`, backgroundSize: 'cover', backgroundPosition: 'center', boxShadow: '0 6px 15px rgba(0,0,0,0.4)' }} />
+                                ) : (
+                                    <div style={{ minWidth: 88, width: 88, height: 88, borderRadius: 14, background: 'linear-gradient(135deg, rgba(58,134,255,0.2), rgba(58,134,255,0.05))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3a86ff', fontSize: 36, boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.1)' }}>
+                                        <Icon icon={s.icon || "mynaui:gamepad"} />
+                                    </div>
                                 )}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 14, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
-                                    {s.image || s.squareImage ? (
-                                        <div style={{ minWidth: 44, width: 44, height: 44, borderRadius: 10, backgroundImage: `url("${s.squareImage || s.image}")`, backgroundSize: 'cover', backgroundPosition: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }} />
-                                    ) : (
-                                        <div style={{ minWidth: 44, width: 44, height: 44, borderRadius: 10, background: 'linear-gradient(135deg, rgba(58,134,255,0.2), rgba(58,134,255,0.05))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3a86ff', fontSize: 22, boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.1)' }}>
-                                            <Icon icon={s.icon || "mynaui:gamepad"} />
-                                        </div>
-                                    )}
-                                    <div style={{ overflow: 'hidden' }}>
-                                        <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{s.label || s.game?.name}</div>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                                            <span style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4, color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>{s.game?.platform?.name || s.game?.emulator?.name || 'PC'}</span>
-                                            {s.game?.playtimeMinutes ? `${s.game.playtimeMinutes} min jugados` : 'Sin empezar'}
-                                        </div>
+                                <div style={{ overflow: 'hidden' }}>
+                                    <div style={{ fontWeight: 700, color: '#fff', fontSize: '1.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{s.label || s.game?.name}</div>
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                                        <span style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: 6, color: '#fff', fontSize: '0.75rem', fontWeight: 700 }}>{s.game?.platform?.name || s.game?.emulator?.name || 'PC'}</span>
+                                        {s.game?.playtimeMinutes ? `${s.game.playtimeMinutes} min jugados` : 'Sin empezar'}
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', gap: 6, flexShrink: 0, position: 'relative', zIndex: 1 }}>
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, flexShrink: 0, position: 'relative', zIndex: 1, opacity: (isExpanded || isRowFocused) ? 1 : 0.8, transition: 'opacity 0.2s' }}>
+                                <button
+                                    className={`cp-btn cp-btn--secondary ${isExpanded && focusArea === 'game-actions' && selectedIndex === 0 ? 'cp-btn--focused' : ''}`}
+                                    style={{ padding: '10px 14px', fontSize: '1.1rem', borderRadius: 10, background: 'rgba(255,255,255,0.1)' }}
+                                    onClick={(e) => { e.stopPropagation(); window.api.gridItemControl('run-game', s); onClose() }}
+                                    title="Lanzar juego"
+                                >
+                                    <Icon icon="mynaui:play" />
+                                </button>
+                                {onOpenAddGame && (
                                     <button
-                                        className="profile-btn profile-btn--secondary"
-                                        style={{ padding: '6px 10px', fontSize: '0.8rem', borderRadius: 8, background: 'rgba(255,255,255,0.1)' }}
-                                        onClick={() => { window.api.gridItemControl('run-game', s); onClose() }}
-                                        title="Lanzar juego"
+                                        className={`cp-btn cp-btn--secondary ${isExpanded && focusArea === 'game-actions' && selectedIndex === 1 ? 'cp-btn--focused' : ''}`}
+                                        style={{ padding: '10px 14px', fontSize: '1.1rem', borderRadius: 10, background: 'rgba(255,255,255,0.1)' }}
+                                        onClick={(e) => { e.stopPropagation(); sfx.confirm(); onOpenAddGame(s) }}
+                                        title="Editar juego"
                                     >
-                                        <Icon icon="mynaui:play" />
+                                        <Icon icon="mynaui:edit" />
                                     </button>
-                                    {onOpenAddGame && (
-                                        <button
-                                            className="profile-btn profile-btn--secondary"
-                                            style={{ padding: '6px 10px', fontSize: '0.8rem', borderRadius: 8, background: 'rgba(255,255,255,0.1)' }}
-                                            onClick={() => { sfx.confirm(); onOpenAddGame(s) }}
-                                            title="Editar juego"
-                                        >
-                                            <Icon icon="mynaui:edit" />
-                                        </button>
-                                    )}
+                                )}
+                                {onOpenAddGame && (
                                     <button
-                                        className="profile-btn profile-btn--danger"
-                                        style={{ padding: '6px 10px', fontSize: '0.8rem', borderRadius: 8 }}
-                                        onClick={async () => {
-                                            if (window.confirm(`¿Seguro que quieres eliminar ${s.label || s.game?.name}?`)) {
-                                                sfx.cancel()
-                                                await window.api.slots.remove(s.id)
-                                                setLibrarySlots(prev => prev.filter(x => x.id !== s.id))
-                                            }
+                                        className={`profile-btn profile-btn--danger ${isExpanded && focusArea === 'game-actions' && selectedIndex === 2 ? 'focused' : ''}`}
+                                        style={{ padding: '10px 14px', fontSize: '1.1rem', borderRadius: 10 }}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            sfx.confirm()
+                                            confirmDeleteGame(s)
                                         }}
                                         title="Eliminar juego"
                                     >
                                         <Icon icon="mynaui:trash" />
                                     </button>
-                                </div>
+                                )}
                             </div>
-                        ))
-                    )}
-                </div>
-
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Sincronización Cloud & Catálogo:</span>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                            className="profile-btn profile-btn--secondary"
-                            style={{ padding: '6px 14px', fontSize: '0.78rem', borderRadius: 8 }}
-                            onClick={handleForceSync}
-                            disabled={loading || !hasPremiumAccess}
-                        >
-                            <Icon icon="mynaui:cloud-up" /> Subir Guardados
-                        </button>
-                        <button
-                            className="profile-btn profile-btn--secondary"
-                            style={{ padding: '6px 14px', fontSize: '0.78rem', borderRadius: 8 }}
-                            onClick={handleSyncPlatforms}
-                            disabled={loading}
-                        >
-                            <Icon icon="mynaui:refresh" /> Sync Consolas
-                        </button>
-                    </div>
-                </div>
-                {error && (
-                    <div className="profile-alert-error" style={{ marginTop: 12, color: error.includes('Error') ? '#ff8080' : '#80ff80', borderColor: error.includes('Error') ? 'rgba(242, 63, 67, 0.35)' : 'rgba(35, 165, 89, 0.35)', background: error.includes('Error') ? 'rgba(242, 63, 67, 0.12)' : 'rgba(35, 165, 89, 0.12)' }}>
-                        <Icon icon={error.includes('Error') ? "mynaui:danger-triangle" : "mynaui:check-circle"} />
-                        {error}
-                    </div>
+                        </div>
+                    )})
                 )}
             </div>
+            {error && (
+                <div className="profile-alert-error" style={{ marginTop: 12, color: error.includes('Error') ? '#ff8080' : '#80ff80', borderColor: error.includes('Error') ? 'rgba(242, 63, 67, 0.35)' : 'rgba(35, 165, 89, 0.35)', background: error.includes('Error') ? 'rgba(242, 63, 67, 0.12)' : 'rgba(35, 165, 89, 0.12)' }}>
+                    <Icon icon={error.includes('Error') ? "mynaui:danger-triangle" : "mynaui:check-circle"} />
+                    {error}
+                </div>
+            )}
         </div>
-    )
+        )
+    }
 
     const renderLoginTab = () => (
         <div className="profile-container">
@@ -861,7 +1079,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
             onClose={onClose}
             titleOverride="Centro de Perfil"
         >
-            <div className="console-panel__content-body">
+            <div className="console-panel__content-body" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 'calc(100vh - 180px)', padding: 0 }}>
                 {tab === 'overview' && renderOverviewTab()}
                 {tab === 'security' && renderSecurityTab()}
                 {tab === 'library' && renderLibraryTab()}

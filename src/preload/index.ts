@@ -265,6 +265,10 @@ const api = {
       ipcRenderer.invoke('sync-get-status'),
     trigger: (): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('sync-trigger'),
+    pushCloud: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('sync-push-cloud'),
+    pullCloud: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('sync-pull-cloud'),
     onStatusChange: (callback: (status: import('../shared/types').SyncStatus) => void): (() => void) => {
       const fn = (_, status) => callback(status)
       ipcRenderer.on('sync-status-changed', fn)

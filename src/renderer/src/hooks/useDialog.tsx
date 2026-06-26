@@ -55,9 +55,9 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const action = (e as CustomEvent<string>).detail
             
             if (action === 'left') {
-                if (dialog.actions.length === 3 && selectedIndex === 1) { sfx.navigate(); setSelectedIndex(0) }
+                if (selectedIndex === 1) { sfx.navigate(); setSelectedIndex(0) }
             } else if (action === 'right') {
-                if (dialog.actions.length === 3 && selectedIndex === 0) { sfx.navigate(); setSelectedIndex(1) }
+                if (selectedIndex === 0 && dialog.actions.length > 1) { sfx.navigate(); setSelectedIndex(1) }
             } else if (action === 'up') {
                 if (dialog.actions.length === 3 && selectedIndex === 2) { sfx.navigate(); setSelectedIndex(1) }
             } else if (action === 'down') {

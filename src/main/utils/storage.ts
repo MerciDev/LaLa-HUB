@@ -154,7 +154,10 @@ export function loadAllLibrarySlots(): HomeSlot[] {
                 for (const [gameId, game] of Object.entries(consoleData.games)) {
                     const existingGridSlot = gridMap.get(gameId)
                     if (existingGridSlot) {
-                        librarySlots.push(existingGridSlot)
+                        librarySlots.push({
+                            ...existingGridSlot,
+                            id: `lib|${slug}|${gameId}`
+                        })
                     } else {
                         const imgs = (game as any).data?.images || (game as any).images || {}
                         const sqImg = imgs.home || imgs.icon || game.coverUrl
@@ -162,7 +165,7 @@ export function loadAllLibrarySlots(): HomeSlot[] {
                         const hImg = imgs.h_grid || imgs.home || game.backgroundUrl || game.coverUrl
 
                         librarySlots.push({
-                            id: `lib-${slug}-${gameId}`,
+                            id: `lib|${slug}|${gameId}`,
                             label: game.name,
                             game: game,
                             gameRef: { consoleSlug: slug, gameId },
@@ -234,11 +237,11 @@ export function addMultipleSlots(newSlots: HomeSlot[]): void {
 export function removeSlot(slotId: string): void {
     const slots = loadSlots()
 
-    // Si se elimina desde la página de Biblioteca (id: lib-<console>-<gameId>)
-    if (slotId.startsWith('lib-')) {
-        const parts = slotId.split('-')
+    // Si se elimina desde la página de Biblioteca (id: lib|<console>|<gameId>)
+    if (slotId.startsWith('lib|')) {
+        const parts = slotId.split('|')
         const slug = parts[1]
-        const targetGameId = parts.slice(2).join('-')
+        const targetGameId = parts[2]
 
         const consolesDir = path.join(USER_DATA_PATH, CONSOLES_FOLDER)
         if (fs.existsSync(consolesDir)) {

@@ -11,7 +11,7 @@ import { sfx } from '../../utils/audioManager'
 
 import NavigationHeader from '../../components/NavigationHeader'
 import HomeGridComponent from '../../components/HomeGrid'
-import { buildOccupiedCells, getSlotCells, repackItemsAfterResize, computeMinGridDimensions } from '../../utils/gridUtils'
+import { buildOccupiedCells, getSlotCells, repackItemsAfterResize, computeMinGridDimensions, SlotIdeal } from '../../utils/gridUtils'
 import PageNavigator from '../../components/PageNavigator'
 import ContextMenu from '../../components/ContextMenu'
 import LibraryPickerModal from '../../components/LibraryPickerModal'
@@ -22,6 +22,13 @@ import LoginScreen from '../../components/LoginScreen'
 import ProfilePage from '../../components/ProfilePage'
 import BackgroundLayer from '../../components/BackgroundLayer'
 import ModeHUD from '../../components/ModeHUD'
+
+function logSlots(label: string, items: HomeSlot[]) {
+    console.log(`=== SLOTS ${label} ===`)
+    for (const s of items) {
+        console.log(`  ${s.id.slice(0, 8)}: pos=${s.position} c=${s.colSpan ?? 1} r=${s.rowSpan ?? 1} p=${s.page ?? 0}`)
+    }
+}
 
 function MainApp(): React.JSX.Element {
     useGamepad()
@@ -263,6 +270,25 @@ function MainApp(): React.JSX.Element {
     }, [setInfoText, setIslandWidth])
 
     // Ref for move/resize (always fresh values in handlers)
+    const idealSlotsRef = useRef<Map<string, SlotIdeal>>(new Map())
+    const gridColsRef = useRef(6)
+    const captureIdeals = useCallback((items: HomeSlot[]) => {
+        const map = new Map<string, SlotIdeal>()
+        const cols = gridColsRef.current
+        for (const item of items) {
+            if (item.position !== undefined && item.page !== undefined) {
+                map.set(item.id, {
+                    colSpan: item.colSpan ?? 1,
+                    rowSpan: item.rowSpan ?? 1,
+                    col: item.position % cols,
+                    row: Math.floor(item.position / cols),
+                    page: item.page,
+                })
+            }
+        }
+        idealSlotsRef.current = map
+    }, [])
+
     const stateRef = useRef({
         homeGrid, currentPage, selectedSlotIndex, moveMode, resizeMode, lastGridIndex: 0
     })
@@ -271,6 +297,14 @@ function MainApp(): React.JSX.Element {
     useEffect(() => {
         stateRef.current = { homeGrid, currentPage, selectedSlotIndex, moveMode, resizeMode, lastGridIndex }
     })
+
+    useEffect(() => { gridColsRef.current = homeGrid.cols }, [homeGrid.cols])
+
+    useEffect(() => {
+        const onClose = () => logSlots('CLOSE', homeGrid.items)
+        window.addEventListener('beforeunload', onClose)
+        return () => window.removeEventListener('beforeunload', onClose)
+    }, [homeGrid.items])
 
     // ─── Move Mode Helpers ────────────────────────────────────────────────────────
 
@@ -311,6 +345,7 @@ function MainApp(): React.JSX.Element {
                             i.id === mm.slotId ? { ...i, position: gp, page } : i
                         )
                         persistItems(newItems)
+                        captureIdeals(newItems)
                         sfx.confirm()
                         setSelectedSlotIndex(gp)
                         setMoveMode(null)
@@ -327,7 +362,7 @@ function MainApp(): React.JSX.Element {
         setMoveMode(null)
         window.api.movementControl.send('SET_SECTION', 'grid')
         collapseIsland()
-    }, [persistItems, collapseIsland, setSelectedSlotIndex])
+    }, [persistItems, collapseIsland, setSelectedSlotIndex, captureIdeals])
 
     const enterResizeMode = useCallback((slot: HomeSlot) => {
         sfx.confirm()
@@ -528,10 +563,43 @@ function MainApp(): React.JSX.Element {
                 case 'TOGGLE_SOCIAL_MENU': setSocialExpanded((prev) => !prev); break
                 case 'TOGGLE_PERSONAL_MENU': setPersonalExpanded((prev) => !prev); break
                 case 'UPDATE_GRID_CONFIG': setHomeGrid((prev) => ({ ...prev, ...action.payload })); break
-                case 'SET_GRID_ITEMS':
+                case 'SET_GRID_ITEMS': {
                     isGridLoadedRef.current = true
-                    setHomeGrid((prev) => ({ ...prev, items: action.payload }))
+                    logSlots('INIT', action.payload)
+                    setHomeGrid((prev) => {
+                        // Estimate canonical columns based on the full screen width
+                        // since users most likely edit their grid while the app is maximized.
+                        // This prevents corrupting ideal positions if the app boots in a small window.
+                        const screenW = window.screen.availWidth
+                        const TARGET_W = 200
+                        const gapVal = 10
+                        const idealCols = Math.floor(screenW / (TARGET_W + gapVal)) - 1
+                        const canonicalCols = Math.max(3, Math.min(18, idealCols))
+                        
+                        // Use prev.cols if it's large enough, otherwise fallback to canonicalCols
+                        const useCols = prev.cols >= 4 ? prev.cols : canonicalCols
+                        const useRows = prev.rows >= 3 ? prev.rows : 4
+
+                        const map = new Map<string, SlotIdeal>()
+                        for (const item of action.payload) {
+                            if (item.position !== undefined && item.page !== undefined) {
+                                map.set(item.id, {
+                                    colSpan: item.colSpan ?? 1,
+                                    rowSpan: item.rowSpan ?? 1,
+                                    col: item.position % useCols,
+                                    row: Math.floor(item.position / useCols),
+                                    page: item.page,
+                                })
+                            }
+                        }
+                        idealSlotsRef.current = map
+                        const repackedItems = (prev.cols !== useCols || prev.rows !== useRows)
+                            ? repackItemsAfterResize(action.payload, prev.cols, prev.rows, map)
+                            : action.payload
+                        return { ...prev, items: repackedItems }
+                    })
                     break
+                }
                 case 'ADD_GRID_ITEM': setHomeGrid((prev) => ({ ...prev, items: [...prev.items, action.payload] })); break
                 case 'REMOVE_GRID_ITEM':
                     setHomeGrid((prev) => ({ ...prev, items: prev.items.filter((i) => i.id !== action.payload) }))
@@ -743,6 +811,7 @@ function MainApp(): React.JSX.Element {
                 setHomeGrid(prev => ({ ...prev, items: newItems }))
                 // Persist immediately during resize
                 persistItems(newItems)
+                captureIdeals(newItems)
                 return
             }
 
@@ -889,7 +958,10 @@ function MainApp(): React.JSX.Element {
         const { minRows, minCols } = computeMinGridDimensions(homeGrid.items)
         const safeRows = Math.max(newRows, minRows)
         const safeCols = Math.max(newCols, minCols)
-        const repacked = repackItemsAfterResize(homeGrid.items, safeCols, safeRows)
+        console.log(`GRID SETTINGS CHANGE: ${homeGrid.cols}x${homeGrid.rows} → ${safeCols}x${safeRows}`)
+        logSlots('BEFORE REPACK', homeGrid.items)
+        const repacked = repackItemsAfterResize(homeGrid.items, safeCols, safeRows, idealSlotsRef.current)
+        logSlots('AFTER REPACK', repacked)
         setHomeGrid(prev => ({ ...prev, rows: safeRows, cols: safeCols, items: repacked }))
         persistItems(repacked)
         sfx.confirm()
@@ -907,15 +979,10 @@ function MainApp(): React.JSX.Element {
                 return { ...prev, rows: safeRows, cols: safeCols }
             }
 
-            const repacked = repackItemsAfterResize(prev.items, safeCols, safeRows)
-
-            const hasChanged = repacked.some((item, i) => item.position !== prev.items[i]?.position || item.page !== prev.items[i]?.page)
-            if (hasChanged) {
-                if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current)
-                persistTimeoutRef.current = setTimeout(() => {
-                    window.api?.slots?.addMultiple(repacked).catch(console.error)
-                }, 500)
-            }
+            console.log(`AUTO GRID: ${prev.cols}x${prev.rows} → ${safeCols}x${safeRows}`)
+            logSlots('BEFORE REPACK', prev.items)
+            const repacked = repackItemsAfterResize(prev.items, safeCols, safeRows, idealSlotsRef.current)
+            logSlots('AFTER REPACK', repacked)
 
             return { ...prev, rows: safeRows, cols: safeCols, items: repacked }
         })
@@ -1115,6 +1182,7 @@ function MainApp(): React.JSX.Element {
                         }
                         const newItems = [...otherItems, newGridSlot]
                         persistItems(newItems)
+                        captureIdeals(newItems)
                         setPickerTargetIndex(null)
                         goBack()
                     }

@@ -151,6 +151,8 @@ export interface API {
   sync: {
     getStatus: () => Promise<SyncStatus>
     trigger: () => Promise<{ success: boolean; error?: string }>
+    pushCloud: () => Promise<{ success: boolean; error?: string }>
+    pullCloud: () => Promise<{ success: boolean; error?: string }>
     onStatusChange: (callback: (status: SyncStatus) => void) => () => void
   }
 }

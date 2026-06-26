@@ -94,6 +94,7 @@ function createWindow(): void {
     }
   })
 
+  appWindow.maximize()
   mainApp.setAppWindow(appWindow)
 
   debugLog('Main Window created.')

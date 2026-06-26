@@ -56,8 +56,8 @@ export function registerSlotHandlers(): void {
 
     const userId = getUserId()
     if (userId) {
-      if (slotId.startsWith('lib-')) {
-        const gameId = slotId.split('-').slice(2).join('-')
+      if (slotId.startsWith('lib|')) {
+        const gameId = slotId.split('|')[2]
         await deleteRemoteRecord('games', gameId)
       } else {
         await deleteRemoteRecord('slots', slotId)

@@ -431,14 +431,35 @@
   outline: none;
 }
 
-/* Focused controller state */
+/* Focused controller state aligned with global design system */
 .profile-btn.focused {
-  outline: 2px solid var(--accent-bright);
-  outline-offset: 2px;
+  border-color: var(--accent) !important;
+  background: rgba(58, 134, 255, 0.12) !important;
+  box-shadow: 0 0 15px rgba(58, 134, 255, 0.3);
+  color: var(--text-primary) !important;
+  outline: none;
 }
 
 .profile-btn--danger.focused {
-  outline-color: #ff6b6b;
+  border-color: #ff6b6b !important;
+  background: rgba(242, 63, 67, 0.25) !important;
+  box-shadow: 0 0 15px rgba(242, 63, 67, 0.35);
+}
+
+.profile-toggle.focused {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 15px rgba(58, 134, 255, 0.4);
+}
+
+.profile-input-wrap.focused .profile-input {
+  border-color: var(--accent) !important;
+  background: rgba(58, 134, 255, 0.06) !important;
+  box-shadow: 0 0 0 3px rgba(58, 134, 255, 0.2);
+}
+
+.profile-input-wrap.focused .profile-input-icon {
+  color: var(--accent) !important;
 }
 
 /* ─── Inputs & Form Controls ───────────────────────────────────────────────── */
