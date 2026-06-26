@@ -69,46 +69,8 @@ async function downloadSlots(): Promise<number> {
 }
 
 export async function triggerSync(): Promise<{ success: boolean; error?: string }> {
-  if (syncStatus.isSyncing) {
-    return { success: false, error: 'Ya hay una sincronización en curso' }
-  }
-
-  if (!isOnline()) {
-    return { success: false, error: 'Sin conexión a internet' }
-  }
-
-  const userId = getUserId()
-  if (!userId) {
-    return { success: false, error: 'No hay sesión iniciada' }
-  }
-
-  syncStatus.isSyncing = true
-  notifySyncStatus()
-
-  try {
-    debugLog('[Sync] Iniciando sincronización...')
-
-    const uploaded = await uploadSlots()
-    if (uploaded > 0) debugLog(`[Sync] ${uploaded} slots subidos`)
-
-    const downloaded = await downloadSlots()
-    if (downloaded > 0) debugLog(`[Sync] ${downloaded} slots descargados`)
-
-    syncStatus = {
-      lastSyncAt: new Date().toISOString(),
-      pendingUploads: 0,
-      isSyncing: false
-    }
-    notifySyncStatus()
-    debugLog('[Sync] Sincronización completada')
-
-    return { success: true }
-  } catch (err: any) {
-    syncStatus.isSyncing = false
-    notifySyncStatus()
-    debugError(`[Sync] Error: ${err}`)
-    return { success: false, error: err.message }
-  }
+  debugLog('[Sync] Sincronización remota desactivada: guardando exclusivamente en local.')
+  return { success: true }
 }
 
 export function initSyncEngine(): void {

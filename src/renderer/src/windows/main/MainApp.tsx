@@ -14,6 +14,7 @@ import HomeGridComponent from '../../components/HomeGrid'
 import { buildOccupiedCells, getSlotCells, repackItemsAfterResize, computeMinGridDimensions } from '../../utils/gridUtils'
 import PageNavigator from '../../components/PageNavigator'
 import ContextMenu from '../../components/ContextMenu'
+import LibraryPickerModal from '../../components/LibraryPickerModal'
 import AddGamePanel from '../../components/AddGameModal'
 import SettingsPanel from '../../components/SettingsPanel'
 import { DownloadManager } from '../../components/download/DownloadManager'
@@ -158,8 +159,10 @@ function MainApp(): React.JSX.Element {
     // --- Download Manager ---
     const [downloadManagerVisible, setDownloadManagerVisible] = useState(false)
 
-    // --- Profile Page ---
+    // --- Profile Page & Picker ---
     const [profilePageVisible, setProfilePageVisible] = useState(false)
+    const [libraryPickerVisible, setLibraryPickerVisible] = useState(false)
+    const [pickerTargetIndex, setPickerTargetIndex] = useState<number | null>(null)
 
     // --- Move Mode ---
     const [moveMode, setMoveMode] = useState<{ slotId: string; ghostPosition: number } | null>(null)
@@ -233,6 +236,16 @@ function MainApp(): React.JSX.Element {
     const handleContextOptionClick = (option: ContextOption) => {
         if (option.action === 'ADD_GAME' || option.label === 'Add') {
             openAddGameModal()
+        } else if (option.action === 'ASSIGN_GAME_FROM_LIBRARY') {
+            sfx.open()
+            setPickerTargetIndex(stateRef.current.selectedSlotIndex)
+            setLibraryPickerVisible(true)
+            setProfilePageVisible(false)
+            setSettingsPanelVisible(false)
+            setAddGamePanelVisible(false)
+            setDownloadManagerVisible(false)
+            window.api.movementControl.send('SET_SECTION', 'library-picker')
+            window.api.contextMenuControl.send('toggle', false)
         } else if (option.action === 'EDIT_GAME' && selectedSlotItem) {
             openEditGameModal(selectedSlotItem)
         } else if (option.action === 'MOVE_GAME' && selectedSlotItem) {
@@ -439,6 +452,7 @@ function MainApp(): React.JSX.Element {
                     break
                 case 'OPEN_PROFILE':
                     sfx.open()
+                    setPickerTargetIndex(null)
                     setProfilePageVisible(true)
                     setSettingsPanelVisible(false)
                     setAddGamePanelVisible(false)
@@ -450,6 +464,21 @@ function MainApp(): React.JSX.Element {
                     setLastGridIndex(stateRef.current.selectedSlotIndex ?? 0)
                     setSelectedSlotIndex(null)
                     window.api.movementControl.send('SET_SECTION', 'profile')
+                    break
+                case 'OPEN_LIBRARY_PICKER':
+                    sfx.open()
+                    setPickerTargetIndex(stateRef.current.selectedSlotIndex ?? lastGridIndex)
+                    setLibraryPickerVisible(true)
+                    setProfilePageVisible(false)
+                    setSettingsPanelVisible(false)
+                    setAddGamePanelVisible(false)
+                    setDownloadManagerVisible(false)
+                    setFocusedHeader(null)
+                    setSocialExpanded(false)
+                    setPersonalExpanded(false)
+                    setIslandWidth('56px')
+                    setSelectedSlotIndex(null)
+                    window.api.movementControl.send('SET_SECTION', 'library-picker')
                     break
                 case 'CLOSE_PROFILE':
                     sfx.close()
@@ -915,12 +944,45 @@ function MainApp(): React.JSX.Element {
                                 authState={authState}
                                 onLogin={handleAuthSuccess}
                                 onClose={closeProfile}
-                                onOpenAddGame={() => { closeProfile(); setEditSlot(null); setAddGamePanelVisible(true); }}
+                                onOpenAddGame={(slot) => { setProfilePageVisible(false); if (slot) openEditGameModal(slot); else openAddGameModal(); }}
                             />
                         </motion.div>
                     ) : null}
                 </AnimatePresence>
             </div>
+
+            <LibraryPickerModal
+                visible={libraryPickerVisible}
+                onClose={() => {
+                    sfx.close()
+                    setLibraryPickerVisible(false)
+                    setPickerTargetIndex(null)
+                    window.api.movementControl.send('SET_SECTION', 'grid')
+                }}
+                onSelect={slot => {
+                    if (pickerTargetIndex !== null) {
+                        const existingIdx = homeGrid.items.findIndex(i => (i.id === slot.id || (i.gameRef && slot.gameRef && i.gameRef.gameId === slot.gameRef.gameId)))
+                        let newItems: HomeSlot[]
+                        if (existingIdx >= 0) {
+                            newItems = homeGrid.items.map((item, idx) =>
+                                idx === existingIdx ? { ...item, position: pickerTargetIndex, page: currentPage } : item
+                            )
+                        } else {
+                            const newGridSlot: HomeSlot = {
+                                ...slot,
+                                id: `slot-${Date.now()}`,
+                                position: pickerTargetIndex,
+                                page: currentPage
+                            }
+                            newItems = [...homeGrid.items, newGridSlot]
+                        }
+                        persistItems(newItems)
+                        setPickerTargetIndex(null)
+                        setLibraryPickerVisible(false)
+                        window.api.movementControl.send('SET_SECTION', 'grid')
+                    }
+                }}
+            />
 
             {/* ── Footer ── */}
             <AnimatePresence>

@@ -48,6 +48,7 @@ export type AppAction =
   | { type: 'GO_HOME' }
   | { type: 'OPEN_DOWNLOADS' }
   | { type: 'OPEN_PROFILE' }
+  | { type: 'OPEN_LIBRARY_PICKER' }
   // Grid Edit Modes
   | { type: 'ENTER_MOVE_MODE'; payload: HomeSlot }
   | { type: 'EXIT_MOVE_MODE' }
@@ -105,6 +106,8 @@ export interface Game {
   retroarchCore?: string
   /** Optional: specific process name to wait for on macOS/Win (e.g. 'java' for Minecraft) */
   processName?: string
+  coverUrl?: string
+  backgroundUrl?: string
 }
 
 export interface HomeSlot {

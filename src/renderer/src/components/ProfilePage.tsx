@@ -10,7 +10,7 @@ interface ProfilePageProps {
     authState: AuthState
     onLogin: (result: AuthResult) => void
     onClose: () => void
-    onOpenAddGame?: () => void
+    onOpenAddGame?: (editSlot?: HomeSlot) => void
 }
 
 const LOGGED_IN_TABS: ConsolePanelTab[] = [
@@ -52,6 +52,34 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
             window.api.slots?.getAll?.().then(res => setLibrarySlots(res || []))
         }
     }, [visible, tab])
+
+
+
+    const consolesList = React.useMemo(() => {
+        const set = new Set<string>()
+        librarySlots.forEach(s => {
+            if (!s.game) return
+            const name = s.game.platform?.name || s.game.emulator?.name || 'PC'
+            set.add(name)
+        })
+        return ['todas', ...Array.from(set)]
+    }, [librarySlots])
+
+    const filteredLibSlots = React.useMemo(() => {
+        return librarySlots.filter(s => {
+            if (!s.game) return false
+            if (libFilterConsole !== 'todas') {
+                const cName = s.game.platform?.name || s.game.emulator?.name || 'PC'
+                if (cName !== libFilterConsole) return false
+            }
+            if (libSearch) {
+                const q = libSearch.toLowerCase()
+                const title = (s.label || s.game.name || '').toLowerCase()
+                if (!title.includes(q)) return false
+            }
+            return true
+        })
+    }, [librarySlots, libFilterConsole, libSearch])
 
     const activeTabs = isLoggedIn ? LOGGED_IN_TABS : GUEST_TABS
 
@@ -250,7 +278,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                 let maxCount = 2
                 if (curTab === 'overview') maxCount = 2
                 if (curTab === 'security') maxCount = 4
-                if (curTab === 'library') maxCount = 2
+                if (curTab === 'library') maxCount = 2 + filteredLibSlots.length
                 if (curTab === 'login') maxCount = 4
                 if (curTab === 'register') maxCount = 5
 
@@ -271,6 +299,12 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                         else if (idx === 3) { handleLogout() }
                     } else if (curTab === 'library') {
                         if (idx === 0) { sfx.confirm(); (document.querySelector('.profile-input') as HTMLInputElement)?.focus() }
+                        else if (idx > 1) {
+                            const slot = filteredLibSlots[idx - 2]
+                            if (slot) {
+                                sfx.confirm(); window.api.gridItemControl('run-game', slot); onClose()
+                            }
+                        }
                     } else if (curTab === 'login') {
                         if (idx === 0) { sfx.confirm(); document.getElementById('profile-input-login-email')?.focus() }
                         else if (idx === 1) { sfx.confirm(); document.getElementById('profile-input-login-pass')?.focus() }
@@ -288,7 +322,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
         }
         window.addEventListener('panel-move', handler as EventListener)
         return () => window.removeEventListener('panel-move', handler as EventListener)
-    }, [visible, onClose, handleAuth, handleLogout, handleUpdateProfile])
+    }, [visible, onClose, handleAuth, handleLogout, handleUpdateProfile, filteredLibSlots])
 
     // Auto-scroll inside content area
     useEffect(() => {
@@ -491,32 +525,6 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
         </div>
     )
 
-    const consolesList = React.useMemo(() => {
-        const set = new Set<string>()
-        librarySlots.forEach(s => {
-            if (!s.game) return
-            const name = s.game.platform?.name || s.game.emulator?.name || 'PC'
-            set.add(name)
-        })
-        return ['todas', ...Array.from(set)]
-    }, [librarySlots])
-
-    const filteredLibSlots = React.useMemo(() => {
-        return librarySlots.filter(s => {
-            if (!s.game) return false
-            if (libFilterConsole !== 'todas') {
-                const cName = s.game.platform?.name || s.game.emulator?.name || 'PC'
-                if (cName !== libFilterConsole) return false
-            }
-            if (libSearch) {
-                const q = libSearch.toLowerCase()
-                const title = (s.label || s.game.name || '').toLowerCase()
-                if (!title.includes(q)) return false
-            }
-            return true
-        })
-    }, [librarySlots, libFilterConsole, libSearch])
-
     const renderLibraryTab = () => (
         <div className="profile-container">
             <div className="profile-section-card" style={{ paddingBottom: 16 }}>
@@ -571,35 +579,55 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                     {filteredLibSlots.length === 0 ? (
                         <p className="profile-section-desc" style={{ textAlign: 'center', padding: '24px 0' }}>No se encontraron juegos con estos filtros.</p>
                     ) : (
-                        filteredLibSlots.map(s => (
-                            <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(10, 13, 20, 0.7)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.05)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, overflow: 'hidden' }}>
-                                    <div style={{ minWidth: 36, width: 36, height: 36, borderRadius: 8, background: 'rgba(58,134,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3a86ff', fontSize: 18 }}>
-                                        <Icon icon={s.icon || "mynaui:gamepad"} />
-                                    </div>
+                        filteredLibSlots.map((s, idx) => (
+                            <div key={s.id} className={`profile-library-item ${focusArea === 'content' && selectedIndex === idx + 2 ? 'focused' : ''}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'rgba(15, 18, 25, 0.8)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)', transition: 'all 0.2s ease', position: 'relative', overflow: 'hidden' }}>
+                                {(s.image || s.squareImage) && (
+                                    <div style={{ position: 'absolute', inset: 0, opacity: 0.15, backgroundImage: `url("${s.image || s.squareImage}")`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(12px)' }} />
+                                )}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 14, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+                                    {s.image || s.squareImage ? (
+                                        <div style={{ minWidth: 44, width: 44, height: 44, borderRadius: 10, backgroundImage: `url("${s.squareImage || s.image}")`, backgroundSize: 'cover', backgroundPosition: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }} />
+                                    ) : (
+                                        <div style={{ minWidth: 44, width: 44, height: 44, borderRadius: 10, background: 'linear-gradient(135deg, rgba(58,134,255,0.2), rgba(58,134,255,0.05))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3a86ff', fontSize: 22, boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.1)' }}>
+                                            <Icon icon={s.icon || "mynaui:gamepad"} />
+                                        </div>
+                                    )}
                                     <div style={{ overflow: 'hidden' }}>
-                                        <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label || s.game?.name}</div>
-                                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                            {s.game?.platform?.name || s.game?.emulator?.name || 'PC'} · {s.game?.playtimeMinutes ? `${s.game.playtimeMinutes} min jugados` : 'Sin empezar'}
+                                        <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{s.label || s.game?.name}</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                            <span style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4, color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>{s.game?.platform?.name || s.game?.emulator?.name || 'PC'}</span>
+                                            {s.game?.playtimeMinutes ? `${s.game.playtimeMinutes} min jugados` : 'Sin empezar'}
                                         </div>
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                                <div style={{ display: 'flex', gap: 6, flexShrink: 0, position: 'relative', zIndex: 1 }}>
                                     <button
                                         className="profile-btn profile-btn--secondary"
-                                        style={{ padding: '6px 10px', fontSize: '0.8rem', borderRadius: 6 }}
+                                        style={{ padding: '6px 10px', fontSize: '0.8rem', borderRadius: 8, background: 'rgba(255,255,255,0.1)' }}
                                         onClick={() => { window.api.gridItemControl('run-game', s); onClose() }}
                                         title="Lanzar juego"
                                     >
                                         <Icon icon="mynaui:play" />
                                     </button>
+                                    {onOpenAddGame && (
+                                        <button
+                                            className="profile-btn profile-btn--secondary"
+                                            style={{ padding: '6px 10px', fontSize: '0.8rem', borderRadius: 8, background: 'rgba(255,255,255,0.1)' }}
+                                            onClick={() => { sfx.confirm(); onOpenAddGame(s) }}
+                                            title="Editar juego"
+                                        >
+                                            <Icon icon="mynaui:edit" />
+                                        </button>
+                                    )}
                                     <button
                                         className="profile-btn profile-btn--danger"
-                                        style={{ padding: '6px 10px', fontSize: '0.8rem', borderRadius: 6 }}
+                                        style={{ padding: '6px 10px', fontSize: '0.8rem', borderRadius: 8 }}
                                         onClick={async () => {
-                                            sfx.cancel()
-                                            await window.api.slots.remove(s.id)
-                                            setLibrarySlots(prev => prev.filter(x => x.id !== s.id))
+                                            if (window.confirm(`¿Seguro que quieres eliminar ${s.label || s.game?.name}?`)) {
+                                                sfx.cancel()
+                                                await window.api.slots.remove(s.id)
+                                                setLibrarySlots(prev => prev.filter(x => x.id !== s.id))
+                                            }
                                         }}
                                         title="Eliminar juego"
                                     >

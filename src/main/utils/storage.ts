@@ -132,6 +132,49 @@ export function loadSlots(): HomeSlot[] {
     return hydratedSlots
 }
 
+export function loadAllLibrarySlots(): HomeSlot[] {
+    const consolesDir = path.join(USER_DATA_PATH, CONSOLES_FOLDER)
+    if (!fs.existsSync(consolesDir)) return []
+
+    const librarySlots: HomeSlot[] = []
+    const gridSlots = loadSlots()
+    const gridMap = new Map<string, HomeSlot>()
+    for (const s of gridSlots) {
+        if (s.gameRef) gridMap.set(s.gameRef.gameId, s)
+        else if (s.game) gridMap.set(s.game.id, s)
+    }
+
+    try {
+        const files = fs.readdirSync(consolesDir)
+        for (const file of files) {
+            if (!file.endsWith('.json')) continue
+            const slug = file.replace('.json', '')
+            const consoleData = readJson<{ console: string, games: Record<string, Game> }>(CONSOLES_FOLDER, slug)
+            if (consoleData && consoleData.games) {
+                for (const [gameId, game] of Object.entries(consoleData.games)) {
+                    const existingGridSlot = gridMap.get(gameId)
+                    if (existingGridSlot) {
+                        librarySlots.push(existingGridSlot)
+                    } else {
+                        librarySlots.push({
+                            id: `lib-${slug}-${gameId}`,
+                            label: game.name,
+                            game: game,
+                            gameRef: { consoleSlug: slug, gameId },
+                            image: game.backgroundUrl || game.coverUrl,
+                            squareImage: game.coverUrl
+                        })
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        debugError(`[Storage] Error loading console library files: ${err}`)
+    }
+
+    return librarySlots
+}
+
 export function addSlot(slot: HomeSlot): void {
     addMultipleSlots([slot])
 }
@@ -183,11 +226,39 @@ export function addMultipleSlots(newSlots: HomeSlot[]): void {
 
 export function removeSlot(slotId: string): void {
     const slots = loadSlots()
-    const filteredSlots = slots.filter(s => s.id !== slotId)
+    const targetGridSlot = slots.find(s => s.id === slotId)
+    const targetGameId = targetGridSlot?.gameRef?.gameId || (slotId.startsWith('lib-') ? slotId.split('-').slice(2).join('-') : slotId)
 
-    if (filteredSlots.length < slots.length) {
+    let removedFromConsole = false
+    const consolesDir = path.join(USER_DATA_PATH, CONSOLES_FOLDER)
+    if (fs.existsSync(consolesDir)) {
+        const files = fs.readdirSync(consolesDir)
+        for (const file of files) {
+            if (!file.endsWith('.json')) continue
+            const slug = file.replace('.json', '')
+            const consoleData = readJson<{ console: string, games: Record<string, Game> }>(CONSOLES_FOLDER, slug)
+            if (consoleData && consoleData.games) {
+                for (const gameId of Object.keys(consoleData.games)) {
+                    if (gameId === targetGameId || slotId === `lib-${slug}-${gameId}`) {
+                        delete consoleData.games[gameId]
+                        saveJson(CONSOLES_FOLDER, slug, consoleData)
+                        removedFromConsole = true
+                        debugLog(`[Storage] Juego eliminado de consola JSON (${slug}): ${gameId}`)
+                    }
+                }
+            }
+        }
+    }
+
+    const filteredSlots = slots.filter(s => {
+        if (s.id === slotId) return false
+        if (s.gameRef && s.gameRef.gameId === targetGameId) return false
+        return true
+    })
+
+    if (filteredSlots.length < slots.length || removedFromConsole) {
         saveSlots(filteredSlots)
-        debugLog(`[Storage] Slot eliminado: ${slotId}`)
+        debugLog(`[Storage] Slot/Juego eliminado correctamente: ${slotId}`)
     } else {
         debugLog(`[Storage] Slot no encontrado: ${slotId}`)
     }

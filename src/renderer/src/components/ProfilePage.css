@@ -463,21 +463,26 @@
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .profile-input-icon {
   position: absolute;
-  left: 14px;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 20px;
   color: var(--text-muted);
   pointer-events: none;
   transition: color 0.2s ease;
+  z-index: 5;
 }
 
+input.profile-input,
 .profile-input {
   width: 100%;
   box-sizing: border-box !important;
-  padding: 14px 16px 14px 62px !important;
+  padding: 14px 16px 14px 52px !important;
   background: rgba(12, 15, 22, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -488,14 +493,18 @@
   transition: all 0.2s ease;
 }
 
+input.profile-input:focus,
 .profile-input:focus,
+input.profile-input.focused,
 .profile-input.focused {
   border-color: var(--accent);
   background: rgba(58, 134, 255, 0.06);
   box-shadow: 0 0 0 3px rgba(58, 134, 255, 0.2);
 }
 
+input.profile-input:focus + .profile-input-icon,
 .profile-input:focus + .profile-input-icon,
+input.profile-input.focused ~ .profile-input-icon,
 .profile-input.focused ~ .profile-input-icon {
   color: var(--accent);
 }

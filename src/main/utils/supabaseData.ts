@@ -1,4 +1,4 @@
-import { getAuthenticatedClient, getUserId } from './supabase'
+import { getAuthenticatedClient, getUserId, getSupabaseClient } from './supabase'
 import { debugLog, debugError } from './debug'
 
 export interface SyncableRecord {
@@ -82,7 +82,8 @@ export async function deleteRemoteRecord(
 export async function fetchFromTable<T>(
   table: string
 ): Promise<T[]> {
-  const client = await getAuthenticatedClient()
+  let client: any = null
+  try { client = await getAuthenticatedClient() } catch {}
   if (!client) return []
 
   const { data, error } = await client
@@ -94,5 +95,15 @@ export async function fetchFromTable<T>(
     return []
   }
 
-  return data?.map(row => (row && typeof row === 'object' && 'data' in row && row.data) ? { id: row.id, name: row.name, ...row.data } : row) || []
+  return data?.map(row => {
+    if (!row || typeof row !== 'object') return row
+    let d = (row as any).data
+    if (typeof d === 'string') {
+      try { d = JSON.parse(d) } catch {}
+    }
+    if (d && typeof d === 'object') {
+      return { id: (row as any).id, name: (row as any).name, ...d }
+    }
+    return row
+  }) || []
 }

@@ -446,7 +446,7 @@ export function toggleContextMenu(show?: boolean): void {
             ])
         } else {
             setContextOptions([
-                { id: 'add', label: 'Add Game', icon: 'mynaui:plus-square', action: 'ADD_GAME' }
+                { id: 'add', label: 'Seleccionar de la Biblioteca', icon: 'mynaui:folder', action: 'ASSIGN_GAME_FROM_LIBRARY' }
             ])
         }
     }
@@ -471,6 +471,10 @@ export function executeContextAction(action: string): void {
         debugLog(JSON.stringify(selectedElement, null, 2))
         changeInfoIsland('Info enviada al debug log')
         setTimeout(() => changeInfoIsland(''), 2000)
+    } else if (action === 'ASSIGN_GAME_FROM_LIBRARY') {
+        appWindow?.webContents.send('dispatch-action', { type: 'OPEN_LIBRARY_PICKER' })
+        toggleContextMenu(false)
+        return
     }
     // Close menu after action and return to grid for standard actions
     toggleContextMenu(false)

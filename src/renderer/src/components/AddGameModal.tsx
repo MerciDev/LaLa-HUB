@@ -18,6 +18,8 @@ interface AddGameForm {
     verticalImage: string
     horizontalImage: string
     iconImage: string
+    backgroundImage?: string
+    coverImage?: string
     showLabel?: boolean
     labelPosition?: 'bottom' | 'top' | 'center'
     showIcon?: boolean
@@ -29,6 +31,7 @@ const EMPTY_FORM: AddGameForm = {
     name: '', searchId: '', path: '', emulatorId: '', platformId: '', processName: '',
     squareImage: '', logoImage: '', 
     verticalImage: '', horizontalImage: '', iconImage: '',
+    backgroundImage: '', coverImage: '',
     showLabel: false, labelPosition: 'bottom', showIcon: false, iconPosition: 'bottom-right', iconSize: 64
 }
 
@@ -234,6 +237,8 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 verticalImage: editSlot.verticalImage ?? '',
                 horizontalImage: editSlot.horizontalImage ?? '',
                 iconImage: editSlot.iconImage ?? '',
+                backgroundImage: editSlot.backgroundImage ?? '',
+                coverImage: editSlot.coverImage ?? '',
                 showLabel: editSlot.showLabel ?? false,
                 labelPosition: editSlot.labelPosition ?? 'bottom',
                 showIcon: editSlot.showIcon ?? false,
@@ -281,7 +286,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
             setImportLoading(true)
             window.api.gameApi.searchGames(importQuery.trim())
                 .then(data => {
-                    let results = data.results || []
+                    let results = Array.isArray(data) ? data : (data?.results || [])
                     
                     if (importConsole) {
                         results = results.filter((r: any) => {
@@ -412,8 +417,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         // Only auto-assign if the field is currently empty
         if (found && !form[mediaTarget]) {
             const u = found.url
-            const url = u.startsWith('http') || u.startsWith('media://') ? u : `http://localhost:3000${u}`.replace('localhost:3000//', 'localhost:3000/')
-            setForm(prev => ({ ...prev, [mediaTarget]: url }))
+            setForm(prev => ({ ...prev, [mediaTarget]: u }))
         }
     }, [mediaTarget, apiImages, visible])
 
@@ -439,8 +443,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
         const imgs = res.images || {}
         const normalize = (u?: string) => {
             if (!u) return ''
-            if (u.startsWith('http') || u.startsWith('media://')) return u
-            return `http://localhost:3000${u}`.replace('localhost:3000//', 'localhost:3000/')
+            return u
         }
         
         setForm(p => ({
@@ -585,6 +588,8 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
 
     // --- Media targets list ---
     const MEDIA_OPTIONS: { id: MediaTarget; label: string }[] = [
+        { id: 'coverImage', label: 'Carátula Principal' },
+        { id: 'backgroundImage', label: 'Fondo de Pantalla' },
         { id: 'verticalImage', label: 'Cuadrícula Vertical' },
         { id: 'horizontalImage', label: 'Cuadrícula Horizontal' },
         { id: 'squareImage', label: 'Imagen Cuadrada' },
@@ -919,8 +924,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                             const img = r.current.apiImages[cIdx - apiImgsStartAt]
                             if (img) {
                                 sfx.confirm()
-                                const safeUrl = img.url.startsWith('http') || img.url.startsWith('media://') ? img.url : `http://localhost:3000${img.url}`.replace('localhost:3000//', 'localhost:3000/')
-                                setForm(p => ({ ...p, [r.current.mediaTarget]: safeUrl }))
+                                setForm(p => ({ ...p, [r.current.mediaTarget]: img.url }))
                             }
                         }
                     } else if (action === 'back') {
@@ -1026,6 +1030,8 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                 verticalImage: f.verticalImage || slot?.verticalImage,
                 horizontalImage: f.horizontalImage || slot?.horizontalImage,
                 iconImage: f.iconImage || slot?.iconImage,
+                backgroundImage: f.backgroundImage || slot?.backgroundImage,
+                coverImage: f.coverImage || slot?.coverImage,
                 showLabel: f.showLabel,
                 labelPosition: f.labelPosition,
                 showIcon: f.showIcon,
@@ -1042,7 +1048,9 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                     emulator: selectedEmulator,
                     platform: selectedPlatform,
                     processName: f.processName.trim(),
-                    playtimeMinutes: slot?.game?.playtimeMinutes ?? 0
+                    playtimeMinutes: slot?.game?.playtimeMinutes ?? 0,
+                    coverUrl: f.coverImage || f.squareImage || slot?.squareImage,
+                    backgroundUrl: f.backgroundImage || f.horizontalImage || slot?.backgroundImage
                 }
             }
             const res = await window.api.slots.add(newSlot)
@@ -1303,7 +1311,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                         </div>
                                         {res.images?.cover ? (
                                             <img
-                                                src={res.images.cover.startsWith('http') || res.images.cover.startsWith('media://') ? res.images.cover : `http://localhost:3000${res.images.cover}`}
+                                                src={res.images.cover}
                                                 alt={res.name}
                                                 onError={e => {
                                                     const t = e.target as HTMLImageElement
@@ -1335,7 +1343,7 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                 <span>
                                     {importQuery
                                         ? `Sin resultados para «${importQuery}»`
-                                        : 'Escribe para buscar juegos en la API'}
+                                        : 'Escribe para buscar juegos en la base de datos'}
                                 </span>
                             </div>
                         )}
@@ -1676,9 +1684,8 @@ function AddGamePanel({ visible, editSlot, onClose }: AddGamePanelProps): React.
                                 <div className="ag-api-grid">
                                     {apiImages.map((img, i) => {
                                         const isSel = isFocused('content', i + 4)
-                                        const safeUrl = img.url.startsWith('http') || img.url.startsWith('media://') ? img.url : `http://localhost:3000${img.url}`.replace('localhost:3000//', 'localhost:3000/')
-                                        const normalizeForCheck = (url: string) => url.replace('http://localhost:3000', '').replace('//', '/')
-                                        const isActive = normalizeForCheck(form[mediaTarget] || '') === normalizeForCheck(img.url)
+                                        const safeUrl = img.url
+                                        const isActive = form[mediaTarget] === img.url
 
                                         return (
                                             <button

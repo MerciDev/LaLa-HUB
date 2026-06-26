@@ -52,7 +52,7 @@ export function registerSlotHandlers(): void {
 
   ipcMain.handle('slot-remove', async (_, slotId: string) => {
     debugLog(`[Slots] Removing slot: ${slotId}`)
-    const { removeSlot } = await import('../utils/storage')
+    const { removeSlot, loadSlots } = await import('../utils/storage')
     removeSlot(slotId)
 
     const savedSlots = loadSlots()
@@ -60,18 +60,25 @@ export function registerSlotHandlers(): void {
 
     const userId = getUserId()
     if (userId) {
-      deleteRemoteRecord('slots', slotId)
+      if (slotId.startsWith('lib-')) {
+        const gameId = slotId.split('-').slice(2).join('-')
+        await deleteRemoteRecord('games', gameId)
+      } else {
+        await deleteRemoteRecord('slots', slotId)
+      }
     }
 
+    syncSlotsToCloud()
     return { success: true }
   })
 
   ipcMain.handle('slot-get-all', async () => {
-    return loadSlots()
+    const { loadAllLibrarySlots } = await import('../utils/storage')
+    return loadAllLibrarySlots()
   })
 
   ipcMain.handle('slot-clear-all', async () => {
-    debugLog('[Slots] Clearing all slots')
+    debugLog('[Slots] Clearing grid layout')
     const { saveSlots, loadSlots } = await import('../utils/storage')
     const current = loadSlots()
     saveSlots([])
@@ -79,9 +86,7 @@ export function registerSlotHandlers(): void {
 
     const userId = getUserId()
     if (userId) {
-      for (const slot of current) {
-        deleteRemoteRecord('slots', slot.id)
-      }
+      await Promise.all(current.map(slot => deleteRemoteRecord('slots', slot.id)))
     }
 
     syncSlotsToCloud()

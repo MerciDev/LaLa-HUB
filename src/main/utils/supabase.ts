@@ -43,6 +43,10 @@ export function getCurrentSession(): Session | null {
 
 export function setSession(session: Session | null): void {
   currentSession = session
+  const client = getSupabaseClient()
+  if (session) {
+    client.auth.setSession(session).catch(() => {})
+  }
 }
 
 export function getUserId(): string | null {
@@ -60,7 +64,6 @@ export async function refreshSession(): Promise<boolean> {
     if (error) throw error
     if (data.session) {
       currentSession = data.session
-      debugLog('[Supabase] Sesión refrescada')
       return true
     }
     return false
@@ -71,12 +74,16 @@ export async function refreshSession(): Promise<boolean> {
 }
 
 export async function getAuthenticatedClient(): Promise<SupabaseClient | null> {
-  if (!currentSession) return null
-  const now = Date.now()
-  const expiresAt = currentSession.expires_at ? currentSession.expires_at * 1000 : 0
-  if (expiresAt > 0 && now >= expiresAt - 60000) {
-    const refreshed = await refreshSession()
-    if (!refreshed) return null
+  const client = getSupabaseClient()
+  if (currentSession) {
+    const now = Date.now()
+    const expiresAt = currentSession.expires_at ? currentSession.expires_at * 1000 : 0
+    if (expiresAt > 0 && now >= expiresAt - 60000) {
+      await refreshSession()
+    }
+    if (currentSession) {
+      await client.auth.setSession(currentSession).catch(() => {})
+    }
   }
-  return getSupabaseClient()
+  return client
 }
