@@ -295,19 +295,39 @@ function MainApp(): React.JSX.Element {
         if (save) {
             const slot = grid.items.find(i => i.id === mm.slotId)
             if (slot) {
-                const newItems = grid.items.map(i =>
-                    i.id === mm.slotId ? { ...i, position: mm.ghostPosition, page } : i
-                )
-                persistItems(newItems)
-                sfx.confirm()
+                const cSpan = slot.colSpan ?? 1
+                const rSpan = slot.rowSpan ?? 1
+                const cols = grid.cols
+                const rows = grid.rows
+                const gp = mm.ghostPosition
+                const gCol = gp % cols
+                const gRow = Math.floor(gp / cols)
+                const fits = gCol + cSpan <= cols && gRow + rSpan <= rows
+                if (fits) {
+                    const occupied = buildOccupiedCells(grid.items, page, cols, mm.slotId)
+                    const cells = getSlotCells(gp, cSpan, rSpan, cols)
+                    if (cells.every(c => !occupied.has(c))) {
+                        const newItems = grid.items.map(i =>
+                            i.id === mm.slotId ? { ...i, position: gp, page } : i
+                        )
+                        persistItems(newItems)
+                        sfx.confirm()
+                        setSelectedSlotIndex(gp)
+                        setMoveMode(null)
+                        window.api.movementControl.send('SET_SECTION', 'grid')
+                        collapseIsland()
+                        return
+                    }
+                }
+                sfx.error()
+                return
             }
-        } else {
-            sfx.cancel()
         }
+        sfx.cancel()
         setMoveMode(null)
         window.api.movementControl.send('SET_SECTION', 'grid')
         collapseIsland()
-    }, [persistItems, collapseIsland])
+    }, [persistItems, collapseIsland, setSelectedSlotIndex])
 
     const enterResizeMode = useCallback((slot: HomeSlot) => {
         sfx.confirm()
@@ -668,17 +688,14 @@ function MainApp(): React.JSX.Element {
                 if (action === 'up' && curRow > 0) newPos = cur - cols
 
                 if (newPos !== cur) {
-                    // Check if new position is valid (no collision with occupied cells)
                     const newStartRow = Math.floor(newPos / cols)
                     const newStartCol = newPos % cols
                     const fitsGrid = newStartCol + cSpan <= cols && newStartRow + rSpan <= rows
                     if (fitsGrid) {
                         const occupied = buildOccupiedCells(grid.items, page, cols, mm.slotId)
                         const newCells = getSlotCells(newPos, cSpan, rSpan, cols)
-                        const canPlace = newCells.every(c => !occupied.has(c))
-                        sfx.navigate()
+                        if (newCells.every(c => !occupied.has(c))) sfx.navigate()
                         setMoveMode(prev => prev ? { ...prev, ghostPosition: newPos } : null)
-                        if (!canPlace) sfx.error()
                     }
                 }
                 return

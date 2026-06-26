@@ -184,6 +184,7 @@ function HomeGrid({
                     gridTemplateColumns: `repeat(${cols}, ${cellSize.width}px)`,
                     gridTemplateRows: `repeat(${rows}, ${cellSize.height}px)`,
                     gap: `${currentGap}px`,
+                    position: 'relative',
                 }}
             >
                 {Array.from({ length: totalCells }).map((_, index) => {
@@ -332,17 +333,24 @@ function HomeGrid({
                 {isInteractive && moveMode && movingSlot && moveMode.ghostPosition !== undefined && (() => {
                     const cSpan = movingSlot.colSpan ?? 1
                     const rSpan = movingSlot.rowSpan ?? 1
-                    const startCol = (moveMode.ghostPosition % cols) + 1
-                    const startRow = Math.floor(moveMode.ghostPosition / cols) + 1
+                    const gp = moveMode.ghostPosition
+                    const gCol = gp % cols
+                    const gRow = Math.floor(gp / cols)
+                    const ghostW = cSpan * cellSize.width + (cSpan - 1) * currentGap
+                    const ghostH = rSpan * cellSize.height + (rSpan - 1) * currentGap
+                    const ghostX = gCol * (cellSize.width + currentGap)
+                    const ghostY = gRow * (cellSize.height + currentGap)
                     return (
                         <div
                             className={`homeSlot ghost-merged ${ghostValid ? 'ghost-valid' : 'ghost-invalid'}`}
                             style={{
-                                gridColumn: `${startCol} / span ${Math.min(cSpan, cols - startCol + 1)}`,
-                                gridRow: `${startRow} / span ${Math.min(rSpan, rows - startRow + 1)}`,
+                                position: 'absolute',
+                                left: ghostX,
+                                top: ghostY,
+                                width: ghostW,
+                                height: ghostH,
                                 pointerEvents: 'none',
                                 zIndex: 25,
-                                position: 'relative'
                             }}
                         >
                             <div className={`slot-ghost ${ghostValid ? 'slot-ghost--valid' : 'slot-ghost--invalid'}`} style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
