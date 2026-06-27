@@ -21,28 +21,39 @@ export function getAuthState(): AuthState {
 }
 
 function loadStoredSession(): void {
-  if (!checkFileExists('auth', 'session')) return
-  const stored = readJson<{ refreshToken: string; user: UserProfile }>('auth', 'session')
-  if (stored) {
-    authState = {
-      isLoggedIn: true,
-      user: stored.user,
-      session: null
-    }
-    debugLog('[Auth] Sesión local cargada')
+  try {
+    if (!checkFileExists('auth', 'session')) return
+    const stored = readJson<{ refreshToken: string; user: UserProfile }>('auth', 'session')
+    if (stored) {
+      authState = {
+        isLoggedIn: true,
+        user: stored.user,
+        session: null
+      }
+      debugLog('[Auth] Sesión local cargada')
 
-    if (stored.refreshToken) {
-      const client = getSupabaseClient()
-      client.auth.refreshSession({ refresh_token: stored.refreshToken })
-        .then(({ data }) => {
-          if (data.session) {
-            setSession(data.session)
-            persistSession(stored.user) // Update token on disk if it changed
-            debugLog('[Auth] Sesión de Supabase restaurada con token')
+      if (stored.refreshToken) {
+        // Defer getSupabaseClient() until after app is ready and env vars are loaded
+        Promise.resolve().then(() => {
+          try {
+            const client = getSupabaseClient()
+            return client.auth.refreshSession({ refresh_token: stored.refreshToken })
+              .then(({ data }) => {
+                if (data.session) {
+                  setSession(data.session)
+                  persistSession(stored.user) // Update token on disk if it changed
+                  debugLog('[Auth] Sesión de Supabase restaurada con token')
+                }
+              })
+              .catch(err => debugLog(`[Auth] Fallo restaurando token en Supabase: ${err.message}`))
+          } catch (err: any) {
+            debugLog(`[Auth] Supabase no configurado al restaurar sesión: ${err.message}`)
           }
         })
-        .catch(err => debugLog(`[Auth] Fallo restaurando token en Supabase: ${err.message}`))
+      }
     }
+  } catch (err: any) {
+    debugLog(`[Auth] Error cargando sesión local: ${err.message}`)
   }
 }
 

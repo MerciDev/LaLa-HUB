@@ -4,7 +4,11 @@ import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 
 try {
-  dotenv.config({ path: join(process.cwd(), '.env') })
+  // In dev, load from cwd. In production, load from the app's resources directory.
+  const envPath = is.dev
+    ? join(process.cwd(), '.env')
+    : join(app.getAppPath(), '.env')
+  dotenv.config({ path: envPath })
 } catch { }
 
 protocol.registerSchemesAsPrivileged([
@@ -118,10 +122,10 @@ function createWindow(): void {
       if (typeof key === 'string' && isKeyMatch(input, key)) {
         debugLog(`[DEBUG] Key match found: ${input.key} (${input.type}) -> Action: ${action}`)
 
-        // If the user focuses an input in the renderer, DO NOT preempt navigation keystrokes like 'e' or 'q'
-        // that are standard typed keys, EXCEPT for 'back'/'Escape' to unfocus or basic enter
+        // If the renderer has a text input focused, only intercept navigation-safe
+        // actions (back / select). All other matched keys pass through unmodified.
         if (isRendererInputFocused) {
-          if (action !== 'back' && action !== 'select') break
+          if (action !== 'back' && action !== 'select') return // let the key reach the input
         }
 
         event.preventDefault()
