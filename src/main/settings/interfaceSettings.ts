@@ -3,6 +3,8 @@ import { InterfaceSettings } from "../../shared/types";
 
 export const interfaceSettings: InterfaceSettings = {
     showGameBackground: true,
+    activeTheme: 'dark',
+    customThemes: [],
 }
 
 export function loadInterfaceSettings(): void {

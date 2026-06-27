@@ -200,11 +200,23 @@ export interface GameMetadata {
   publishers: string[]
 }
 
+export interface AppTheme {
+  id: string
+  name: string
+  author?: string
+  description?: string
+  colors: Record<string, string>
+  backgroundImage?: string
+  customCss?: string
+}
+
 export interface InterfaceSettings {
   showGameBackground: boolean
   rawgApiKey?: string
   tgdbApiKey?: string
   gameMetadataProvider?: MetadataProvider
+  activeTheme?: string
+  customThemes?: AppTheme[]
 }
 
 // ─── Auth Types ─────────────────────────────────────────────────────────────

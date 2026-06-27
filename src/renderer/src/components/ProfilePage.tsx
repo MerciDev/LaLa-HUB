@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Icon } from '@iconify/react'
-import { AuthState, AuthResult, HomeSlot } from '../../../shared/types'
+import { AuthState, AuthResult, HomeSlot, InterfaceSettings, AppTheme } from '../../../shared/types'
 import { sfx } from '../utils/audioManager'
 import SidePanel, { ConsolePanelTab } from './SidePanel'
 import { useToast } from '../hooks/useToast'
 import { useDialog } from '../hooks/useDialog'
 import './ProfilePage.css'
+import ThemeEditorModal from './ThemeEditorModal'
 
 interface ProfilePageProps {
     visible: boolean
@@ -17,13 +18,15 @@ interface ProfilePageProps {
 
 const LOGGED_IN_TABS: ConsolePanelTab[] = [
     { id: 'overview', label: 'Vista General', icon: 'mynaui:user', description: 'Tu tarjeta de jugador y estado en la nube' },
+    { id: 'themes', label: 'Gestor de Temas', icon: 'mynaui:palette', description: 'Personaliza colores, estilos y temas visuales de la aplicación' },
     { id: 'security', label: 'Cuenta y Seguridad', icon: 'mynaui:shield-check', description: 'Personaliza tu identidad o gestiona tu sesión activa' },
     { id: 'library', label: 'Gestionar Biblioteca', icon: 'mynaui:folder', description: 'Opciones de sincronización y descubrimiento de juegos' }
 ]
 
 const GUEST_TABS: ConsolePanelTab[] = [
     { id: 'login', label: 'Iniciar Sesión', icon: 'mynaui:log-in', description: 'Accede a tu biblioteca sincronizada en la nube' },
-    { id: 'register', label: 'Crear Cuenta', icon: 'mynaui:user-plus', description: 'Regístrate gratis para respaldar tus partidas en línea' }
+    { id: 'register', label: 'Crear Cuenta', icon: 'mynaui:user-plus', description: 'Regístrate gratis para respaldar tus partidas en línea' },
+    { id: 'themes', label: 'Gestor de Temas', icon: 'mynaui:palette', description: 'Personaliza colores, estilos y temas visuales de la aplicación' }
 ]
 
 function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: ProfilePageProps): React.JSX.Element {
@@ -59,6 +62,10 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
     const [syncingCloud, setSyncingCloud] = useState(false)
     const [expandedGameId, setExpandedGameId] = useState<string | null>(null)
 
+    // Theme state
+    const [settings, setSettings] = useState<InterfaceSettings>({ showGameBackground: true, activeTheme: 'dark', customThemes: [] })
+    const [editingTheme, setEditingTheme] = useState<AppTheme | null>(null)
+
     const handleDeleteGame = useCallback(async (slotId: string) => {
         try {
             await window.api.slots?.remove?.(slotId)
@@ -87,10 +94,134 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
     }, [showDialog, handleDeleteGame])
 
     useEffect(() => {
-        if (visible && tab === 'library') {
-            window.api.slots?.getAll?.().then(res => setLibrarySlots(res || []))
+        if (visible) {
+            if (tab === 'library') {
+                window.api.slots?.getAll?.().then(res => setLibrarySlots(res || []))
+            }
+            if (tab === 'themes' || tab === 'overview') {
+                window.api?.ui?.getSettings().then(res => {
+                    if (res) setSettings(res)
+                }).catch(console.error)
+            }
         }
     }, [visible, tab])
+
+    const handleSelectTheme = useCallback(async (themeId: string) => {
+        sfx.confirm()
+        const updated = { ...settings, activeTheme: themeId }
+        setSettings(updated)
+        await window.api?.ui?.saveSettings(updated)
+        // Dispatch window event so MainApp updates immediately
+        window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+        showToast('Tema cambiado correctamente', 'success')
+    }, [settings, showToast])
+
+    const handleImportTheme = useCallback(async () => {
+        sfx.confirm()
+        const res = await window.api?.ui?.importTheme()
+        if (!res) return // Canceled
+        if ('error' in res) {
+            sfx.cancel()
+            showToast(`Error importando tema: ${res.error}`, 'error')
+            return
+        }
+        const customThemes = [...(settings.customThemes || [])]
+        const existingIdx = customThemes.findIndex(t => t.id === res.id || t.name.toLowerCase() === res.name.toLowerCase())
+        if (existingIdx >= 0) {
+            customThemes[existingIdx] = res
+        } else {
+            customThemes.push(res)
+        }
+        const updated = { ...settings, customThemes, activeTheme: res.id }
+        setSettings(updated)
+        await window.api?.ui?.saveSettings(updated)
+        window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+        showToast(`Tema "${res.name}" instalado y activado`, 'success')
+    }, [settings, showToast])
+
+    const handleDeleteTheme = useCallback(async (themeId: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        sfx.cancel()
+        const customThemes = (settings.customThemes || []).filter(t => t.id !== themeId)
+        const activeTheme = settings.activeTheme === themeId ? 'dark' : settings.activeTheme
+        const updated = { ...settings, customThemes, activeTheme }
+        setSettings(updated)
+        await window.api?.ui?.saveSettings(updated)
+        window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+        showToast('Tema eliminado', 'info')
+    }, [settings, showToast])
+
+    const handleCreateTheme = useCallback(() => {
+        sfx.confirm()
+        setEditingTheme({
+            id: 'theme_' + Date.now(),
+            name: 'Nuevo Tema',
+            author: (user?.username || 'Usuario'),
+            description: 'Un tema personalizado.',
+            colors: {} // We rely on DEFAULT_COLORS in the modal
+        })
+    }, [user])
+
+    const handleDuplicateTheme = useCallback((themeId: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        sfx.confirm()
+        const baseTheme = (settings.customThemes || []).find(t => t.id === themeId)
+        if (baseTheme) {
+            setEditingTheme({
+                ...baseTheme,
+                id: 'theme_' + Date.now(),
+                name: baseTheme.name + ' (Copia)'
+            })
+        } else if (themeId === 'dark' || themeId === 'platinum') {
+            const isDark = themeId === 'dark'
+            setEditingTheme({
+                id: 'theme_' + Date.now(),
+                name: (isDark ? 'Dark' : 'Platinum') + ' (Copia)',
+                author: (user?.username || 'Usuario'),
+                description: 'Copia del tema integrado.',
+                colors: isDark ? {} : {
+                    '--bg-base': '#e0e5ec',
+                    '--bg-surface': 'rgba(255, 255, 255, 0.5)',
+                    '--bg-elevated': 'rgba(255, 255, 255, 0.8)',
+                    '--bg-hover': 'rgba(0, 0, 0, 0.05)',
+                    '--accent': '#2a2d34',
+                    '--accent-glow': 'rgba(0, 0, 0, 0.1)',
+                    '--accent-bright': '#4a4e69',
+                    '--text-primary': '#1a1b1e',
+                    '--text-secondary': 'rgba(0, 0, 0, 0.6)',
+                    '--text-muted': 'rgba(0, 0, 0, 0.3)',
+                    '--border': 'rgba(0, 0, 0, 0.1)',
+                    '--border-active': 'rgba(0, 0, 0, 0.4)'
+                }
+            })
+        }
+    }, [settings, user])
+
+    const handleEditTheme = useCallback((themeId: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        sfx.confirm()
+        const customTheme = (settings.customThemes || []).find(t => t.id === themeId)
+        if (customTheme) {
+            setEditingTheme(customTheme)
+        }
+    }, [settings])
+
+    const handleSaveTheme = useCallback(async (theme: AppTheme) => {
+        sfx.confirm()
+        const customThemes = [...(settings.customThemes || [])]
+        const existingIdx = customThemes.findIndex(t => t.id === theme.id)
+        if (existingIdx >= 0) {
+            customThemes[existingIdx] = theme
+        } else {
+            customThemes.push(theme)
+        }
+        const updated = { ...settings, customThemes, activeTheme: theme.id }
+        setSettings(updated)
+        setEditingTheme(null)
+        await window.api?.ui?.saveSettings(updated)
+        window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+        showToast(`Tema "${theme.name}" guardado`, 'success')
+    }, [settings, showToast])
 
 
 
@@ -123,10 +254,10 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
     const activeTabs = isLoggedIn ? LOGGED_IN_TABS : GUEST_TABS
 
     const stateRef = useRef({
-        visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame
+        visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame, settings
     })
     useEffect(() => {
-        stateRef.current = { visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame }
+        stateRef.current = { visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame, settings }
     })
 
     // Reset when opening panel or auth changes
@@ -360,6 +491,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
 
                 let maxCount = 2
                 if (curTab === 'overview') maxCount = 2
+                if (curTab === 'themes') maxCount = 3 + (stateRef.current.settings?.customThemes?.length || 0)
                 if (curTab === 'security') maxCount = 4
                 if (curTab === 'library') maxCount = totalLibItems
                 if (curTab === 'login') maxCount = 4
@@ -423,6 +555,27 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                     if (curTab === 'overview') {
                         if (idx === 0) { sfx.confirm(); setTab('security'); setSelectedIndex(0) }
                         else if (idx === 1) { handleLogout() }
+                    } else if (curTab === 'themes') {
+                        const customThemes = stateRef.current.settings?.customThemes || []
+                        if (idx === 0) {
+                            sfx.confirm()
+                            const currentSet = stateRef.current.settings
+                            if (currentSet) {
+                                const updated = { ...currentSet, showGameBackground: !currentSet.showGameBackground }
+                                setSettings(updated)
+                                window.api?.ui?.saveSettings(updated)
+                                window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+                            }
+                        }
+                        else if (idx === 1) handleSelectTheme('dark')
+                        else if (idx === 2) handleSelectTheme('platinum')
+                        else if (idx >= 3 && idx < 3 + customThemes.length) {
+                            handleSelectTheme(customThemes[idx - 3].id)
+                        } else if (idx === 3 + customThemes.length) {
+                            handleCreateTheme()
+                        } else if (idx === 4 + customThemes.length) {
+                            handleImportTheme()
+                        }
                     } else if (curTab === 'security') {
                         if (idx === 0) { sfx.confirm(); document.getElementById('profile-input-user')?.focus() }
                         else if (idx === 1) { sfx.confirm(); document.getElementById('profile-input-avatar')?.focus() }
@@ -614,6 +767,198 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
             </div>
         </div>
     )
+
+    const renderThemesTab = () => {
+        const customThemes = settings.customThemes || []
+        const activeTheme = settings.activeTheme || 'dark'
+
+        return (
+            <div className="profile-container">
+                <div className="profile-section-card">
+                    <div className="profile-section-header">
+                        <div className="profile-section-title-wrap">
+                            <Icon icon="mynaui:image" />
+                            <span className="profile-section-title">Comportamiento del Fondo</span>
+                        </div>
+                    </div>
+                    <div className="profile-field-group">
+                        <div
+                            onClick={async () => {
+                                sfx.confirm()
+                                const updated = { ...settings, showGameBackground: !settings.showGameBackground }
+                                setSettings(updated)
+                                setSelectedIndex(0)
+                                setFocusArea('content')
+                                await window.api?.ui?.saveSettings(updated)
+                                window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+                            }}
+                            className={`profile-toggle ${focusArea === 'content' && selectedIndex === 0 ? 'focused' : ''}`}
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px',
+                                background: 'rgba(255, 255, 255, 0.04)',
+                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '12px', cursor: 'pointer', marginTop: '8px'
+                            }}
+                        >
+                            <div>
+                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Fondo Dinámico de Juegos</div>
+                                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Muestra la portada del juego seleccionado en lugar del fondo del tema.</div>
+                            </div>
+                            <div style={{
+                                width: '40px', height: '24px', borderRadius: '12px',
+                                background: settings.showGameBackground ? 'var(--accent)' : 'rgba(255,255,255,0.2)',
+                                position: 'relative', transition: 'all 0.2s'
+                            }}>
+                                <div style={{
+                                    position: 'absolute', top: '2px', left: settings.showGameBackground ? '18px' : '2px',
+                                    width: '20px', height: '20px', borderRadius: '50%', background: '#fff',
+                                    transition: 'all 0.2s'
+                                }} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="profile-section-card">
+                    <div className="profile-section-header">
+                        <div className="profile-section-title-wrap">
+                            <Icon icon="mynaui:palette" />
+                            <span className="profile-section-title">Temas Integrados</span>
+                        </div>
+                    </div>
+                    <p className="profile-section-desc">
+                        Elige entre los diseños de color predeterminados de LaLa Hub.
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+                        {/* Dark Theme */}
+                        <div
+                            onClick={() => { handleSelectTheme('dark'); setSelectedIndex(1); setFocusArea('content'); }}
+                            className={`profile-toggle ${focusArea === 'content' && selectedIndex === 1 ? 'focused' : ''}`}
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px',
+                                background: activeTheme === 'dark' ? 'rgba(58, 134, 255, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                                border: activeTheme === 'dark' ? '1px solid var(--accent)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '12px', cursor: 'pointer'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#0a0c10', border: '2px solid #3a86ff' }} />
+                                <div>
+                                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Dark (Predeterminado)</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Oscuro profundo estilo consola premium</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                {activeTheme === 'dark' && <Icon icon="mynaui:check-circle" style={{ color: 'var(--accent)', fontSize: '20px' }} />}
+                                <button onClick={(e) => handleDuplicateTheme('dark', e)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', display: 'flex' }} title="Duplicar tema">
+                                    <Icon icon="mynaui:copy" style={{ fontSize: '18px' }} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Platinum Theme */}
+                        <div
+                            onClick={() => { handleSelectTheme('platinum'); setSelectedIndex(2); setFocusArea('content'); }}
+                            className={`profile-toggle ${focusArea === 'content' && selectedIndex === 2 ? 'focused' : ''}`}
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px',
+                                background: activeTheme === 'platinum' ? 'rgba(58, 134, 255, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                                border: activeTheme === 'platinum' ? '1px solid var(--accent)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '12px', cursor: 'pointer'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#e0e5ec', border: '2px solid #2a2d34' }} />
+                                <div>
+                                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Platinum</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Tema claro metálico retro</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                {activeTheme === 'platinum' && <Icon icon="mynaui:check-circle" style={{ color: 'var(--accent)', fontSize: '20px' }} />}
+                                <button onClick={(e) => handleDuplicateTheme('platinum', e)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', display: 'flex' }} title="Duplicar tema">
+                                    <Icon icon="mynaui:copy" style={{ fontSize: '18px' }} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="profile-section-card">
+                    <div className="profile-section-header">
+                        <div className="profile-section-title-wrap">
+                            <Icon icon="mynaui:download" />
+                            <span className="profile-section-title">Temas Personalizados</span>
+                        </div>
+                    </div>
+                    <p className="profile-section-desc">
+                        Instala temas creados por la comunidad desde archivos de hojas de estilo CSS.
+                    </p>
+
+                    {customThemes.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px', marginBottom: '16px' }}>
+                            {customThemes.map((t, i) => {
+                                const idx = 3 + i
+                                const isAct = activeTheme === t.id
+                                return (
+                                    <div
+                                        key={t.id}
+                                        onClick={() => { handleSelectTheme(t.id); setSelectedIndex(idx); setFocusArea('content'); }}
+                                        className={`profile-toggle ${focusArea === 'content' && selectedIndex === idx ? 'focused' : ''}`}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px',
+                                            background: isAct ? 'rgba(58, 134, 255, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                                            border: isAct ? '1px solid var(--accent)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                            borderRadius: '12px', cursor: 'pointer'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: t.colors['--bg-base'] || '#333', border: `2px solid ${t.colors['--accent'] || '#fff'}` }} />
+                                            <div>
+                                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{t.name}</div>
+                                                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t.description || (t.author ? `Por ${t.author}` : 'Tema personalizado')}</div>
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            {isAct && <Icon icon="mynaui:check-circle" style={{ color: 'var(--accent)', fontSize: '20px' }} />}
+                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                <button onClick={(e) => handleEditTheme(t.id, e)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', display: 'flex' }} title="Editar tema">
+                                                    <Icon icon="mynaui:edit" style={{ fontSize: '18px' }} />
+                                                </button>
+                                                <button onClick={(e) => handleDuplicateTheme(t.id, e)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', display: 'flex' }} title="Duplicar tema">
+                                                    <Icon icon="mynaui:copy" style={{ fontSize: '18px' }} />
+                                                </button>
+                                                <button onClick={(e) => handleDeleteTheme(t.id, e)} style={{ background: 'transparent', border: 'none', color: '#ff4d4f', cursor: 'pointer', padding: '6px', display: 'flex' }} title="Eliminar tema">
+                                                    <Icon icon="mynaui:trash" style={{ fontSize: '18px' }} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+
+                    <div className="profile-actions-row" style={{ marginTop: customThemes.length > 0 ? '0' : '16px' }}>
+                        <button
+                            onClick={handleCreateTheme}
+                            className={`profile-btn profile-btn--secondary ${focusArea === 'content' && selectedIndex === 3 + customThemes.length ? 'focused' : ''}`}
+                        >
+                            <Icon icon="mynaui:palette" />
+                            Crear Tema Nuevo
+                        </button>
+                        <button
+                            onClick={handleImportTheme}
+                            className={`profile-btn profile-btn--primary ${focusArea === 'content' && selectedIndex === 4 + customThemes.length ? 'focused' : ''}`}
+                        >
+                            <Icon icon="mynaui:plus" />
+                            Instalar Tema (.css)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     const renderSecurityTab = () => (
         <div className="profile-container">
@@ -1081,11 +1426,20 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
         >
             <div className="console-panel__content-body" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 'calc(100vh - 180px)', padding: 0 }}>
                 {tab === 'overview' && renderOverviewTab()}
+                {tab === 'themes' && renderThemesTab()}
                 {tab === 'security' && renderSecurityTab()}
                 {tab === 'library' && renderLibraryTab()}
                 {tab === 'login' && renderLoginTab()}
                 {tab === 'register' && renderRegisterTab()}
             </div>
+            {editingTheme && (
+                <ThemeEditorModal
+                    visible={true}
+                    theme={editingTheme}
+                    onClose={() => setEditingTheme(null)}
+                    onSave={handleSaveTheme}
+                />
+            )}
         </SidePanel>
     )
 }

@@ -105,6 +105,12 @@ body {
   opacity: 0.8;
 }
 
+.background-image-layer.wallpaper-mode {
+  filter: blur(0px) saturate(1.1) brightness(0.75) !important;
+  opacity: 1 !important;
+  inset: 0 !important;
+}
+
 .background-overlay {
   position: fixed;
   inset: 0;

@@ -42,6 +42,10 @@ export function registerSlotHandlers(): void {
 
     setGridItems(slots)
 
+    processGameSlots(slots).then((enriched) => {
+      setGridItems(enriched)
+    })
+
     syncSlotsToCloud()
 
     return { success: true }

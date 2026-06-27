@@ -108,6 +108,7 @@ export interface API {
   ui: {
     getSettings: () => Promise<import('../shared/types').InterfaceSettings>
     saveSettings: (settings: import('../shared/types').InterfaceSettings) => Promise<{ success: boolean; error?: string }>
+    importTheme: () => Promise<import('../shared/types').AppTheme | { error: string } | null>
   }
 
   /** Download system — browse sources, manage downloads */

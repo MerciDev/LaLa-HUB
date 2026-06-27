@@ -31,6 +31,38 @@ function logSlots(label: string, items: HomeSlot[]) {
     }
 }
 
+const applyThemeToDOM = (settings?: InterfaceSettings) => {
+    if (!settings) return
+    const activeId = settings.activeTheme || 'dark'
+    if (activeId === 'dark' || activeId === 'platinum') {
+        document.documentElement.setAttribute('data-theme', activeId)
+        const existingStyle = document.getElementById('custom-theme-style')
+        if (existingStyle) existingStyle.remove()
+    } else {
+        const custom = (settings.customThemes || []).find(t => t.id === activeId)
+        if (custom) {
+            document.documentElement.setAttribute('data-theme', 'custom')
+            let cssRules = ':root, [data-theme="custom"] {\n'
+            for (const [key, value] of Object.entries(custom.colors || {})) {
+                cssRules += `  ${key.startsWith('--') ? key : '--' + key}: ${value};\n`
+            }
+            cssRules += '}\n'
+            
+            if (custom.customCss) {
+                cssRules += `\n/* Custom CSS */\n${custom.customCss}\n`
+            }
+            
+            let styleTag = document.getElementById('custom-theme-style') as HTMLStyleElement
+            if (!styleTag) {
+                styleTag = document.createElement('style')
+                styleTag.id = 'custom-theme-style'
+                document.head.appendChild(styleTag)
+            }
+            styleTag.textContent = cssRules
+        }
+    }
+}
+
 function MainApp(): React.JSX.Element {
     useGamepad()
 
@@ -143,7 +175,25 @@ function MainApp(): React.JSX.Element {
     )
 
     useEffect(() => {
-        window.api?.ui?.getSettings().then(setInterfaceSettings).catch(console.error)
+        applyThemeToDOM(interfaceSettings)
+    }, [interfaceSettings])
+
+    useEffect(() => {
+        window.api?.ui?.getSettings().then(res => {
+            if (res) {
+                setInterfaceSettings(res)
+                applyThemeToDOM(res)
+            }
+        }).catch(console.error)
+
+        const handleThemeChange = (e: any) => {
+            if (e.detail) {
+                setInterfaceSettings(e.detail)
+                applyThemeToDOM(e.detail)
+            }
+        }
+        window.addEventListener('theme-changed', handleThemeChange)
+        return () => window.removeEventListener('theme-changed', handleThemeChange)
     }, [])
 
     useEffect(() => {
@@ -482,7 +532,12 @@ function MainApp(): React.JSX.Element {
 
     // ─── Profile Page ──────────────────────────────────────────────────────────
 
-    const closeProfile = useCallback(() => {
+    const closeProfile = useCallback(async () => {
+        const settings = await window.api?.ui?.getSettings()
+        if (settings) {
+            setInterfaceSettings(settings)
+            applyThemeToDOM(settings)
+        }
         goBack()
     }, [])
 
@@ -490,12 +545,22 @@ function MainApp(): React.JSX.Element {
 
     useEffect(() => {
         window.api?.movementControl?.send('SELECTION_CHANGED', selectedSlotItem ?? null)
-        if (interfaceSettings.showGameBackground && selectedSlotItem?.squareImage) {
-            setBackgroundImage(selectedSlotItem.squareImage)
-        } else {
-            setBackgroundImage(null)
+        
+        let themeBg = null
+        if (interfaceSettings.activeTheme && interfaceSettings.activeTheme !== 'dark' && interfaceSettings.activeTheme !== 'platinum') {
+            const currentTheme = interfaceSettings.customThemes?.find(t => t.id === interfaceSettings.activeTheme)
+            if (currentTheme?.backgroundImage) {
+                themeBg = currentTheme.backgroundImage
+            }
         }
-    }, [selectedSlotItem, interfaceSettings.showGameBackground])
+        
+        const gameImg = selectedSlotItem ? (selectedSlotItem.backgroundImage || selectedSlotItem.horizontalImage || selectedSlotItem.coverImage || selectedSlotItem.squareImage) : null
+        if (interfaceSettings.showGameBackground && gameImg) {
+            setBackgroundImage(gameImg)
+        } else {
+            setBackgroundImage(themeBg)
+        }
+    }, [selectedSlotItem, interfaceSettings])
 
     // --- Auto-select first slot on data load ---
     useEffect(() => {
@@ -1034,7 +1099,10 @@ function MainApp(): React.JSX.Element {
 
     return (
         <div className="app">
-            <BackgroundLayer backgroundImage={backgroundImage} />
+            <BackgroundLayer
+                backgroundImage={backgroundImage}
+                isWallpaper={!interfaceSettings.showGameBackground || !(selectedSlotItem?.backgroundImage || selectedSlotItem?.horizontalImage || selectedSlotItem?.coverImage || selectedSlotItem?.squareImage)}
+            />
 
             {/* ── Header ── */}
             <NavigationHeader
@@ -1115,6 +1183,7 @@ function MainApp(): React.JSX.Element {
                                     // Refresh interface settings when closing panel
                                     const settings = await window.api.ui.getSettings();
                                     setInterfaceSettings(settings);
+                                    applyThemeToDOM(settings);
                                     goBack();
                                 }}
                                 onJumpToHeader={(side) => {

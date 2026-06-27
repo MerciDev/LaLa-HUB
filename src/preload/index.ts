@@ -192,7 +192,9 @@ const api = {
     getSettings: (): Promise<import('../shared/types').InterfaceSettings> =>
       ipcRenderer.invoke('interface-settings-get'),
     saveSettings: (settings: import('../shared/types').InterfaceSettings): Promise<{ success: boolean; error?: string }> =>
-      ipcRenderer.invoke('interface-settings-save', settings)
+      ipcRenderer.invoke('interface-settings-save', settings),
+    importTheme: (): Promise<import('../shared/types').AppTheme | { error: string } | null> =>
+      ipcRenderer.invoke('theme-import-file')
   },
 
   /** Download system — browse sources, manage downloads */

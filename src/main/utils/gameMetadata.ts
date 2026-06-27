@@ -44,13 +44,10 @@ export async function searchGameMetadata(query: string): Promise<GameMetadata | 
     }
 }
 
-export async function downloadGameImage(urlPath: string, gameId: string): Promise<string | null> {
-    const isAbsolute = urlPath.startsWith('http://') || urlPath.startsWith('https://')
-    const fullUrl = isAbsolute ? urlPath : `${API_BASE_URL}${urlPath}`
+function getTargetPath(gameId: string, urlPath: string): { resourcesPath: string; filePath: string; letterPath: string } {
     const firstLetter = gameId.charAt(0).toLowerCase()
-    const fileName = path.basename(urlPath)
+    const fileName = path.basename(urlPath.split('?')[0]) // strip query params
 
-    // Ensure directory: resources/games/{firstLetter}
     const resourcesPath = ensureDirectory('resources')
     const gamesPath = path.join(resourcesPath, 'games')
     if (!fs.existsSync(gamesPath)) fs.mkdirSync(gamesPath)
@@ -59,16 +56,46 @@ export async function downloadGameImage(urlPath: string, gameId: string): Promis
     if (!fs.existsSync(letterPath)) fs.mkdirSync(letterPath)
 
     const filePath = path.join(letterPath, fileName)
+    return { resourcesPath, filePath, letterPath }
+}
 
-    // Return existing path if file already exists
+function toMediaUrl(resourcesPath: string, filePath: string): string {
+    const relativePath = path.relative(resourcesPath, filePath)
+    return `media://${relativePath.replace(/\\/g, '/')}`
+}
+
+export async function downloadGameImage(urlPath: string, gameId: string): Promise<string | null> {
+    // Already cached — nothing to do
+    if (urlPath.startsWith('media://')) return urlPath
+
+    const { resourcesPath, filePath } = getTargetPath(gameId, urlPath)
+
+    // Return existing cached file
     if (fs.existsSync(filePath)) {
-        // Use custom media protocol
-        // filePath is userData/resources/games/z/file.webp
-        // protocol expects media://games/z/file.webp which maps to userData/resources/games/z/file.webp
-        // So we need relative path from 'resources'
-        const relativePath = path.relative(path.join(resourcesPath), filePath)
-        return `media://${relativePath.replace(/\\/g, '/')}`
+        return toMediaUrl(resourcesPath, filePath)
     }
+
+    // Handle file:/// — copy local file into cache
+    if (urlPath.startsWith('file:///')) {
+        try {
+            const sourcePath = urlPath.startsWith('file:///')
+                ? decodeURI(urlPath.slice(8)) // file:///C:/... → C:/...
+                : decodeURI(urlPath.slice(7))  // file://C:/...
+            if (fs.existsSync(sourcePath)) {
+                fs.copyFileSync(sourcePath, filePath)
+                debugLog(`[Metadata] Copied local file to ${filePath}`)
+                return toMediaUrl(resourcesPath, filePath)
+            }
+            debugError(`[Metadata] Local file not found: ${sourcePath}`)
+        } catch (err) {
+            debugError(`[Metadata] Error copying local file: ${err}`)
+        }
+        return null
+    }
+
+    // Build full URL
+    const isAbsolute = urlPath.startsWith('http://') || urlPath.startsWith('https://')
+    const fullUrl = isAbsolute ? urlPath : `${API_BASE_URL}${urlPath}`
 
     return new Promise((resolve) => {
         const request = net.request(fullUrl)
@@ -87,8 +114,7 @@ export async function downloadGameImage(urlPath: string, gameId: string): Promis
             fileStream.on('finish', () => {
                 fileStream.close()
                 debugLog(`[Metadata] Downloaded image to ${filePath}`)
-                const relativePath = path.relative(path.join(resourcesPath), filePath)
-                resolve(`media://${relativePath.replace(/\\/g, '/')}`)
+                resolve(toMediaUrl(resourcesPath, filePath))
             })
 
             fileStream.on('error', (err) => {
@@ -106,6 +132,60 @@ export async function downloadGameImage(urlPath: string, gameId: string): Promis
     })
 }
 
+const SLOT_IMAGE_FIELDS: (keyof HomeSlot)[] = [
+    'squareImage', 'thumbImage', 'backgroundImage', 'logoImage',
+    'coverImage', 'verticalImage', 'horizontalImage', 'iconImage'
+]
+
 export async function processGameSlots(slots: HomeSlot[]): Promise<HomeSlot[]> {
-    return slots
+    const updatedSlots: HomeSlot[] = []
+    let changed = false
+
+    for (const slot of slots) {
+        const updatedSlot: HomeSlot = { ...slot }
+        const rawGame: any = slot.game
+        if (rawGame) {
+            updatedSlot.game = { ...rawGame }
+            if (rawGame.images) {
+                ;(updatedSlot.game as any).images = { ...rawGame.images }
+            }
+        }
+
+        // Download & cache top-level image fields
+        for (const field of SLOT_IMAGE_FIELDS) {
+            const url = updatedSlot[field]
+            if (typeof url === 'string' && url.length > 0 && !url.startsWith('media://')) {
+                const cached = await downloadGameImage(url, slot.id)
+                if (cached) {
+                    ;(updatedSlot as any)[field] = cached
+                    changed = true
+                }
+            }
+        }
+
+        // Download & cache images inside game.images (added by normalizeGameForResponse)
+        const gameImages: Record<string, string> | undefined = (updatedSlot.game as any)?.images
+        if (gameImages) {
+            const imageKeys = ['cover', 'square', 'vertical', 'horizontal', 'background', 'logo', 'icon']
+            for (const key of imageKeys) {
+                const url = gameImages[key]
+                if (typeof url === 'string' && url.length > 0 && !url.startsWith('media://')) {
+                    const cached = await downloadGameImage(url, slot.id)
+                    if (cached) {
+                        gameImages[key] = cached
+                        changed = true
+                    }
+                }
+            }
+        }
+
+        updatedSlots.push(updatedSlot)
+    }
+
+    if (changed) {
+        saveSlots(updatedSlots)
+        debugLog('[Metadata] Slots actualizados con imágenes cacheadas')
+    }
+
+    return updatedSlots
 }

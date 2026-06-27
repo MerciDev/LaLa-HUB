@@ -1,0 +1,100 @@
+/*
+@name: Cyberpunk 2077
+@author: Night City
+@description: Wake the f*ck up, Samurai. We have a Hub to burn.
+@backgroundImage: https://cdn2.steamgriddb.com/hero/5988319f8fdeb1b2d254a9a38518f52e.png
+*/
+
+:root {
+  --bg-base: #080808;
+  --bg-surface: rgba(13, 13, 13, 0.85);
+  --bg-elevated: rgba(26, 26, 26, 0.9);
+  --bg-hover: rgba(252, 238, 10, 0.1);
+  
+  --accent: #fcee0a;
+  --accent-glow: rgba(252, 238, 10, 0.4);
+  --accent-bright: #fff34d;
+  
+  --text-primary: #00ffff;
+  --text-secondary: #e0e0e0;
+  --text-muted: rgba(0, 255, 255, 0.6);
+  
+  --border: #ff003c;
+  --border-active: #00ffff;
+}
+
+/* Custom CSS for the Cyberpunk feel */
+
+/* Botones principales con el estilo de botón amarillo */
+.profile-btn--primary {
+  background-color: var(--accent) !important;
+  color: #000000 !important;
+  border-radius: 0 !important;
+  border: 2px solid var(--accent);
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 2px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  transition: all 0.2s ease;
+}
+
+.profile-btn--primary:hover {
+  background-color: #000000 !important;
+  color: var(--accent) !important;
+  border: 2px solid var(--accent);
+}
+
+/* Botones secundarios con borde rojo */
+.profile-btn--secondary {
+  background-color: transparent !important;
+  color: var(--border) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.profile-btn--secondary:hover {
+  background-color: rgba(255, 0, 60, 0.1) !important;
+}
+
+/* Tarjetas y paneles sin bordes redondeados, bordes rectos y colores ciberpunk */
+.profile-section-card {
+  border-radius: 0 !important;
+  border-left: 4px solid var(--accent) !important;
+  background: var(--bg-surface) !important;
+  backdrop-filter: blur(10px);
+}
+
+/* Toggles / Botones de selección de lista (como la lista de temas) */
+.profile-toggle {
+  border-radius: 0 !important;
+  border: 1px solid rgba(252, 238, 10, 0.2) !important;
+}
+
+.profile-toggle:hover {
+  background: rgba(252, 238, 10, 0.05) !important;
+  border-color: var(--accent) !important;
+}
+
+/* Campos de entrada con estilo glitch / rectos */
+.profile-input {
+  border-radius: 0 !important;
+  border: 1px solid var(--border) !important;
+  background: rgba(255, 0, 60, 0.05) !important;
+  color: var(--accent) !important;
+  font-family: monospace;
+}
+
+.profile-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(252, 238, 10, 0.2);
+}
+
+/* Títulos con estilo cyan */
+.profile-section-title {
+  color: var(--text-primary) !important;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 800;
+}
