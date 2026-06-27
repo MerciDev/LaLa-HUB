@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { AppAction, HomeGrid, HomeSlot, IconOption, ContextOption, InterfaceSettings, AuthState, AuthResult, SyncStatus } from '../../../../shared/types'
 import { Icon } from '@iconify/react'
 
+import IntroSplash from '../../components/IntroSplash'
+
 import { useGamepad } from '../../hooks/useGamepad'
 import { useGridNavigation } from '../../hooks/useGridNavigation'
 import { useInfoIsland } from '../../hooks/useInfoIsland'
@@ -68,6 +70,10 @@ const applyThemeToDOM = (settings?: InterfaceSettings) => {
 function MainApp(): React.JSX.Element {
     useGamepad()
 
+    // --- Intro Splash ---
+    const [showIntro, setShowIntro] = useState(true)
+    const [appReady, setAppReady] = useState(false)
+
     // --- Auth ---
     const [authState, setAuthState] = useState<AuthState>({ isLoggedIn: false, user: null, session: null })
     const [authLoading, setAuthLoading] = useState(true)
@@ -84,6 +90,21 @@ function MainApp(): React.JSX.Element {
         })
         return unsub
     }, [])
+
+    useEffect(() => {
+        if (!authLoading && authState.isLoggedIn) {
+            const check = () => {
+                if (homeGrid.items.length > 0 || isGridLoadedRef.current) {
+                    setAppReady(true)
+                } else {
+                    setTimeout(check, 100)
+                }
+            }
+            check()
+        } else if (!authLoading && !authState.isLoggedIn) {
+            setAppReady(true)
+        }
+    }, [authLoading, authState.isLoggedIn])
 
     useEffect(() => {
         const unsub = window.api.sync.onStatusChange((status) => {
@@ -1121,22 +1142,16 @@ function MainApp(): React.JSX.Element {
 
     // ─── Render ───────────────────────────────────────────────────────────────────
 
-    if (authLoading) {
-        return (
-            <div className="app login-loading">
-                <div className="login-loading-content">
-                    <Icon icon="mynaui:gamepad" width={48} />
-                    <p>Cargando...</p>
-                </div>
+    const appContent = authLoading ? (
+        <div className="app login-loading">
+            <div className="login-loading-content">
+                <Icon icon="mynaui:gamepad" width={48} />
+                <p>Cargando...</p>
             </div>
-        )
-    }
-
-    if (!authState.isLoggedIn) {
-        return <LoginScreen onAuthSuccess={handleAuthSuccess} />
-    }
-
-    return (
+        </div>
+    ) : !authState.isLoggedIn ? (
+        <LoginScreen onAuthSuccess={handleAuthSuccess} />
+    ) : (
         <div className="app">
             <BackgroundLayer
                 backgroundImage={backgroundImage}
@@ -1439,6 +1454,17 @@ function MainApp(): React.JSX.Element {
                 onOptionClick={handleContextOptionClick}
             />
         </div>
+    )
+
+    return (
+        <>
+            <IntroSplash
+                visible={showIntro}
+                ready={appReady}
+                onReady={() => setShowIntro(false)}
+            />
+            {appContent}
+        </>
     )
 }
 
