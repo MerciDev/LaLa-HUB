@@ -1,3 +1,4 @@
+import type { GameMetadata } from '../../../../shared/types'
 export type { MetadataProvider, GameMetadata } from '../../../../shared/types'
 
 export function emptyMetadata(title: string): GameMetadata {

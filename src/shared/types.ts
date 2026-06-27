@@ -116,6 +116,7 @@ export interface Game {
   savesExtension?: string
   /** Whether to sync saves to cloud storage */
   cloudSyncEnabled?: boolean
+  images?: { home?: string; logo?: string; cover?: string; background?: string; icon?: string; v_grid?: string; h_grid?: string }
 }
 
 export interface SaveFileInfo {
@@ -130,6 +131,7 @@ export interface SaveFileInfo {
 export interface HomeSlot {
   id: string
   icon: string
+  image?: string
   squareImage?: string
   thumbImage?: string
   backgroundImage?: string
@@ -175,6 +177,7 @@ export interface HomeGrid {
   gap: number
   aspectRatio: number
   items: HomeSlot[]
+  totalPages?: number
 }
 
 export interface GridSettings {

@@ -34,7 +34,7 @@ function resolveAnchorFromDirection(
     items: HomeSlot[],
     page: number,
     cols: number,
-    action: string
+    _action: string
 ): number {
     // Find which slot owns rawNext
     for (const item of items) {

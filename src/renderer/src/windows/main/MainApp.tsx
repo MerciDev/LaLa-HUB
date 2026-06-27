@@ -675,19 +675,20 @@ function MainApp(): React.JSX.Element {
         if (!window.api?.onMainMessage) return
 
         window.api.onMainMessage((action: AppAction) => {
-            console.log(`[Renderer] IPC Received: ${action.type}`)
-            switch (action.type as any) {
-                case 'CHANGE_INFO_ISLAND': setInfoText(action.payload); break
+            const a = action as any
+            console.log(`[Renderer] IPC Received: ${a.type}`)
+            switch (a.type) {
+                case 'CHANGE_INFO_ISLAND': setInfoText(a.payload); break
                 case 'EXPAND_INFO_ISLAND': setIslandWidth('fit-content'); break
                 case 'COLLAPSE_INFO_ISLAND': setIslandWidth('56px'); break
-                case 'ADD_SOCIAL_ICON': setSocialIcons((prev) => [...prev, action.payload]); break
-                case 'ADD_PERSONAL_ICON': setPersonalIcons((prev) => [...prev, action.payload]); break
+                case 'ADD_SOCIAL_ICON': setSocialIcons((prev) => [...prev, a.payload]); break
+                case 'ADD_PERSONAL_ICON': setPersonalIcons((prev) => [...prev, a.payload]); break
                 case 'TOGGLE_SOCIAL_MENU': setSocialExpanded((prev) => !prev); break
                 case 'TOGGLE_PERSONAL_MENU': setPersonalExpanded((prev) => !prev); break
-                case 'UPDATE_GRID_CONFIG': setHomeGrid((prev) => ({ ...prev, ...action.payload })); break
+                case 'UPDATE_GRID_CONFIG': setHomeGrid((prev) => ({ ...prev, ...a.payload })); break
                 case 'SET_GRID_ITEMS': {
                     isGridLoadedRef.current = true
-                    logSlots('INIT', action.payload)
+                    logSlots('INIT', a.payload)
                     setHomeGrid((prev) => {
                         // Estimate canonical columns based on the full screen width
                         // since users most likely edit their grid while the app is maximized.
@@ -703,7 +704,7 @@ function MainApp(): React.JSX.Element {
                         const useRows = prev.rows >= 3 ? prev.rows : 4
 
                         const map = new Map<string, SlotIdeal>()
-                        for (const item of action.payload) {
+                        for (const item of a.payload) {
                             if (item.position !== undefined && item.page !== undefined) {
                                 map.set(item.id, {
                                     colSpan: item.colSpan ?? 1,
@@ -716,34 +717,34 @@ function MainApp(): React.JSX.Element {
                         }
                         idealSlotsRef.current = map
                         const repackedItems = (prev.cols !== useCols || prev.rows !== useRows)
-                            ? repackItemsAfterResize(action.payload, prev.cols, prev.rows, map)
-                            : action.payload
+                            ? repackItemsAfterResize(a.payload, prev.cols, prev.rows, map)
+                            : a.payload
                         return { ...prev, items: repackedItems }
                     })
                     break
                 }
-                case 'ADD_GRID_ITEM': setHomeGrid((prev) => ({ ...prev, items: [...prev.items, action.payload] })); break
+                case 'ADD_GRID_ITEM': setHomeGrid((prev) => ({ ...prev, items: [...prev.items, a.payload] })); break
                 case 'REMOVE_GRID_ITEM':
-                    setHomeGrid((prev) => ({ ...prev, items: prev.items.filter((i) => i.id !== action.payload) }))
+                    setHomeGrid((prev) => ({ ...prev, items: prev.items.filter((i) => i.id !== a.payload) }))
                     break
                 case 'SET_SELECTED_INDEX':
-                    if (action.payload.section === 'grid') setSelectedSlotIndex(action.payload.index)
+                    if (a.payload.section === 'grid') setSelectedSlotIndex(a.payload.index)
                     break
                 case 'SET_GRID_PAGE': {
                     const prevPage = stateRefForIPC.current.currentPage
-                    if (action.payload !== prevPage) {
-                        setDirection(action.payload > prevPage ? 'next' : 'prev')
-                        setCurrentPage(action.payload)
+                    if (a.payload !== prevPage) {
+                        setDirection(a.payload > prevPage ? 'next' : 'prev')
+                        setCurrentPage(a.payload)
                         applyPendingSelection()
                     } else {
                         clearPendingSelection()
                     }
                     break
                 }
-                case 'TOGGLE_CONTEXT_MENU': setContextMenuVisible(action.payload); break
-                case 'SET_CONTEXT_OPTIONS': setContextOptions(action.payload); break
-                case 'ADD_CONTEXT_OPTION': setContextOptions((prev) => [...prev, action.payload]); break
-                case 'REMOVE_CONTEXT_OPTION': setContextOptions((prev) => prev.filter((o) => o.id !== action.payload)); break
+                case 'TOGGLE_CONTEXT_MENU': setContextMenuVisible(a.payload); break
+                case 'SET_CONTEXT_OPTIONS': setContextOptions(a.payload); break
+                case 'ADD_CONTEXT_OPTION': setContextOptions((prev) => [...prev, a.payload]); break
+                case 'REMOVE_CONTEXT_OPTION': setContextOptions((prev) => prev.filter((o) => o.id !== a.payload)); break
                 case 'OPEN_SETTINGS':
                     sfx.open()
                     pushRoute('settings')
@@ -824,7 +825,7 @@ function MainApp(): React.JSX.Element {
                     openAddGameModal()
                     break
                 case 'OPEN_EDIT_GAME':
-                    openEditGameModal(action.payload)
+                    openEditGameModal(a.payload)
                     break
             }
         })

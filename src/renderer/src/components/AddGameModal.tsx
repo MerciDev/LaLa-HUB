@@ -43,7 +43,7 @@ const EMPTY_FORM: AddGameForm = {
 
 type Tab = 'import' | 'general' | 'media' | 'options' | 'saves'
 type FocusArea = 'nav' | 'nav_save' | 'nav_close' | 'content'
-type MediaTarget = 'squareImage' | 'logoImage' | 'verticalImage' | 'horizontalImage' | 'iconImage'
+type MediaTarget = 'squareImage' | 'logoImage' | 'verticalImage' | 'horizontalImage' | 'iconImage' | 'coverImage' | 'backgroundImage'
 
 const TABS: ConsolePanelTab[] = [
     { id: 'import', label: 'Importar', icon: 'mynaui:cloud-download', description: 'Buscar juegos en la nube' },
@@ -303,7 +303,7 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
         // @ts-ignore
 const q = encodeURIComponent(query)
         window.api.gameApi.searchGames(q)
-            .then(data => {
+            .then((data: any) => {
                 if (data.results?.length > 0) {
                     const imgs = data.results[0].images || {}
                     const keys = ['cover', 'square', 'vertical', 'horizontal', 'background', 'logo', 'icon']
@@ -330,7 +330,7 @@ const q = encodeURIComponent(query)
 const q = importQuery.trim() ? encodeURIComponent(importQuery.trim()) : ''
             setImportLoading(true)
             window.api.gameApi.searchGames(importQuery.trim())
-                .then(data => {
+                .then((data: any) => {
                     let results = Array.isArray(data) ? data : (data?.results || [])
                     
                     if (importConsole) {

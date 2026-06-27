@@ -49,7 +49,7 @@ const SidePanel: React.FC<ConsolePanelProps> = ({
                 </div>
 
                 <ul className="console-panel__nav-list">
-                    {tabs.map((tab, idx) => (
+                    {tabs.map((tab, _idx) => (
                         <li key={tab.id}>
                             <button
                                 className={[

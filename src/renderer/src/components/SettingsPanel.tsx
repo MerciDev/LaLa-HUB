@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Icon } from '@iconify/react'
 import { Emulator, Platform } from '../../../shared/types'
 import { sfx } from '../utils/audioManager'
@@ -60,10 +60,10 @@ const TABS: ConsolePanelTab[] = [
 
 const TAB_IDS = TABS.map(t => t.id) as Tab[]
 
-function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridConfigChange, minGridDimensions, onClearGrid }: SettingsPanelProps): React.JSX.Element {
+function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridConfigChange, onClearGrid }: SettingsPanelProps): React.JSX.Element {
     const [tab, setTab]                     = useState<Tab>('platforms')
     const { showDialog } = useDialog()
-    const { showToast } = useToast()
+    useToast()
     const [controlsSubTab, setControlsSubTab] = useState<'menu' | 'keyboard' | 'gamepad'>('menu')
     const [focusArea, setFocusArea]         = useState<FocusArea>('nav')
     const [selectedIndex, setSelectedIndex] = useState(0)
@@ -422,7 +422,7 @@ const handleBrowsePlatIcon = async () => {
     useEffect(() => {
         const handler = (e: Event) => {
             const { visible: vis, tab: ct, controlsSubTab: cSub, focusArea: area, selectedIndex: idx,
-                    footerIndex: fIdx, emulators: emus, keymaps: kms,
+                    footerIndex: fIdx, emulators: emus,
                     listeningKey: lKey } = r.current
 
             if (!vis) return

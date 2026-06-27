@@ -15,6 +15,16 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src')
       }
     },
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve('src/renderer/index.html'),
+          main: resolve('src/renderer/src/windows/main/main.html'),
+          loading: resolve('src/renderer/src/windows/loading/loading.html'),
+          overlay: resolve('src/renderer/src/windows/overlay/overlay.html')
+        }
+      }
+    },
     plugins: [react()]
   }
 })

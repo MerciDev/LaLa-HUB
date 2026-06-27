@@ -1,6 +1,7 @@
 import { app, BrowserWindow, globalShortcut, screen, ipcMain, Input, protocol } from 'electron'
 import dotenv from 'dotenv'
 import { join } from 'path'
+import { is } from '@electron-toolkit/utils'
 
 try {
   dotenv.config({ path: join(process.cwd(), '.env') })
@@ -99,9 +100,13 @@ function createWindow(): void {
 
   debugLog('Main Window created.')
 
-  appWindow.loadURL(
-    `${process.env['ELECTRON_RENDERER_URL']}/src/windows/main/main.html`
-  );
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    appWindow.loadURL(
+      `${process.env['ELECTRON_RENDERER_URL']}/src/windows/main/main.html`
+    );
+  } else {
+    appWindow.loadFile(join(__dirname, '../renderer/src/windows/main/main.html'));
+  }
 
   // Handle Input Events for Movement
   appWindow.webContents.on('before-input-event', (event, input: Input) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Icon } from '@iconify/react'
-import { HomeSlot, ContentOffsetSettings } from '../../shared/types'
+import { HomeSlot, ContentOffsetSettings } from '../../../shared/types'
 import { sfx } from '../utils/audioManager'
 
 interface ShiftContentModalProps {
