@@ -44,7 +44,7 @@ export function focusWindowAndSendKeys(
                     Write-Output "SUCCESS";
                 } else { Write-Output "FAILED"; }
             `
-            exec(`powershell -Command "${psCommand.replace(/\n/g, ' ')}"`, (error, stdout) => {
+            exec(`powershell -Command "${psCommand.replace(/\n/g, ' ')}"`, (_error, stdout) => {
                 const result = stdout?.trim()
                 if (result === 'SUCCESS') {
                     debugLog(`[WindowManager] Focused "${target}" (Win).`)

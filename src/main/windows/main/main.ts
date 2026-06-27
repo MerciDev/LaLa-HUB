@@ -2,12 +2,13 @@ import { IconOption, HomeGrid, HomeSlot, ContextOption } from '../../../shared/t
 import { removeSlot, loadSlots } from '../../utils/storage'
 import { spawn } from 'child_process'
 import { debugLog } from '../../utils/debug'
-import { showLoading, hideLoading, toggleLoading } from '../loading/loading'
+import { showLoading, hideLoading } from '../loading/loading'
 import { startPlaySession, formatPlaytime } from '../../utils/playtime'
 import { pullSaveFromCloud } from '../../utils/cloudSaves'
 
 let isLaunching = false
 
+// @ts-ignore
 function parseArgs(input: string): string[] {
     const args: string[] = []
     let current = ''
@@ -434,20 +435,30 @@ export function toggleContextMenu(show?: boolean): void {
     }
 
     if (isContextMenuVisible) {
-        if (selectedElement && selectedElement.game) {
-            const playtime = selectedElement.game.playtimeMinutes ?? 0
-            const playtimeStr = playtime > 0 ? formatPlaytime(playtime) : 'No jugado'
-            setContextOptions([
-                { id: 'info',   label: playtimeStr,  icon: 'mdi:clock-outline',                action: '' },
-                { id: 'edit',   label: 'Editar',      icon: 'mynaui:edit',                 action: 'EDIT_GAME' },
+        if (selectedElement && (selectedElement.game || selectedElement.iframeUrl || selectedElement.videoUrl)) {
+            const isIframe = !!selectedElement.iframeUrl
+            const isVideo = !!selectedElement.videoUrl
+            const options: ContextOption[] = []
+            
+            if (!isIframe && !isVideo) {
+                const playtime = selectedElement.game?.playtimeMinutes ?? 0
+                const playtimeStr = playtime > 0 ? formatPlaytime(playtime) : 'No jugado'
+                options.push({ id: 'info', label: playtimeStr, icon: 'mdi:clock-outline', action: '' })
+            }
+            
+            options.push(
+                { id: 'edit',   label: 'Editar',      icon: 'mynaui:edit',                 action: isIframe ? 'EDIT_IFRAME' : isVideo ? 'EDIT_VIDEO' : 'EDIT_GAME' },
                 { id: 'move',   label: 'Mover',       icon: 'mdi:cursor-move',                 action: 'MOVE_GAME' },
                 { id: 'shift',  label: 'Desplazar Contenido', icon: 'mdi:swap-horizontal', action: 'SHIFT_CONTENT' },
                 { id: 'resize', label: 'Tamaño',      icon: 'mdi:arrow-expand-all',             action: 'RESIZE_GAME' },
                 { id: 'remove', label: 'Eliminar',    icon: 'mynaui:trash',                action: 'REMOVE_GAME' }
-            ])
+            )
+            setContextOptions(options)
         } else {
             setContextOptions([
                 { id: 'add', label: 'Seleccionar de la Biblioteca', icon: 'mynaui:folder', action: 'ASSIGN_GAME_FROM_LIBRARY' }
+                // { id: 'add_iframe', label: 'Añadir Iframe Web', icon: 'mynaui:globe', action: 'ADD_IFRAME' },
+                // { id: 'add_video', label: 'Añadir Vídeo Nativo', icon: 'mynaui:video', action: 'ADD_VIDEO' }
             ])
         }
     }

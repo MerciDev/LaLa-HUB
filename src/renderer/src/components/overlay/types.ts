@@ -1,5 +1,5 @@
 export type SectionId = 'home' | 'game' | 'social' | 'trophies' | 'settings' | 'power'
-export type Theme = 'dark' | 'platinum' | 'midnight'
+export type Theme = 'dark' | 'platinum' | 'midnight' | 'apple-glass' | 'apple-glass-light' | 'xmas' | 'halloween' | 'twilight-princess'
 
 export interface Friend {
   id: string; name: string; initials: string
@@ -29,6 +29,10 @@ export const THEMES: { id: Theme; label: string }[] = [
   { id: 'dark',     label: 'Oscuro'     },
   { id: 'platinum', label: 'Platino'    },
   { id: 'midnight', label: 'Medianoche' },
+  { id: 'apple-glass', label: 'Liquid Glass (Dark)' },
+  { id: 'apple-glass-light', label: 'Liquid Glass (Light)' },
+  { id: 'xmas', label: 'Navidad' },
+  { id: 'halloween', label: 'Halloween' },
 ]
 
 export const SECTIONS: { id: SectionId; icon: string; label: string; badge?: true }[] = [

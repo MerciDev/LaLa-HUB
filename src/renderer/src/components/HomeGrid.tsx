@@ -214,6 +214,13 @@ function HomeGrid({
                                 {item ? (
                                     <div className="item">
                                         {(() => {
+                                            if (item.iframeUrl) {
+                                                return <iframe src={item.iframeUrl} className="slot-iframe" style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }} allow="autoplay; encrypted-media" />
+                                            }
+                                            if (item.videoUrl) {
+                                                const vol = item.videoSettings?.volume ?? 0.5
+                                                return <video src={item.videoUrl} className="slot-video" style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} autoPlay loop muted={vol === 0} ref={el => { if(el) el.volume = vol }} />
+                                            }
                                             const imgOff = item.contentOffsets?.image
                                             const bestImg = imgOff ? (getFullSlotImage(item) || getBestSlotImage(item, cSpan, rSpan)) : getBestSlotImage(item, cSpan, rSpan)
                                             const imgStyle: React.CSSProperties = imgOff ? {
@@ -277,6 +284,13 @@ function HomeGrid({
                             {item ? (
                                 <div className="item">
                                     {(() => {
+                                        if (item.iframeUrl) {
+                                            return <iframe src={item.iframeUrl} className="slot-iframe" style={{ width: '100%', height: '100%', border: 'none', pointerEvents: isSelected ? 'auto' : 'none' }} allow="autoplay; encrypted-media" />
+                                        }
+                                        if (item.videoUrl) {
+                                            const vol = item.videoSettings?.volume ?? 0.5
+                                            return <video src={item.videoUrl} className="slot-video" style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: isSelected ? 'auto' : 'none' }} autoPlay loop muted={vol === 0} ref={el => { if(el) el.volume = vol }} />
+                                        }
                                         const imgOff = item.contentOffsets?.image
                                         const bestImg = imgOff ? (getFullSlotImage(item) || getBestSlotImage(item, cSpan, rSpan)) : getBestSlotImage(item, cSpan, rSpan)
                                         const imgStyle: React.CSSProperties = {
@@ -395,7 +409,10 @@ function HomeGrid({
     }
 
     const maxPage = Math.max(2, ...homeGrid.items.map((i) => i.page ?? 0))
-    const totalPages = Math.max(homeGrid.totalPages || 3, maxPage + 1, currentPage + 2)
+    let totalPages = Math.max(homeGrid.totalPages || 3, maxPage + 1)
+    if (moveMode) {
+        totalPages = Math.max(totalPages, currentPage + 2)
+    }
     const fullGridW = cols * cellSize.width + (cols - 1) * currentGap
 
     const sideMargin = Math.max(0, (containerWidth - fullGridW) / 2)

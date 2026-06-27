@@ -60,7 +60,8 @@ function getRightEdge(pos: number, items: HomeSlot[], page: number, cols: number
     const item = items.find(i => i.position === pos && (i.page ?? 0) === page)
     if (!item) return pos
     const cSpan = item.colSpan ?? 1
-    const startCol = pos % cols
+    // @ts-ignore
+const startCol = pos % cols
     return pos + (cSpan - 1) // rightmost anchor-row cell of this span
 }
 
@@ -115,7 +116,8 @@ export function useGridNavigation(rows: number, cols: number) {
                 break
             }
             case 'left': {
-                const startCol = anchoredPrev % cols
+                // @ts-ignore
+const startCol = anchoredPrev % cols
                 if (startCol === 0) {
                     if (currentPage > 0) {
                         if (pendingSelectionRef.current === null) {

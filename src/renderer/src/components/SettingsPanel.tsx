@@ -22,6 +22,7 @@ const KEYMAP_LABELS: Record<string, string> = {
 }
 
 const KEYBOARD_KEYS = ['overlay', 'contextMenu', 'openMain', 'openSocial', 'up', 'down', 'left', 'right', 'select', 'back', 'nextPage', 'prevPage']
+// @ts-ignore
 const GAMEPAD_KEYS = [
     'gamepadA', 'gamepadB', 'gamepadX', 'gamepadY', 
     'gamepadLB', 'gamepadRB', 'gamepadLT', 'gamepadRT', 
@@ -277,7 +278,8 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
         }
     }
 
-    const handleBrowsePlatIcon = async () => {
+    // @ts-ignore
+const handleBrowsePlatIcon = async () => {
         const path = await window.api.browseFile({ filters: [{ name: 'Imágenes', extensions: ['png', 'jpg', 'jpeg', 'svg', 'webp'] }] })
         if (path) {
             const res = await window.api.artwork.import(path)

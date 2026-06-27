@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { scanDirectoryForRoms } from '../utils/scanner'
-import { Emulator } from '../shared/types'
+import { Emulator } from '../../shared/types'
 import { debugLog, debugError } from '../utils/debug'
 
 export function registerScannerHandlers(): void {

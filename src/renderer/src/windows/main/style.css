@@ -29,6 +29,9 @@
 
   --border:         rgba(255, 255, 255, 0.08);
   --border-active:  rgba(58, 134, 255, 0.6);
+
+  --bg-overlay:     rgba(10, 12, 16, 0.8);
+  --bg-header-gradient: rgba(10, 12, 16, 0.7);
 }
 
 [data-theme='platinum'] {
@@ -47,6 +50,368 @@
 
   --border:         rgba(0, 0, 0, 0.1);
   --border-active:  rgba(0, 0, 0, 0.4);
+
+  --bg-overlay:     rgba(224, 229, 236, 0.8);
+  --bg-header-gradient: rgba(224, 229, 236, 0.7);
+
+  --shadow-island:  0 4px 20px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05) inset;
+  --shadow-island-hover: 0 6px 25px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.08) inset;
+  --shadow-modal:   0 24px 80px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='apple-glass'] {
+  --bg-base:        #050508;
+  --bg-surface:     rgba(255, 255, 255, 0.06);
+  --bg-elevated:    rgba(255, 255, 255, 0.12);
+  --bg-hover:       rgba(255, 255, 255, 0.18);
+
+  --accent:         #0A84FF;
+  --accent-glow:    rgba(10, 132, 255, 0.5);
+  --accent-bright:  #5ebdff;
+
+  --text-primary:   #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.75);
+  --text-muted:     rgba(255, 255, 255, 0.45);
+
+  --border:         rgba(255, 255, 255, 0.18);
+  --border-active:  rgba(255, 255, 255, 0.5);
+
+  --bg-overlay:     rgba(0, 0, 0, 0.45);
+  --bg-header-gradient: transparent;
+
+  --shadow-island:  0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.35), inset 0 0 30px rgba(255, 255, 255, 0.05);
+  --shadow-island-hover: 0 24px 60px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.5), inset 0 0 30px rgba(255, 255, 255, 0.08);
+  --shadow-modal:   0 40px 100px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+[data-theme='apple-glass'] #root {
+  background-color: #050508;
+  background-image: 
+    radial-gradient(circle at 15% 25%, rgba(10, 132, 255, 0.35) 0%, transparent 50%),
+    radial-gradient(circle at 85% 20%, rgba(191, 90, 242, 0.3) 0%, transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(48, 176, 199, 0.25) 0%, transparent 55%),
+    radial-gradient(circle at 80% 80%, rgba(255, 55, 95, 0.2) 0%, transparent 50%);
+  background-size: 150% 150%;
+  animation: liquid-drift 20s ease-in-out infinite;
+}
+
+[data-theme='apple-glass-light'] {
+  --bg-base:        #eef1f5;
+  --bg-surface:     rgba(255, 255, 255, 0.55);
+  --bg-elevated:    rgba(255, 255, 255, 0.75);
+  --bg-hover:       rgba(255, 255, 255, 0.9);
+
+  --accent:         #0071e3;
+  --accent-glow:    rgba(0, 113, 227, 0.35);
+  --accent-bright:  #0077ed;
+
+  --text-primary:   #1d1d1f;
+  --text-secondary: rgba(0, 0, 0, 0.65);
+  --text-muted:     rgba(0, 0, 0, 0.4);
+
+  --border:         rgba(255, 255, 255, 0.6);
+  --border-active:  rgba(0, 113, 227, 0.5);
+
+  --bg-overlay:     rgba(255, 255, 255, 0.4);
+  --bg-header-gradient: transparent;
+
+  --shadow-island:  0 20px 50px rgba(0, 0, 0, 0.06), inset 0 1px 1px rgba(255, 255, 255, 0.9), inset 0 0 30px rgba(255, 255, 255, 0.4);
+  --shadow-island-hover: 0 24px 60px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255, 255, 255, 1), inset 0 0 30px rgba(255, 255, 255, 0.6);
+  --shadow-modal:   0 40px 100px rgba(0, 0, 0, 0.12), inset 0 1px 1px rgba(255, 255, 255, 1);
+}
+
+[data-theme='apple-glass-light'] #root {
+  background-color: #eef1f5;
+  background-image: 
+    radial-gradient(circle at 20% 20%, rgba(10, 132, 255, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at 80% 25%, rgba(255, 45, 85, 0.15) 0%, transparent 45%),
+    radial-gradient(circle at 40% 80%, rgba(94, 92, 230, 0.15) 0%, transparent 55%),
+    radial-gradient(circle at 85% 85%, rgba(52, 199, 89, 0.15) 0%, transparent 50%);
+  background-size: 150% 150%;
+  animation: liquid-drift 20s ease-in-out infinite;
+}
+
+@keyframes liquid-drift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   APPLE LIQUID GLASS — iOS 26 / visionOS authentic effect
+   ═══════════════════════════════════════════════════════ */
+
+/* Base glass material: extreme blur + vibrancy */
+[data-theme*='apple-glass'] .island,
+[data-theme*='apple-glass'] .modal,
+[data-theme*='apple-glass'] .slot,
+[data-theme*='apple-glass'] .profile-section-card,
+[data-theme*='apple-glass'] .socialOptions,
+[data-theme*='apple-glass'] .personal-options,
+[data-theme*='apple-glass'] .infoIsland,
+[data-theme*='apple-glass'] .context-menu,
+[data-theme*='apple-glass'] .grid-tile,
+[data-theme*='apple-glass'] .header {
+  backdrop-filter: blur(60px) saturate(220%) brightness(1.05);
+  -webkit-backdrop-filter: blur(60px) saturate(220%) brightness(1.05);
+  overflow: hidden;
+}
+
+/* Specular top-edge highlight (the bright streak at the top = light refraction) */
+[data-theme*='apple-glass'] .island::before,
+[data-theme*='apple-glass'] .modal::before,
+[data-theme*='apple-glass'] .slot::before,
+[data-theme*='apple-glass'] .profile-section-card::before,
+[data-theme*='apple-glass'] .socialOptions::before,
+[data-theme*='apple-glass'] .personal-options::before,
+[data-theme*='apple-glass'] .infoIsland::before,
+[data-theme*='apple-glass'] .context-menu::before,
+[data-theme*='apple-glass'] .grid-tile::before,
+[data-theme*='apple-glass'] .header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.6) 20%,
+    rgba(255, 255, 255, 0.9) 50%,
+    rgba(255, 255, 255, 0.6) 80%,
+    transparent 100%
+  );
+  z-index: 10;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Iridescent inner shimmer (the rainbow refraction inside the glass) */
+[data-theme*='apple-glass'] .island::after,
+[data-theme*='apple-glass'] .modal::after,
+[data-theme*='apple-glass'] .slot::after,
+[data-theme*='apple-glass'] .profile-section-card::after,
+[data-theme*='apple-glass'] .socialOptions::after,
+[data-theme*='apple-glass'] .personal-options::after,
+[data-theme*='apple-glass'] .infoIsland::after,
+[data-theme*='apple-glass'] .context-menu::after,
+[data-theme*='apple-glass'] .grid-tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(10, 132, 255, 0.04) 20%,
+    rgba(191, 90, 242, 0.04) 40%,
+    rgba(255, 255, 255, 0.06) 60%,
+    rgba(48, 176, 199, 0.04) 80%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  z-index: 9;
+  pointer-events: none;
+  border-radius: inherit;
+  animation: glass-shimmer 8s ease-in-out infinite;
+}
+
+/* Dark version: iridescent subtle rainbow tint */
+[data-theme='apple-glass'] .island,
+[data-theme='apple-glass'] .modal,
+[data-theme='apple-glass'] .slot,
+[data-theme='apple-glass'] .profile-section-card,
+[data-theme='apple-glass'] .socialOptions,
+[data-theme='apple-glass'] .personal-options,
+[data-theme='apple-glass'] .infoIsland,
+[data-theme='apple-glass'] .context-menu,
+[data-theme='apple-glass'] .grid-tile {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.09) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.5);
+  border-left-color: rgba(255, 255, 255, 0.25);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    inset 1px 0 0 rgba(255, 255, 255, 0.12),
+    inset -1px 0 0 rgba(0, 0, 0, 0.1),
+    0 0 0 0.5px rgba(255, 255, 255, 0.08);
+}
+
+/* Light version: frosted white glass */
+[data-theme='apple-glass-light'] .island,
+[data-theme='apple-glass-light'] .modal,
+[data-theme='apple-glass-light'] .slot,
+[data-theme='apple-glass-light'] .profile-section-card,
+[data-theme='apple-glass-light'] .socialOptions,
+[data-theme='apple-glass-light'] .personal-options,
+[data-theme='apple-glass-light'] .infoIsland,
+[data-theme='apple-glass-light'] .context-menu,
+[data-theme='apple-glass-light'] .grid-tile {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.75) 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0.65) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-top-color: rgba(255, 255, 255, 1);
+  border-left-color: rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+    inset 1px 0 0 rgba(255, 255, 255, 0.8),
+    inset -1px 0 0 rgba(0, 0, 0, 0.04),
+    0 0 0 0.5px rgba(0, 0, 0, 0.08);
+}
+
+/* The shimmer drift animation — makes it feel alive */
+@keyframes glass-shimmer {
+  0%   { opacity: 1; background-position: 0% 0%; }
+  33%  { opacity: 0.7; background-position: 100% 50%; }
+  66%  { opacity: 1; background-position: 50% 100%; }
+  100% { opacity: 1; background-position: 0% 0%; }
+}
+
+/* Header gets a separate treatment — more transparent */
+[data-theme*='apple-glass'] .header {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.06) 0%,
+    transparent 100%
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+[data-theme='apple-glass-light'] .header {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+
+[data-theme='xmas'] {
+  --bg-base:        #081c15;
+  --bg-surface:     rgba(216, 27, 96, 0.25);
+  --bg-elevated:    rgba(216, 27, 96, 0.4);
+  --bg-hover:       rgba(255, 255, 255, 0.15);
+
+  --accent:         #f4a261;
+  --accent-glow:    rgba(244, 162, 97, 0.5);
+  --accent-bright:  #e9c46a;
+
+  --text-primary:   #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.8);
+  --text-muted:     rgba(255, 255, 255, 0.5);
+
+  --border:         rgba(244, 162, 97, 0.4);
+  --border-active:  rgba(244, 162, 97, 0.8);
+
+  --bg-overlay:     rgba(8, 28, 21, 0.6);
+  --bg-header-gradient: rgba(216, 27, 96, 0.15);
+}
+
+[data-theme='xmas'] #root {
+  background-image: url('https://static.vecteezy.com/system/resources/thumbnails/031/385/744/small/christmas-tree-and-gift-boxes-decorations-on-wood-table-with-lights-bokeh-blurred-snow-winter-landscape-background-ai-generate-photo.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+/* Xmas Snow Effect */
+[data-theme='xmas'] body::before,
+[data-theme='xmas'] body::after {
+  content: "";
+  position: fixed;
+  top: -100vh;
+  left: 0;
+  width: 100vw;
+  height: 200vh;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(3px 3px at 20% 30%, rgba(255, 255, 255, 0.7) 50%, transparent 50%),
+    radial-gradient(4px 4px at 40% 70%, rgba(255, 255, 255, 0.9) 50%, transparent 50%),
+    radial-gradient(2px 2px at 60% 20%, rgba(255, 255, 255, 0.5) 50%, transparent 50%),
+    radial-gradient(5px 5px at 80% 80%, rgba(255, 255, 255, 0.8) 50%, transparent 50%),
+    radial-gradient(3px 3px at 10% 90%, rgba(255, 255, 255, 0.6) 50%, transparent 50%),
+    radial-gradient(6px 6px at 90% 10%, rgba(255, 255, 255, 0.7) 50%, transparent 50%),
+    radial-gradient(4px 4px at 50% 50%, rgba(255, 255, 255, 0.8) 50%, transparent 50%);
+  background-size: 200px 200px;
+  animation: xmas-snow 15s linear infinite;
+  z-index: 9999;
+}
+
+[data-theme='xmas'] body::after {
+  background-size: 300px 300px;
+  animation-duration: 20s;
+  animation-delay: -7s;
+  opacity: 0.6;
+}
+
+@keyframes xmas-snow {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(100vh); }
+}
+
+[data-theme='halloween'] {
+  --bg-base:        #0f0518;
+  --bg-surface:     rgba(255, 102, 0, 0.25);
+  --bg-elevated:    rgba(255, 102, 0, 0.4);
+  --bg-hover:       rgba(255, 255, 255, 0.15);
+
+  --accent:         #ff6600;
+  --accent-glow:    rgba(255, 102, 0, 0.5);
+  --accent-bright:  #ff9933;
+
+  --text-primary:   #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.8);
+  --text-muted:     rgba(255, 255, 255, 0.5);
+
+  --border:         rgba(255, 102, 0, 0.4);
+  --border-active:  rgba(255, 102, 0, 0.8);
+
+  --bg-overlay:     rgba(15, 5, 24, 0.6);
+  --bg-header-gradient: rgba(255, 102, 0, 0.15);
+}
+
+[data-theme='halloween'] #root {
+  background-image: url('https://picjumbo.com/wp-content/uploads/dark-halloween-background-with-glowing-halloween-pumpkins-free-image.jpeg');
+  background-size: cover;
+  background-position: center;
+}
+
+[data-theme='twilight-princess'] {
+  --bg-base:        #060805;
+  --bg-surface:     rgba(189, 169, 114, 0.15);
+  --bg-elevated:    rgba(189, 169, 114, 0.25);
+  --bg-hover:       rgba(255, 255, 255, 0.12);
+
+  --accent:         #bda972;
+  --accent-glow:    rgba(189, 169, 114, 0.45);
+  --accent-bright:  #dfcc93;
+
+  --text-primary:   #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.75);
+  --text-muted:     rgba(255, 255, 255, 0.45);
+
+  --border:         rgba(189, 169, 114, 0.3);
+  --border-active:  rgba(189, 169, 114, 0.6);
+
+  --bg-overlay:     rgba(6, 8, 5, 0.7);
+  --bg-header-gradient: rgba(189, 169, 114, 0.1);
+}
+
+[data-theme='twilight-princess'] #root {
+  background-image: url('https://i.pinimg.com/736x/d1/8f/d1/d18fd18811b2071ca32f9cb78740f44b.jpg');
+  background-size: cover;
+  background-position: center;
 }
 
 :root {
@@ -55,6 +420,9 @@
   --radius-lg:      18px;
   --radius-xl:      28px;
 
+  --shadow-island:  0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  --shadow-island-hover: 0 6px 25px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  --shadow-modal:   0 24px 80px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --shadow-slot:    0 12px 40px rgba(0, 0, 0, 0.5);
   --shadow-selected: 0 0 0 4px var(--accent), 0 0 30px var(--accent-glow);
 
@@ -91,31 +459,30 @@ body {
   height: 100%;
   position: relative;
   overflow: hidden;
+  isolation: isolate;
 }
 
 /* ── Dynamic Background ────────────────────────────────── */
 .background-image-layer {
   position: fixed;
-  inset: -50px;
+  inset: 0;
   background-size: cover;
   background-position: center;
   z-index: -2;
-  filter: blur(100px) saturate(1.5) brightness(0.3);
+  filter: blur(0px) saturate(1.1) brightness(0.75);
   pointer-events: none;
-  opacity: 0.8;
 }
 
 .background-image-layer.wallpaper-mode {
-  filter: blur(0px) saturate(1.1) brightness(0.75) !important;
-  opacity: 1 !important;
-  inset: 0 !important;
+  filter: blur(0px) saturate(1.1) brightness(0.75);
+  inset: 0;
 }
 
 .background-overlay {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 50%, transparent 20%, rgba(10, 12, 16, 0.8) 100%);
+    radial-gradient(circle at 50% 50%, transparent 20%, var(--bg-overlay) 100%);
   z-index: -1;
   pointer-events: none;
 }
@@ -136,7 +503,7 @@ body {
   gap: 20px;
   background: linear-gradient(
     180deg,
-    rgba(10, 12, 16, 0.7) 0%,
+    var(--bg-header-gradient) 0%,
     transparent 100%
   );
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
@@ -183,7 +550,7 @@ body {
   gap: 8px;
   height: 52px;
   padding: 6px 8px;
-  background: var(--bg-surface);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   backdrop-filter: blur(24px);
@@ -196,9 +563,7 @@ body {
   flex-shrink: 0;
 
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  box-shadow: var(--shadow-island);
 }
 
 .infoIsland.is-overflowing {
@@ -219,10 +584,8 @@ body {
 .mainOptions:hover {
   gap: 6px;
   background: var(--bg-elevated);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 6px 25px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  border-color: var(--border-active);
+  box-shadow: var(--shadow-island-hover);
 }
 
 /* Hide non-rich icons by default in Main menu */
@@ -509,16 +872,14 @@ body {
   align-items: center;
   justify-content: center;
   padding: 0 24px;
-  background: var(--bg-surface);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   overflow: hidden;
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  box-shadow: var(--shadow-island);
 
   font-size: 0.9rem;
   font-weight: 600;
@@ -594,9 +955,9 @@ body {
   min-width: 0;
   min-height: 0;
   margin: 10px 2vw 20px;
-  background: rgba(20, 24, 33, 0.4);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: var(--grid-bg, rgba(20, 24, 33, 0.4));
+  backdrop-filter: blur(var(--grid-blur, 20px));
+  -webkit-backdrop-filter: blur(var(--grid-blur, 20px));
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-xl);
   box-shadow: 
@@ -756,7 +1117,7 @@ body {
   align-items: center;
   gap: 10px;
   padding: 10px 22px;
-  background: rgba(10, 12, 18, 0.92);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-active);
   border-radius: var(--radius-xl);
   backdrop-filter: blur(20px);
@@ -825,7 +1186,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  background: rgba(20, 24, 33, 0.6);
+  background: var(--bg-surface);
   padding: 8px 20px;
   border-radius: var(--radius-xl);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -878,7 +1239,7 @@ body {
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
   z-index: 1000;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: var(--shadow-modal);
   pointer-events: none;
   opacity: 0;
   transform: translate(-50%, 30px) scale(0.92);
@@ -972,14 +1333,14 @@ body {
 .modalContent {
   width: 100%;
   max-width: 480px;
-  background: rgba(16, 20, 30, 0.95);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 28px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--shadow-modal);
 }
 
 .modal-title {
@@ -1115,8 +1476,8 @@ select:focus {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: rgba(8, 10, 16, 0.98);
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
   padding: 0;
 }
 
@@ -1313,7 +1674,7 @@ select:focus {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: rgba(13, 16, 24, 0.97);
+  background: var(--bg-surface);
   backdrop-filter: blur(40px) saturate(1.6);
   -webkit-backdrop-filter: blur(40px) saturate(1.6);
   overflow: hidden;
@@ -1882,14 +2243,12 @@ select:focus {
 
 /* ── Island glass base (shared) ────────────────────────── */
 .island {
-  background: rgba(15, 18, 28, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  box-shadow: 
-    0 20px 50px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  box-shadow: var(--shadow-island);
 }
 
 /* scrollbar */

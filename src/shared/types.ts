@@ -139,6 +139,9 @@ export interface HomeSlot {
   horizontalImage?: string
   iconImage?: string
   label: string
+  iframeUrl?: string
+  videoUrl?: string
+  videoSettings?: { volume: number, muted?: boolean }
   onClick?: string
   onMouseEnter?: string
   onMouseLeave?: string

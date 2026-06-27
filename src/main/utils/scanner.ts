@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
-import { HomeSlot, Game, Emulator } from '../shared/types'
+import { HomeSlot, Game, Emulator } from '../../shared/types'
 
 /**
  * Scans a directory for files matching the given extensions.

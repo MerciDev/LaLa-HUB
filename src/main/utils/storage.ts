@@ -167,9 +167,9 @@ export function loadAllLibrarySlots(): HomeSlot[] {
                         librarySlots.push({
                             id: `lib|${slug}|${gameId}`,
                             label: game.name,
+                            icon: 'mynaui:gamepad',
                             game: game,
                             gameRef: { consoleSlug: slug, gameId },
-                            image: hImg || vImg || sqImg,
                             squareImage: sqImg,
                             verticalImage: vImg,
                             horizontalImage: hImg

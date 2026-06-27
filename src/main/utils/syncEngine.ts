@@ -2,7 +2,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import { debugLog, debugError } from './debug'
 import { getUserId, getAuthenticatedClient } from './supabase'
-import { USER_DATA_PATH, loadSlots } from './storage'
+import { USER_DATA_PATH } from './storage'
 import { BrowserWindow } from 'electron'
 import { setSlotSyncCallback } from '../handlers/slotHandler'
 

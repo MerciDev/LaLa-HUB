@@ -108,13 +108,14 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
 
     const handleSelectTheme = useCallback(async (themeId: string) => {
         sfx.confirm()
-        const updated = { ...settings, activeTheme: themeId }
-        setSettings(updated)
-        await window.api?.ui?.saveSettings(updated)
-        // Dispatch window event so MainApp updates immediately
-        window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+        setSettings(prev => {
+            const updated = { ...prev, activeTheme: themeId }
+            window.api?.ui?.saveSettings(updated)
+            window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+            return updated
+        })
         showToast('Tema cambiado correctamente', 'success')
-    }, [settings, showToast])
+    }, [showToast])
 
     const handleImportTheme = useCallback(async () => {
         sfx.confirm()
@@ -125,31 +126,37 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
             showToast(`Error importando tema: ${res.error}`, 'error')
             return
         }
-        const customThemes = [...(settings.customThemes || [])]
-        const existingIdx = customThemes.findIndex(t => t.id === res.id || t.name.toLowerCase() === res.name.toLowerCase())
-        if (existingIdx >= 0) {
-            customThemes[existingIdx] = res
-        } else {
-            customThemes.push(res)
-        }
-        const updated = { ...settings, customThemes, activeTheme: res.id }
-        setSettings(updated)
-        await window.api?.ui?.saveSettings(updated)
-        window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+        
+        setSettings(prev => {
+            const customThemes = [...(prev.customThemes || [])]
+            const existingIdx = customThemes.findIndex(t => t.id === res.id || t.name.toLowerCase() === res.name.toLowerCase())
+            if (existingIdx >= 0) {
+                customThemes[existingIdx] = res
+            } else {
+                customThemes.push(res)
+            }
+            const updated = { ...prev, customThemes, activeTheme: res.id }
+            window.api?.ui?.saveSettings(updated)
+            window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+            return updated
+        })
+        
         showToast(`Tema "${res.name}" instalado y activado`, 'success')
-    }, [settings, showToast])
+    }, [showToast])
 
     const handleDeleteTheme = useCallback(async (themeId: string, e: React.MouseEvent) => {
         e.stopPropagation()
         sfx.cancel()
-        const customThemes = (settings.customThemes || []).filter(t => t.id !== themeId)
-        const activeTheme = settings.activeTheme === themeId ? 'dark' : settings.activeTheme
-        const updated = { ...settings, customThemes, activeTheme }
-        setSettings(updated)
-        await window.api?.ui?.saveSettings(updated)
-        window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+        setSettings(prev => {
+            const customThemes = (prev.customThemes || []).filter(t => t.id !== themeId)
+            const activeTheme = prev.activeTheme === themeId ? 'dark' : prev.activeTheme
+            const updated = { ...prev, customThemes, activeTheme }
+            window.api?.ui?.saveSettings(updated)
+            window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+            return updated
+        })
         showToast('Tema eliminado', 'info')
-    }, [settings, showToast])
+    }, [showToast])
 
     const handleCreateTheme = useCallback(() => {
         sfx.confirm()
@@ -172,14 +179,78 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                 id: 'theme_' + Date.now(),
                 name: baseTheme.name + ' (Copia)'
             })
-        } else if (themeId === 'dark' || themeId === 'platinum') {
+        } else if (themeId === 'dark' || themeId === 'platinum' || themeId === 'apple-glass' || themeId === 'apple-glass-light' || themeId === 'xmas' || themeId === 'halloween') {
             const isDark = themeId === 'dark'
+            const isApple = themeId === 'apple-glass'
+            const isAppleLight = themeId === 'apple-glass-light'
+            const isXmas = themeId === 'xmas'
+            const isHall = themeId === 'halloween'
             setEditingTheme({
                 id: 'theme_' + Date.now(),
-                name: (isDark ? 'Dark' : 'Platinum') + ' (Copia)',
+                name: (isDark ? 'Dark' : isApple ? 'Liquid Glass (Dark)' : isAppleLight ? 'Liquid Glass (Light)' : isXmas ? 'Navidad' : isHall ? 'Halloween' : 'Platinum') + ' (Copia)',
                 author: (user?.username || 'Usuario'),
                 description: 'Copia del tema integrado.',
-                colors: isDark ? {} : {
+                colors: isDark ? {} : isApple ? {
+                    '--bg-base': '#000000',
+                    '--bg-surface': 'rgba(255, 255, 255, 0.1)',
+                    '--bg-elevated': 'rgba(255, 255, 255, 0.18)',
+                    '--bg-hover': 'rgba(255, 255, 255, 0.15)',
+                    '--accent': '#0A84FF',
+                    '--accent-glow': 'rgba(10, 132, 255, 0.4)',
+                    '--accent-bright': '#5ebdff',
+                    '--text-primary': '#ffffff',
+                    '--text-secondary': 'rgba(255, 255, 255, 0.7)',
+                    '--text-muted': 'rgba(255, 255, 255, 0.4)',
+                    '--border': 'rgba(255, 255, 255, 0.25)',
+                    '--border-active': 'rgba(255, 255, 255, 0.6)',
+                    '--bg-overlay': 'rgba(0, 0, 0, 0.4)',
+                    '--bg-header-gradient': 'transparent'
+                } : isAppleLight ? {
+                    '--bg-base': '#f5f5f7',
+                    '--bg-surface': 'rgba(255, 255, 255, 0.6)',
+                    '--bg-elevated': 'rgba(255, 255, 255, 0.85)',
+                    '--bg-hover': 'rgba(0, 0, 0, 0.05)',
+                    '--accent': '#0071e3',
+                    '--accent-glow': 'rgba(0, 113, 227, 0.3)',
+                    '--accent-bright': '#0077ed',
+                    '--text-primary': '#1d1d1f',
+                    '--text-secondary': 'rgba(0, 0, 0, 0.6)',
+                    '--text-muted': 'rgba(0, 0, 0, 0.4)',
+                    '--border': 'rgba(0, 0, 0, 0.1)',
+                    '--border-active': 'rgba(0, 0, 0, 0.3)',
+                    '--bg-overlay': 'rgba(255, 255, 255, 0.5)',
+                    '--bg-header-gradient': 'transparent'
+                } : isXmas ? {
+                    '--bg-base': '#081c15',
+                    '--bg-surface': 'rgba(216, 27, 96, 0.25)',
+                    '--bg-elevated': 'rgba(216, 27, 96, 0.4)',
+                    '--bg-hover': 'rgba(255, 255, 255, 0.15)',
+                    '--accent': '#f4a261',
+                    '--accent-glow': 'rgba(244, 162, 97, 0.5)',
+                    '--accent-bright': '#e9c46a',
+                    '--text-primary': '#ffffff',
+                    '--text-secondary': 'rgba(255, 255, 255, 0.8)',
+                    '--text-muted': 'rgba(255, 255, 255, 0.5)',
+                    '--border': 'rgba(244, 162, 97, 0.4)',
+                    '--border-active': 'rgba(244, 162, 97, 0.8)',
+                    '--bg-overlay': 'rgba(8, 28, 21, 0.6)',
+                    '--bg-header-gradient': 'rgba(216, 27, 96, 0.15)'
+                } : isHall ? {
+                    '--bg-base': '#0f0518',
+                    '--bg-surface': 'rgba(255, 102, 0, 0.25)',
+                    '--bg-elevated': 'rgba(255, 102, 0, 0.4)',
+                    '--bg-hover': 'rgba(255, 255, 255, 0.15)',
+                    '--accent': '#ff6600',
+                    '--accent-glow': 'rgba(255, 102, 0, 0.5)',
+                    '--accent-bright': '#ff9933',
+                    '--text-primary': '#ffffff',
+                    '--text-secondary': 'rgba(255, 255, 255, 0.8)',
+                    '--text-muted': 'rgba(255, 255, 255, 0.5)',
+                    '--border': 'rgba(255, 102, 0, 0.4)',
+                    '--border-active': 'rgba(255, 102, 0, 0.8)',
+                    '--bg-overlay': 'rgba(15, 5, 24, 0.6)',
+                    '--bg-header-gradient': 'rgba(255, 102, 0, 0.15)'
+                } : {
                     '--bg-base': '#e0e5ec',
                     '--bg-surface': 'rgba(255, 255, 255, 0.5)',
                     '--bg-elevated': 'rgba(255, 255, 255, 0.8)',
@@ -208,20 +279,22 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
 
     const handleSaveTheme = useCallback(async (theme: AppTheme) => {
         sfx.confirm()
-        const customThemes = [...(settings.customThemes || [])]
-        const existingIdx = customThemes.findIndex(t => t.id === theme.id)
-        if (existingIdx >= 0) {
-            customThemes[existingIdx] = theme
-        } else {
-            customThemes.push(theme)
-        }
-        const updated = { ...settings, customThemes, activeTheme: theme.id }
-        setSettings(updated)
+        setSettings(prev => {
+            const customThemes = [...(prev.customThemes || [])]
+            const existingIdx = customThemes.findIndex(t => t.id === theme.id)
+            if (existingIdx >= 0) {
+                customThemes[existingIdx] = theme
+            } else {
+                customThemes.push(theme)
+            }
+            const updated = { ...prev, customThemes, activeTheme: theme.id }
+            window.api?.ui?.saveSettings(updated)
+            window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
+            return updated
+        })
         setEditingTheme(null)
-        await window.api?.ui?.saveSettings(updated)
-        window.dispatchEvent(new CustomEvent('theme-changed', { detail: updated }))
         showToast(`Tema "${theme.name}" guardado`, 'success')
-    }, [settings, showToast])
+    }, [showToast])
 
 
 
@@ -387,7 +460,8 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
         }
     }, [onLogin])
 
-    const handleSyncPlatforms = async () => {
+    // @ts-ignore
+const handleSyncPlatforms = async () => {
         setLoading(true)
         setError(null)
         try {
@@ -491,7 +565,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
 
                 let maxCount = 2
                 if (curTab === 'overview') maxCount = 2
-                if (curTab === 'themes') maxCount = 3 + (stateRef.current.settings?.customThemes?.length || 0)
+                if (curTab === 'themes') maxCount = 10 + (stateRef.current.settings?.customThemes?.length || 0)
                 if (curTab === 'security') maxCount = 4
                 if (curTab === 'library') maxCount = totalLibItems
                 if (curTab === 'login') maxCount = 4
@@ -569,11 +643,15 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                         }
                         else if (idx === 1) handleSelectTheme('dark')
                         else if (idx === 2) handleSelectTheme('platinum')
-                        else if (idx >= 3 && idx < 3 + customThemes.length) {
-                            handleSelectTheme(customThemes[idx - 3].id)
-                        } else if (idx === 3 + customThemes.length) {
+                        else if (idx === 3) handleSelectTheme('apple-glass')
+                        else if (idx === 4) handleSelectTheme('apple-glass-light')
+                        else if (idx === 5) handleSelectTheme('xmas')
+                        else if (idx === 6) handleSelectTheme('halloween')
+                        else if (idx >= 7 && idx < 7 + customThemes.length) {
+                            handleSelectTheme(customThemes[idx - 7].id)
+                        } else if (idx === 7 + customThemes.length) {
                             handleCreateTheme()
-                        } else if (idx === 4 + customThemes.length) {
+                        } else if (idx === 8 + customThemes.length) {
                             handleImportTheme()
                         }
                     } else if (curTab === 'security') {
@@ -881,6 +959,135 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                                 </button>
                             </div>
                         </div>
+
+                        {/* Apple Glass Theme */}
+                        <div
+                            onClick={() => { handleSelectTheme('apple-glass'); setSelectedIndex(3); setFocusArea('content'); }}
+                            className={`profile-toggle ${focusArea === 'content' && selectedIndex === 3 ? 'focused' : ''}`}
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px',
+                                background: activeTheme === 'apple-glass' ? 'rgba(58, 134, 255, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                                border: activeTheme === 'apple-glass' ? '1px solid var(--accent)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '12px', cursor: 'pointer'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#000000', border: '2px solid rgba(255, 255, 255, 0.3)' }} />
+                                <div>
+                                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Liquid Glass</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Cristal translúcido estilo visionOS</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                {activeTheme === 'apple-glass' && <Icon icon="mynaui:check-circle" style={{ color: 'var(--accent)', fontSize: '20px' }} />}
+                                <button onClick={(e) => handleDuplicateTheme('apple-glass', e)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', display: 'flex' }} title="Duplicar tema">
+                                    <Icon icon="mynaui:copy" style={{ fontSize: '18px' }} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Apple Glass Light Theme */}
+                        <div
+                            onClick={() => { handleSelectTheme('apple-glass-light'); setSelectedIndex(4); setFocusArea('content'); }}
+                            className={`profile-toggle ${focusArea === 'content' && selectedIndex === 4 ? 'focused' : ''}`}
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px',
+                                background: activeTheme === 'apple-glass-light' ? 'rgba(0, 113, 227, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                                border: activeTheme === 'apple-glass-light' ? '1px solid var(--accent)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '12px', cursor: 'pointer'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#f5f5f7', border: '2px solid #0071e3' }} />
+                                <div>
+                                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Liquid Glass (Light)</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Cristal translúcido brillante de Apple</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                {activeTheme === 'apple-glass-light' && <Icon icon="mynaui:check-circle" style={{ color: 'var(--accent)', fontSize: '20px' }} />}
+                                <button onClick={(e) => handleDuplicateTheme('apple-glass-light', e)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', display: 'flex' }} title="Duplicar tema">
+                                    <Icon icon="mynaui:copy" style={{ fontSize: '18px' }} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Xmas Theme */}
+                        <div
+                            onClick={() => { handleSelectTheme('xmas'); setSelectedIndex(5); setFocusArea('content'); }}
+                            className={`profile-toggle ${focusArea === 'content' && selectedIndex === 5 ? 'focused' : ''}`}
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px',
+                                background: activeTheme === 'xmas' ? 'rgba(216, 27, 96, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                                border: activeTheme === 'xmas' ? '1px solid var(--accent)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '12px', cursor: 'pointer'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#081c15', border: '2px solid #f4a261' }} />
+                                <div>
+                                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Navidad</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Tonos festivos con efecto de nieve</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                {activeTheme === 'xmas' && <Icon icon="mynaui:check-circle" style={{ color: 'var(--accent)', fontSize: '20px' }} />}
+                                <button onClick={(e) => handleDuplicateTheme('xmas', e)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', display: 'flex' }} title="Duplicar tema">
+                                    <Icon icon="mynaui:copy" style={{ fontSize: '18px' }} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Halloween Theme */}
+                        <div
+                            onClick={() => { handleSelectTheme('halloween'); setSelectedIndex(6); setFocusArea('content'); }}
+                            className={`profile-toggle ${focusArea === 'content' && selectedIndex === 6 ? 'focused' : ''}`}
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px',
+                                background: activeTheme === 'halloween' ? 'rgba(255, 102, 0, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                                border: activeTheme === 'halloween' ? '1px solid var(--accent)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '12px', cursor: 'pointer'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#0f0518', border: '2px solid #ff6600' }} />
+                                <div>
+                                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Halloween</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Calabazas, misterio y terror</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                {activeTheme === 'halloween' && <Icon icon="mynaui:check-circle" style={{ color: 'var(--accent)', fontSize: '20px' }} />}
+                                <button onClick={(e) => handleDuplicateTheme('halloween', e)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', display: 'flex' }} title="Duplicar tema">
+                                    <Icon icon="mynaui:copy" style={{ fontSize: '18px' }} />
+                                </button>
+                            </div>
+                        </div>
+                        {/* Twilight Princess Theme */}
+                        <div
+                            onClick={() => { handleSelectTheme('twilight-princess'); setSelectedIndex(7); setFocusArea('content'); }}
+                            className={`profile-toggle ${focusArea === 'content' && selectedIndex === 7 ? 'focused' : ''}`}
+                            style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px',
+                                background: activeTheme === 'twilight-princess' ? 'rgba(189, 169, 114, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                                border: activeTheme === 'twilight-princess' ? '1px solid var(--accent)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '12px', cursor: 'pointer'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#060805', border: '2px solid #bda972' }} />
+                                <div>
+                                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Twilight Princess</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>El Reino del Crepúsculo</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                {activeTheme === 'twilight-princess' && <Icon icon="mynaui:check-circle" style={{ color: 'var(--accent)', fontSize: '20px' }} />}
+                                <button onClick={(e) => handleDuplicateTheme('twilight-princess', e)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px', display: 'flex' }} title="Duplicar tema">
+                                    <Icon icon="mynaui:copy" style={{ fontSize: '18px' }} />
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -898,7 +1105,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                     {customThemes.length > 0 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px', marginBottom: '16px' }}>
                             {customThemes.map((t, i) => {
-                                const idx = 3 + i
+                                const idx = 8 + i
                                 const isAct = activeTheme === t.id
                                 return (
                                     <div
@@ -942,14 +1149,14 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                     <div className="profile-actions-row" style={{ marginTop: customThemes.length > 0 ? '0' : '16px' }}>
                         <button
                             onClick={handleCreateTheme}
-                            className={`profile-btn profile-btn--secondary ${focusArea === 'content' && selectedIndex === 3 + customThemes.length ? 'focused' : ''}`}
+                            className={`profile-btn profile-btn--secondary ${focusArea === 'content' && selectedIndex === 8 + customThemes.length ? 'focused' : ''}`}
                         >
                             <Icon icon="mynaui:palette" />
                             Crear Tema Nuevo
                         </button>
                         <button
                             onClick={handleImportTheme}
-                            className={`profile-btn profile-btn--primary ${focusArea === 'content' && selectedIndex === 4 + customThemes.length ? 'focused' : ''}`}
+                            className={`profile-btn profile-btn--primary ${focusArea === 'content' && selectedIndex === 9 + customThemes.length ? 'focused' : ''}`}
                         >
                             <Icon icon="mynaui:plus" />
                             Instalar Tema (.css)
@@ -1185,12 +1392,12 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                                 setSelectedIndex(0)
                             }}
                         >
-                            {(s.image || s.squareImage) && (
-                                <div style={{ position: 'absolute', inset: 0, opacity: 0.15, backgroundImage: `url("${s.image || s.squareImage}")`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(16px)' }} />
+                            {((s as any).image || s.squareImage) && (
+                                <div style={{ position: 'absolute', inset: 0, opacity: 0.15, backgroundImage: `url("${(s as any).image || s.squareImage}")`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(16px)' }} />
                             )}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 20, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
-                                {s.image || s.squareImage ? (
-                                    <div style={{ minWidth: 88, width: 88, height: 88, borderRadius: 14, backgroundImage: `url("${s.squareImage || s.image}")`, backgroundSize: 'cover', backgroundPosition: 'center', boxShadow: '0 6px 15px rgba(0,0,0,0.4)' }} />
+                                {(s as any).image || s.squareImage ? (
+                                    <div style={{ minWidth: 88, width: 88, height: 88, borderRadius: 14, backgroundImage: `url("${s.squareImage || (s as any).image}")`, backgroundSize: 'cover', backgroundPosition: 'center', boxShadow: '0 6px 15px rgba(0,0,0,0.4)' }} />
                                 ) : (
                                     <div style={{ minWidth: 88, width: 88, height: 88, borderRadius: 14, background: 'linear-gradient(135deg, rgba(58,134,255,0.2), rgba(58,134,255,0.05))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3a86ff', fontSize: 36, boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.1)' }}>
                                         <Icon icon={s.icon || "mynaui:gamepad"} />

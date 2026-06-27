@@ -1,0 +1,54 @@
+
+> lala-hub@1.0.0 typecheck:web
+> tsc --noEmit -p tsconfig.web.json --composite false
+
+src/renderer/src/components/AddGameModal.tsx(98,65): error TS2345: Argument of type '"coverImage"' is not assignable to parameter of type 'MediaTarget | (() => MediaTarget)'.
+src/renderer/src/components/AddGameModal.tsx(254,24): error TS2345: Argument of type '"coverImage"' is not assignable to parameter of type 'SetStateAction<MediaTarget>'.
+src/renderer/src/components/AddGameModal.tsx(306,26): error TS2339: Property 'results' does not exist on type 'any[]'.
+src/renderer/src/components/AddGameModal.tsx(307,39): error TS2339: Property 'results' does not exist on type 'any[]'.
+src/renderer/src/components/AddGameModal.tsx(328,19): error TS6133: 'q' is declared but its value is never read.
+src/renderer/src/components/AddGameModal.tsx(332,71): error TS2339: Property 'results' does not exist on type 'never'.
+src/renderer/src/components/AddGameModal.tsx(449,13): error TS2353: Object literal may only specify known properties, and 'backgroundImage' does not exist in type 'Record<MediaTarget, string>'.
+src/renderer/src/components/AddGameModal.tsx(652,11): error TS2322: Type '"coverImage"' is not assignable to type 'MediaTarget'.
+src/renderer/src/components/AddGameModal.tsx(653,11): error TS2322: Type '"backgroundImage"' is not assignable to type 'MediaTarget'.
+src/renderer/src/components/AddGameModal.tsx(1349,11): error TS6133: 'handleBrowseArtwork' is declared but its value is never read.
+src/renderer/src/components/AddGameModal.tsx(1972,128): error TS2367: This comparison appears to be unintentional because the types 'MediaTarget' and '"backgroundImage"' have no overlap.
+src/renderer/src/components/AddGameModal.tsx(1979,38): error TS2367: This comparison appears to be unintentional because the types '"logoImage" | "verticalImage" | "horizontalImage" | "iconImage"' and '"backgroundImage"' have no overlap.
+src/renderer/src/components/AddGameModal.tsx(2203,43): error TS6133: 'hasBtns' is declared but its value is never read.
+src/renderer/src/components/download/types.ts(1,10): error TS1205: Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'.
+src/renderer/src/components/download/types.ts(1,28): error TS1205: Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'.
+src/renderer/src/components/download/types.ts(3,47): error TS2304: Cannot find name 'GameMetadata'.
+src/renderer/src/components/HomeGrid.tsx(22,185): error TS2339: Property 'image' does not exist on type 'HomeSlot'.
+src/renderer/src/components/HomeGrid.tsx(27,159): error TS2339: Property 'image' does not exist on type 'HomeSlot'.
+src/renderer/src/components/HomeGrid.tsx(28,143): error TS2339: Property 'image' does not exist on type 'HomeSlot'.
+src/renderer/src/components/HomeGrid.tsx(29,167): error TS2339: Property 'image' does not exist on type 'HomeSlot'.
+src/renderer/src/components/HomeGrid.tsx(412,40): error TS2339: Property 'totalPages' does not exist on type 'HomeGrid'.
+src/renderer/src/components/LibraryPickerModal.tsx(61,81): error TS2339: Property 'console' does not exist on type 'Game'.
+src/renderer/src/components/LibraryPickerModal.tsx(302,65): error TS2339: Property 'image' does not exist on type 'HomeSlot'.
+src/renderer/src/components/LibraryPickerModal.tsx(302,82): error TS2339: Property 'images' does not exist on type 'Game'.
+src/renderer/src/components/LibraryPickerModal.tsx(302,106): error TS2339: Property 'images' does not exist on type 'Game'.
+src/renderer/src/components/ProfilePage.tsx(463,11): error TS6133: 'handleSyncPlatforms' is declared but its value is never read.
+src/renderer/src/components/ProfilePage.tsx(1394,33): error TS2339: Property 'image' does not exist on type 'HomeSlot'.
+src/renderer/src/components/ProfilePage.tsx(1395,121): error TS2339: Property 'image' does not exist on type 'HomeSlot'.
+src/renderer/src/components/ProfilePage.tsx(1398,36): error TS2339: Property 'image' does not exist on type 'HomeSlot'.
+src/renderer/src/components/ProfilePage.tsx(1399,150): error TS2339: Property 'image' does not exist on type 'HomeSlot'.
+src/renderer/src/components/SettingsPanel.tsx(1,38): error TS6133: 'useCallback' is declared but its value is never read.
+src/renderer/src/components/SettingsPanel.tsx(25,7): error TS6133: 'GAMEPAD_KEYS' is declared but its value is never read.
+src/renderer/src/components/SettingsPanel.tsx(62,92): error TS6133: 'minGridDimensions' is declared but its value is never read.
+src/renderer/src/components/SettingsPanel.tsx(65,11): error TS6133: 'showToast' is declared but its value is never read.
+src/renderer/src/components/SettingsPanel.tsx(280,11): error TS6133: 'handleBrowsePlatIcon' is declared but its value is never read.
+src/renderer/src/components/SettingsPanel.tsx(423,66): error TS6133: 'kms' is declared but its value is never read.
+src/renderer/src/components/ShiftContentModal.tsx(4,49): error TS2307: Cannot find module '../../shared/types' or its corresponding type declarations.
+src/renderer/src/components/SidePanel.tsx(52,37): error TS6133: 'idx' is declared but its value is never read.
+src/renderer/src/components/ThemeEditorModal.tsx(1,38): error TS6133: 'useRef' is declared but its value is never read.
+src/renderer/src/components/VideoSettingsModal.tsx(4,1): error TS6133: 'HomeSlot' is declared but its value is never read.
+src/renderer/src/hooks/useDialog.tsx(1,89): error TS6133: 'useRef' is declared but its value is never read.
+src/renderer/src/hooks/useGridNavigation.ts(37,5): error TS6133: 'action' is declared but its value is never read.
+src/renderer/src/hooks/useGridNavigation.ts(63,11): error TS6133: 'startCol' is declared but its value is never read.
+src/renderer/src/windows/main/MainApp.tsx(364,11): error TS6133: 'persistTimeoutRef' is declared but its value is never read.
+src/renderer/src/windows/main/MainApp.tsx(587,17): error TS2322: Type 'string' is not assignable to type 'null'.
+src/renderer/src/windows/main/MainApp.tsx(594,256): error TS2339: Property 'image' does not exist on type 'HomeSlot'.
+src/renderer/src/windows/main/MainApp.tsx(671,11): error TS6133: 'paginationLockRef' is declared but its value is never read.
+src/renderer/src/windows/main/MainApp.tsx(813,22): error TS2678: Type '"CLOSE_PROFILE"' is not comparable to type '"CHANGE_INFO_ISLAND" | "EXPAND_INFO_ISLAND" | "COLLAPSE_INFO_ISLAND" | "ADD_SOCIAL_ICON" | "ADD_PERSONAL_ICON" | "TOGGLE_SOCIAL_MENU" | "TOGGLE_PERSONAL_MENU" | "UPDATE_GRID_CONFIG" | ... 22 more ... | "EXIT_SHIFT_CONTENT"'.
+src/renderer/src/windows/main/MainApp.tsx(823,22): error TS2678: Type '"OPEN_ADD_GAME"' is not comparable to type '"CHANGE_INFO_ISLAND" | "EXPAND_INFO_ISLAND" | "COLLAPSE_INFO_ISLAND" | "ADD_SOCIAL_ICON" | "ADD_PERSONAL_ICON" | "TOGGLE_SOCIAL_MENU" | "TOGGLE_PERSONAL_MENU" | "UPDATE_GRID_CONFIG" | ... 22 more ... | "EXIT_SHIFT_CONTENT"'.
+src/renderer/src/windows/overlay/OverlayApp.tsx(67,13): error TS7030: Not all code paths return a value.

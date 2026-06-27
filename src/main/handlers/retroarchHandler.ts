@@ -1,5 +1,5 @@
 import fs from 'fs'
-import path from 'path'
+
 import { ipcMain } from 'electron'
 import { loadRetroArchSettings, saveRetroArchSettings } from '../utils/settings'
 import { debugLog, debugError } from '../utils/debug'

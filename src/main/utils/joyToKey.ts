@@ -55,7 +55,7 @@ const VK_MAP: Record<string, string> = {
 /**
  * Maps our Gamepad labels to JoyToKey Button IDs (Standard XInput mapping)
  */
-const BUTTON_MAP: Record<string, number> = {
+export const BUTTON_MAP: Record<string, number> = {
   'gamepadA': 1,
   'gamepadB': 2,
   'gamepadX': 3,
@@ -158,7 +158,7 @@ export function generateJoyToKeyConfig(): string {
 }
 
 // Fixed a typo in formatJ2KAction call above (formatJ2J -> formatJ2K)
-function formatJ2JAction(s: string) { return formatJ2KAction(s); }
+export function formatJ2JAction(s: string) { return formatJ2KAction(s); }
 
 /**
  * Saves the generated JoyToKey config to the user data directory

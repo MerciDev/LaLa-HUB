@@ -15,6 +15,8 @@ import { buildOccupiedCells, getSlotCells, repackItemsAfterResize, computeMinGri
 import PageNavigator from '../../components/PageNavigator'
 import ContextMenu from '../../components/ContextMenu'
 import LibraryPickerModal from '../../components/LibraryPickerModal'
+import AddIframeModal from '../../components/AddIframeModal'
+import VideoSettingsModal from '../../components/VideoSettingsModal'
 import { ShiftContentModal } from '../../components/ShiftContentModal'
 import AddGamePanel from '../../components/AddGameModal'
 import SettingsPanel from '../../components/SettingsPanel'
@@ -34,7 +36,7 @@ function logSlots(label: string, items: HomeSlot[]) {
 const applyThemeToDOM = (settings?: InterfaceSettings) => {
     if (!settings) return
     const activeId = settings.activeTheme || 'dark'
-    if (activeId === 'dark' || activeId === 'platinum') {
+    if (activeId === 'dark' || activeId === 'platinum' || activeId === 'apple-glass' || activeId === 'apple-glass-light' || activeId === 'xmas' || activeId === 'halloween' || activeId === 'twilight-princess') {
         document.documentElement.setAttribute('data-theme', activeId)
         const existingStyle = document.getElementById('custom-theme-style')
         if (existingStyle) existingStyle.remove()
@@ -226,6 +228,14 @@ function MainApp(): React.JSX.Element {
     const [libraryPickerVisible, setLibraryPickerVisible] = useState(false)
     const [pickerTargetIndex, setPickerTargetIndex] = useState<number | null>(null)
 
+    // Iframe Modal State
+    const [addIframeVisible, setAddIframeVisible] = useState(false)
+    const [editIframeSlot, setEditIframeSlot] = useState<HomeSlot | null>(null)
+
+    // Video Modal State
+    const [videoModalVisible, setVideoModalVisible] = useState(false)
+    const [editVideoSlot, setEditVideoSlot] = useState<HomeSlot | null>(null)
+
     // --- Move Mode ---
     const [moveMode, setMoveMode] = useState<{ slotId: string; ghostPosition: number } | null>(null)
 
@@ -351,7 +361,7 @@ function MainApp(): React.JSX.Element {
     const stateRef = useRef({
         homeGrid, currentPage, selectedSlotIndex, moveMode, resizeMode, lastGridIndex: 0
     })
-    const persistTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    
     const isGridLoadedRef = useRef(false)
     useEffect(() => {
         stateRef.current = { homeGrid, currentPage, selectedSlotIndex, moveMode, resizeMode, lastGridIndex }
@@ -473,6 +483,30 @@ function MainApp(): React.JSX.Element {
         } else if (option.action === 'OPEN_DOWNLOADS') {
             window.api.contextMenuControl.send('toggle', false)
             openDownloadManager()
+        } else if (option.action === 'ADD_IFRAME') {
+            sfx.confirm()
+            setEditIframeSlot(null)
+            setAddIframeVisible(true)
+            window.api.contextMenuControl.send('toggle', false)
+            window.api.movementControl.send('SET_SECTION', 'add-iframe-modal')
+        } else if (option.action === 'EDIT_IFRAME' && selectedSlotItem) {
+            sfx.confirm()
+            setEditIframeSlot(selectedSlotItem)
+            setAddIframeVisible(true)
+            window.api.contextMenuControl.send('toggle', false)
+            window.api.movementControl.send('SET_SECTION', 'add-iframe-modal')
+        } else if (option.action === 'ADD_VIDEO') {
+            sfx.confirm()
+            setEditVideoSlot(null)
+            setVideoModalVisible(true)
+            window.api.contextMenuControl.send('toggle', false)
+            window.api.movementControl.send('SET_SECTION', 'video-settings-modal')
+        } else if (option.action === 'EDIT_VIDEO' && selectedSlotItem) {
+            sfx.confirm()
+            setEditVideoSlot(selectedSlotItem)
+            setVideoModalVisible(true)
+            window.api.contextMenuControl.send('toggle', false)
+            window.api.movementControl.send('SET_SECTION', 'video-settings-modal')
         } else if (option.action) {
             window.api.contextMenuControl.send('execute', option.action)
         }
@@ -546,7 +580,7 @@ function MainApp(): React.JSX.Element {
     useEffect(() => {
         window.api?.movementControl?.send('SELECTION_CHANGED', selectedSlotItem ?? null)
         
-        let themeBg = null
+        let themeBg: string | null = null
         if (interfaceSettings.activeTheme && interfaceSettings.activeTheme !== 'dark' && interfaceSettings.activeTheme !== 'platinum') {
             const currentTheme = interfaceSettings.customThemes?.find(t => t.id === interfaceSettings.activeTheme)
             if (currentTheme?.backgroundImage) {
@@ -554,7 +588,11 @@ function MainApp(): React.JSX.Element {
             }
         }
         
-        const gameImg = selectedSlotItem ? (selectedSlotItem.backgroundImage || selectedSlotItem.horizontalImage || selectedSlotItem.coverImage || selectedSlotItem.squareImage) : null
+        let gameImg = null
+        if (selectedSlotItem) {
+            const gameImgs = (selectedSlotItem.game as any)?.data?.images || (selectedSlotItem.game as any)?.images || {}
+            gameImg = selectedSlotItem.backgroundImage || gameImgs.background || selectedSlotItem.horizontalImage || gameImgs.h_grid || selectedSlotItem.coverImage || gameImgs.cover || selectedSlotItem.verticalImage || gameImgs.v_grid || (selectedSlotItem as any).image || selectedSlotItem.squareImage || gameImgs.home || gameImgs.icon || selectedSlotItem.thumbImage || null
+        }
         if (interfaceSettings.showGameBackground && gameImg) {
             setBackgroundImage(gameImg)
         } else {
@@ -630,7 +668,7 @@ function MainApp(): React.JSX.Element {
 
     // Ref to handle state inside stable IPC listener
     const stateRefForIPC = useRef({ currentPage })
-    const paginationLockRef = useRef(false)
+    
     useEffect(() => { stateRefForIPC.current = { currentPage } }, [currentPage])
 
     useEffect(() => {
@@ -638,7 +676,7 @@ function MainApp(): React.JSX.Element {
 
         window.api.onMainMessage((action: AppAction) => {
             console.log(`[Renderer] IPC Received: ${action.type}`)
-            switch (action.type) {
+            switch (action.type as any) {
                 case 'CHANGE_INFO_ISLAND': setInfoText(action.payload); break
                 case 'EXPAND_INFO_ISLAND': setIslandWidth('fit-content'); break
                 case 'COLLAPSE_INFO_ISLAND': setIslandWidth('56px'); break
@@ -1101,7 +1139,7 @@ function MainApp(): React.JSX.Element {
         <div className="app">
             <BackgroundLayer
                 backgroundImage={backgroundImage}
-                isWallpaper={!interfaceSettings.showGameBackground || !(selectedSlotItem?.backgroundImage || selectedSlotItem?.horizontalImage || selectedSlotItem?.coverImage || selectedSlotItem?.squareImage)}
+                isWallpaper={true}
             />
 
             {/* ── Header ── */}
@@ -1275,6 +1313,75 @@ function MainApp(): React.JSX.Element {
                         setPickerTargetIndex(null)
                         goBack()
                     }
+                }}
+            />
+
+            <AddIframeModal
+                visible={addIframeVisible}
+                initialUrl={editIframeSlot?.iframeUrl || ''}
+                onClose={() => {
+                    setAddIframeVisible(false)
+                    setEditIframeSlot(null)
+                    goBack()
+                }}
+                onSave={(url) => {
+                    const targetPos = editIframeSlot ? editIframeSlot.position : (stateRef.current.selectedSlotIndex ?? 0)
+                    const newGridSlot: HomeSlot = editIframeSlot ? {
+                        ...editIframeSlot,
+                        iframeUrl: url
+                    } : {
+                        id: `slot-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                        position: targetPos,
+                        page: currentPage,
+                        colSpan: 1,
+                        rowSpan: 1,
+                        label: 'Widget Web',
+                        icon: 'mynaui:globe',
+                        iframeUrl: url
+                    }
+                    const otherItems = homeGrid.items.filter(i => i.id !== newGridSlot.id && !(i.position === newGridSlot.position && i.page === newGridSlot.page))
+                    const newItems = [...otherItems, newGridSlot]
+                    persistItems(newItems)
+                    captureIdeals(newItems)
+                    setAddIframeVisible(false)
+                    setEditIframeSlot(null)
+                    goBack()
+                }}
+            />
+
+            <VideoSettingsModal
+                visible={videoModalVisible}
+                initialUrl={editVideoSlot?.videoUrl || ''}
+                initialVolume={editVideoSlot?.videoSettings?.volume ?? 0.5}
+                onClose={() => {
+                    setVideoModalVisible(false)
+                    setEditVideoSlot(null)
+                    goBack()
+                }}
+                onSave={(url, volume) => {
+                    const targetPos = editVideoSlot ? editVideoSlot.position : (stateRef.current.selectedSlotIndex ?? 0)
+                    const newGridSlot: HomeSlot = editVideoSlot ? {
+                        ...editVideoSlot,
+                        videoUrl: url,
+                        videoSettings: { volume }
+                    } : {
+                        id: `slot-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                        position: targetPos,
+                        page: currentPage,
+                        colSpan: 1,
+                        rowSpan: 1,
+                        label: 'Vídeo Nativo',
+                        icon: 'mynaui:video',
+                        videoUrl: url,
+                        videoSettings: { volume }
+                    }
+                    const otherItems = homeGrid.items.filter(i => i.id !== newGridSlot.id && !(i.position === newGridSlot.position && i.page === newGridSlot.page))
+                    const newItems = [...otherItems, newGridSlot]
+                    persistItems(newItems)
+                    captureIdeals(newItems)
+                    setVideoModalVisible(false)
+                    setEditVideoSlot(null)
+                    goBack()
                 }}
             />
 

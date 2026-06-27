@@ -36,7 +36,7 @@ import { registerAuthHandlers, getAuthState } from './handlers/authHandler'
 import { registerSyncHandlers } from './handlers/syncHandler'
 import { registerSavesHandlers } from './handlers/savesHandler'
 import { initSyncEngine } from './utils/syncEngine'
-import { initDiscordRPC, setActivity } from './utils/discord'
+import { initDiscordRPC } from './utils/discord'
 import { loadInterfaceSettings } from './settings/interfaceSettings'
 
 export let appWindow: BrowserWindow | null = null
@@ -226,18 +226,20 @@ export function refreshGlobalShortcuts(): void {
   }
 
 
-  saveJoyToKeyProfile('LaLa-HUB')
-  if (currentKeymaps.joyToKeyPath) {
-    loadJoyToKeyProfile(currentKeymaps.joyToKeyPath, 'LaLa-HUB')
-    
-    // Aseguramos que nuestra app recupere el foco después de que JoyToKey se inicie
-    setTimeout(() => {
-      if (appWindow && !appWindow.isDestroyed()) {
-        appWindow.focus()
-        // Opcionalmente podemos forzar el primer plano si es necesario
-        // appWindow.setAlwaysOnTop(true); appWindow.setAlwaysOnTop(false);
-      }
-    }, 1200)
+  if (currentKeymaps.useJoyToKey) {
+    saveJoyToKeyProfile('LaLa-HUB')
+    if (currentKeymaps.joyToKeyPath) {
+      loadJoyToKeyProfile(currentKeymaps.joyToKeyPath, 'LaLa-HUB')
+      
+      // Aseguramos que nuestra app recupere el foco después de que JoyToKey se inicie
+      setTimeout(() => {
+        if (appWindow && !appWindow.isDestroyed()) {
+          appWindow.focus()
+          // Opcionalmente podemos forzar el primer plano si es necesario
+          // appWindow.setAlwaysOnTop(true); appWindow.setAlwaysOnTop(false);
+        }
+      }, 1200)
+    }
   }
   debugLog('[Shortcuts] Global shortcuts refreshed and JoyToKey profile updated.')
 }
@@ -300,7 +302,7 @@ async function main(): Promise<void> {
 
   // Auto-sync on reconnect
   const { triggerSync } = await import('./utils/syncEngine')
-  const { net } = await import('electron')
+  await import('electron')
   const onlineCheckInterval = setInterval(async () => {
     try {
       const online = await import('./utils/supabase').then(m => m.isOnline())

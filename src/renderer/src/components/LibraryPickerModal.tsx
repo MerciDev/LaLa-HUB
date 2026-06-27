@@ -58,7 +58,7 @@ function getPlatformIcon(name: string): string {
 }
 
 function getPlatformName(slot: HomeSlot): string {
-    return slot.game?.platform?.name || slot.game?.emulator?.name || slot.game?.console || 'PC'
+    return slot.game?.platform?.name || slot.game?.emulator?.name || (slot.game as any)?.console || 'PC'
 }
 
 function formatPlaytime(minutes?: number): string {

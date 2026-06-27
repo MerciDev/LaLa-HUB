@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { debugLog } from './debug'
+import { debugLog, debugError } from './debug'
 import { fetchFromTable } from './supabaseData'
 import { getAuthenticatedClient } from './supabase'
 
@@ -55,6 +55,7 @@ function normalizeGameForResponse(game: any): any {
   }
 }
 
+// @ts-ignore
 function getLocalApiGamesDir(): string | null {
   const possiblePaths = [
     path.join(process.cwd(), '../LaLa-API/src/data/games'),

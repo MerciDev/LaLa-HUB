@@ -18,14 +18,14 @@ function BackgroundLayer({ backgroundImage, isWallpaper }: BackgroundLayerProps)
     return (
         <>
             <div className="background-overlay" />
-            <AnimatePresence mode="wait">
+            <AnimatePresence>
                 {src && (
                     <motion.div
                         key={src}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        transition={{ duration: 0.7 }}
+                        transition={{ duration: 0.25, ease: 'easeInOut' }}
                         className={`background-image-layer ${isWallpaper ? 'wallpaper-mode' : ''}`}
                         style={{ backgroundImage: `url(${src})` }}
                     />

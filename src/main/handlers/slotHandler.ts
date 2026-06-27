@@ -5,7 +5,7 @@ import { setGridItems } from '../windows/main/main'
 import { processGameSlots } from '../utils/gameMetadata'
 import { debugLog } from '../utils/debug'
 import { getUserId } from '../utils/supabase'
-import { upsertRecords, deleteRemoteRecord } from '../utils/supabaseData'
+import { deleteRemoteRecord } from '../utils/supabaseData'
 
 let syncAfterSlots: (() => void) | null = null
 

@@ -1,5 +1,5 @@
-import { getAuthenticatedClient, getUserId, getSupabaseClient } from './supabase'
-import { debugLog, debugError } from './debug'
+import { getAuthenticatedClient, getUserId } from './supabase'
+import { debugError } from './debug'
 
 export interface SyncableRecord {
   id: string

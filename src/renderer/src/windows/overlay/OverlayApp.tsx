@@ -28,6 +28,7 @@ export default function OverlayApp(): React.JSX.Element {
 
   // ── Clock ───────────────────────────────────────────────────────────────
   useEffect(() => {
+return undefined;
     const tick = () => {
       const d = new Date()
       setTime(d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }))
@@ -40,6 +41,7 @@ export default function OverlayApp(): React.JSX.Element {
 
   // ── Session Timer ───────────────────────────────────────────────────────
   useEffect(() => {
+return undefined;
     if (!visible || !activeGame?.sessionStartTime) return
     
     const updateSessionTime = () => {
@@ -60,11 +62,13 @@ export default function OverlayApp(): React.JSX.Element {
 
   // ── Theme on <html> ──────────────────────────────────────────────────────
   useEffect(() => {
+return undefined;
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
   // ── IPC ──────────────────────────────────────────────────────────────────
   useEffect(() => {
+return undefined;
     const api = (window as any).api
     if (!api) {
       // Dev: auto-open after delay if in browser/no api
@@ -123,9 +127,10 @@ export default function OverlayApp(): React.JSX.Element {
 
   // ── Keyboard & Gamepad navigation ───────────────────────────────────────────
   useEffect(() => {
+return undefined;
     if (!visible) return
 
-    const count = section ? panelCount(section) : 0
+    const count = section ? panelCount(section as any) : 0
 
     const handleAction = (action: string) => {
       // ── Inside panel ─────────────────────────────────────────────────────
