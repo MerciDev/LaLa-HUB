@@ -17,6 +17,11 @@ interface HomeGridProps {
     onGridDimensionsAutoChange?: (rows: number, cols: number) => void
 }
 
+function getFullSlotImage(item: HomeSlot): string | undefined {
+    const gameImgs = (item.game as any)?.data?.images || (item.game as any)?.images || {}
+    return item.backgroundImage || gameImgs.background || item.horizontalImage || gameImgs.h_grid || item.coverImage || gameImgs.cover || item.verticalImage || gameImgs.v_grid || item.image || item.squareImage || gameImgs.home || gameImgs.icon || item.thumbImage
+}
+
 function getBestSlotImage(item: HomeSlot, cSpan: number, rSpan: number): string | undefined {
     const gameImgs = (item.game as any)?.data?.images || (item.game as any)?.images || {}
     const sq = item.squareImage || gameImgs.home || gameImgs.icon || item.coverImage || item.thumbImage || item.verticalImage || item.horizontalImage || item.image
@@ -31,6 +36,7 @@ function getBestSlotImage(item: HomeSlot, cSpan: number, rSpan: number): string 
         return h
     }
 }
+
 
 function HomeGrid({
     homeGrid,
@@ -208,9 +214,14 @@ function HomeGrid({
                                 {item ? (
                                     <div className="item">
                                         {(() => {
-                                            const bestImg = getBestSlotImage(item, cSpan, rSpan)
+                                            const imgOff = item.contentOffsets?.image
+                                            const bestImg = imgOff ? (getFullSlotImage(item) || getBestSlotImage(item, cSpan, rSpan)) : getBestSlotImage(item, cSpan, rSpan)
+                                            const imgStyle: React.CSSProperties = imgOff ? {
+                                                objectPosition: `calc(50% + ${imgOff.x}px) calc(50% + ${imgOff.y}px)`,
+                                                transform: (imgOff.scale ?? 1) !== 1 ? `scale(${imgOff.scale})` : undefined
+                                            } : {}
                                             return bestImg ? (
-                                                <img src={bestImg} className="slot-image" draggable={false} />
+                                                <img src={bestImg} className="slot-image" draggable={false} style={imgStyle} />
                                             ) : (
                                                 <Icon icon={item.icon} />
                                             )
@@ -266,9 +277,15 @@ function HomeGrid({
                             {item ? (
                                 <div className="item">
                                     {(() => {
-                                        const bestImg = getBestSlotImage(item, cSpan, rSpan)
+                                        const imgOff = item.contentOffsets?.image
+                                        const bestImg = imgOff ? (getFullSlotImage(item) || getBestSlotImage(item, cSpan, rSpan)) : getBestSlotImage(item, cSpan, rSpan)
+                                        const imgStyle: React.CSSProperties = {
+                                            objectPosition: imgOff ? `calc(50% + ${imgOff.x}px) calc(50% + ${imgOff.y}px)` : undefined,
+                                            transform: imgOff && (imgOff.scale ?? 1) !== 1 ? `scale(${imgOff.scale})` : undefined,
+                                            transition: 'object-position 0.05s ease-out, transform 0.05s ease-out'
+                                        }
                                         return bestImg ? (
-                                            <img src={bestImg} className="slot-image" draggable={false} />
+                                            <img src={bestImg} className="slot-image" draggable={false} style={imgStyle} />
                                         ) : (
                                             <Icon icon={item.icon} />
                                         )
@@ -276,6 +293,13 @@ function HomeGrid({
                                     {(() => {
                                         const labelPos = item.labelPosition || 'bottom'
                                         const iconPos = item.iconPosition || 'bottom-right'
+                                        const lblOff = item.contentOffsets?.label
+                                        const icnOff = item.contentOffsets?.icon
+
+                                        const baseLblTransform = item.showLabel ? (labelPos === 'center' ? 'translateY(-50%) ' : '') : ''
+                                        const offLblTransform = lblOff ? `translate(${lblOff.x}px, ${lblOff.y}px) scale(${lblOff.scale ?? 1})` : ''
+                                        const finalLblTransform = `${baseLblTransform}${offLblTransform}`.trim() || undefined
+
                                         return (
                                             <>
                                                 <div 
@@ -284,11 +308,16 @@ function HomeGrid({
                                                         opacity: item.showLabel ? 1 : undefined,
                                                         bottom: labelPos === 'top' || labelPos === 'center' ? 'auto' : 0,
                                                         top: labelPos === 'top' ? 0 : labelPos === 'center' ? '50%' : 'auto',
-                                                        transform: item.showLabel ? (labelPos === 'center' ? 'translateY(-50%)' : 'none') : undefined,
-                                                        background: labelPos === 'top' ? 'linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%)' : labelPos === 'center' ? 'rgba(0,0,0,0.75)' : undefined
+                                                        transform: finalLblTransform,
+                                                        transition: 'transform 0.05s ease-out',
+                                                        background: (item.showLogo && item.logoImage) ? 'transparent' : (labelPos === 'top' ? 'linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%)' : labelPos === 'center' ? 'rgba(0,0,0,0.75)' : undefined)
                                                     }}
                                                 >
-                                                    {item.label}
+                                                    {(item.showLogo && item.logoImage) ? (
+                                                        <img src={item.logoImage} alt={item.label} style={{ maxWidth: '80%', maxHeight: '100%', objectFit: 'contain' }} draggable={false} />
+                                                    ) : (
+                                                        item.label
+                                                    )}
                                                 </div>
                                                 {item.showIcon && (
                                                     <div
@@ -306,6 +335,8 @@ function HomeGrid({
                                                             bottom: iconPos.startsWith('bottom') ? 10 : 'auto',
                                                             left: iconPos.endsWith('left') ? 10 : 'auto',
                                                             right: iconPos.endsWith('right') ? 10 : 'auto',
+                                                            transform: icnOff ? `translate(${icnOff.x}px, ${icnOff.y}px) scale(${icnOff.scale ?? 1})` : undefined,
+                                                            transition: 'transform 0.05s ease-out'
                                                         }}
                                                     >
                                                         {item.iconImage ? (

@@ -22,6 +22,7 @@ interface AddGameForm {
     backgroundImage?: string
     coverImage?: string
     showLabel?: boolean
+    showLogo?: boolean
     labelPosition?: 'bottom' | 'top' | 'center'
     showIcon?: boolean
     iconPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
@@ -36,7 +37,7 @@ const EMPTY_FORM: AddGameForm = {
     squareImage: '', logoImage: '', 
     verticalImage: '', horizontalImage: '', iconImage: '',
     backgroundImage: '', coverImage: '',
-    showLabel: false, labelPosition: 'bottom', showIcon: false, iconPosition: 'bottom-right', iconSize: 64,
+    showLabel: false, showLogo: false, labelPosition: 'bottom', showIcon: false, iconPosition: 'bottom-right', iconSize: 64,
     savesPath: '', savesExtension: '.sav', cloudSyncEnabled: true
 }
 
@@ -186,6 +187,7 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
         }
         if (section === 'options') {
             return !!form.showLabel !== !!initialForm.showLabel ||
+                   !!form.showLogo !== !!initialForm.showLogo ||
                    (form.labelPosition || 'bottom') !== (initialForm.labelPosition || 'bottom') ||
                    !!form.showIcon !== !!initialForm.showIcon ||
                    (form.iconPosition || 'bottom-right') !== (initialForm.iconPosition || 'bottom-right') ||
@@ -277,6 +279,7 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                 backgroundImage: editSlot.backgroundImage ?? '',
                 coverImage: editSlot.coverImage ?? '',
                 showLabel: editSlot.showLabel ?? false,
+                showLogo: editSlot.showLogo ?? false,
                 labelPosition: editSlot.labelPosition ?? 'bottom',
                 showIcon: editSlot.showIcon ?? false,
                 iconPosition: editSlot.iconPosition ?? 'bottom-right',
@@ -1085,31 +1088,31 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                     if (action === 'up') {
                         if (cIdx > 0) { sfx.navigate(); setContentIndex(cIdx - 1) }
                     } else if (action === 'down') {
-                        if (cIdx < 4) { sfx.navigate(); setContentIndex(cIdx + 1) }
+                        if (cIdx < 5) { sfx.navigate(); setContentIndex(cIdx + 1) }
                     } else if (action === 'left') {
-                        if (cIdx === 1) {
+                        if (cIdx === 2) {
                             const curIdx = LABEL_POS_OPTIONS.findIndex(o => o.id === r.current.form.labelPosition)
                             const prevIdx = (curIdx - 1 + LABEL_POS_OPTIONS.length) % LABEL_POS_OPTIONS.length
                             sfx.navigate(); setForm(p => ({ ...p, labelPosition: LABEL_POS_OPTIONS[prevIdx].id as any }))
-                        } else if (cIdx === 3) {
+                        } else if (cIdx === 4) {
                             const curIdx = ICON_POS_OPTIONS.findIndex(o => o.id === r.current.form.iconPosition)
                             const prevIdx = (curIdx - 1 + ICON_POS_OPTIONS.length) % ICON_POS_OPTIONS.length
                             sfx.navigate(); setForm(p => ({ ...p, iconPosition: ICON_POS_OPTIONS[prevIdx].id as any }))
-                        } else if (cIdx === 4) {
+                        } else if (cIdx === 5) {
                             const curIdx = ICON_SIZE_OPTIONS.findIndex(o => o.id === (r.current.form.iconSize || 64))
                             const prevIdx = (curIdx - 1 + ICON_SIZE_OPTIONS.length) % ICON_SIZE_OPTIONS.length
                             sfx.navigate(); setForm(p => ({ ...p, iconSize: ICON_SIZE_OPTIONS[prevIdx].id as any }))
                         }
                     } else if (action === 'right') {
-                        if (cIdx === 1) {
+                        if (cIdx === 2) {
                             const curIdx = LABEL_POS_OPTIONS.findIndex(o => o.id === r.current.form.labelPosition)
                             const nextIdx = (curIdx + 1) % LABEL_POS_OPTIONS.length
                             sfx.navigate(); setForm(p => ({ ...p, labelPosition: LABEL_POS_OPTIONS[nextIdx].id as any }))
-                        } else if (cIdx === 3) {
+                        } else if (cIdx === 4) {
                             const curIdx = ICON_POS_OPTIONS.findIndex(o => o.id === r.current.form.iconPosition)
                             const nextIdx = (curIdx + 1) % ICON_POS_OPTIONS.length
                             sfx.navigate(); setForm(p => ({ ...p, iconPosition: ICON_POS_OPTIONS[nextIdx].id as any }))
-                        } else if (cIdx === 4) {
+                        } else if (cIdx === 5) {
                             const curIdx = ICON_SIZE_OPTIONS.findIndex(o => o.id === (r.current.form.iconSize || 64))
                             const nextIdx = (curIdx + 1) % ICON_SIZE_OPTIONS.length
                             sfx.navigate(); setForm(p => ({ ...p, iconSize: ICON_SIZE_OPTIONS[nextIdx].id as any }))
@@ -1117,7 +1120,9 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                     } else if (action === 'select') {
                         if (cIdx === 0) {
                             sfx.confirm(); setForm(p => ({ ...p, showLabel: !p.showLabel }))
-                        } else if (cIdx === 2) {
+                        } else if (cIdx === 1) {
+                            sfx.confirm(); setForm(p => ({ ...p, showLogo: !p.showLogo }))
+                        } else if (cIdx === 3) {
                             sfx.confirm(); setForm(p => ({ ...p, showIcon: !p.showIcon }))
                         }
                     } else if (action === 'back') {
@@ -1380,6 +1385,7 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                 backgroundImage: f.backgroundImage || slot?.backgroundImage,
                 coverImage: f.coverImage || slot?.coverImage,
                 showLabel: f.showLabel,
+                showLogo: f.showLogo,
                 labelPosition: f.labelPosition,
                 showIcon: f.showIcon,
                 iconPosition: f.iconPosition,
@@ -2365,7 +2371,18 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
 
                         <div 
                             className={`ag-field-row ${isFocused('content', 1) ? 'ag-field-row--focused' : ''}`}
-                            onClick={() => { setFocusArea('content'); setContentIndex(1); }}
+                            onClick={() => { setFocusArea('content'); setContentIndex(1); setForm(p => ({ ...p, showLogo: !p.showLogo })); sfx.confirm() }}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '10px 14px', borderRadius: 10, marginBottom: 12, opacity: form.showLabel ? 1 : 0.4 }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <Icon icon={form.showLogo ? 'mynaui:check-square-solid' : 'mynaui:square'} style={{ fontSize: 24, color: form.showLogo ? 'var(--accent)' : 'var(--text-muted)' }} />
+                                <span style={{ fontWeight: 600, fontSize: 13, color: '#fff' }}>Usar logo en lugar de texto</span>
+                            </div>
+                        </div>
+
+                        <div 
+                            className={`ag-field-row ${isFocused('content', 2) ? 'ag-field-row--focused' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(2); }}
                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, opacity: form.showLabel ? 1 : 0.4 }}
                         >
                             <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Posición del nombre <span style={{ fontSize: 11 }}>←→</span></span>
@@ -2393,8 +2410,8 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                     </div>
                     <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 16, border: '1px solid rgba(255,255,255,0.06)' }}>
                         <div 
-                            className={`ag-field-row ${isFocused('content', 2) ? 'ag-field-row--focused' : ''}`}
-                            onClick={() => { setFocusArea('content'); setContentIndex(2); setForm(p => ({ ...p, showIcon: !p.showIcon })); sfx.confirm() }}
+                            className={`ag-field-row ${isFocused('content', 3) ? 'ag-field-row--focused' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(3); setForm(p => ({ ...p, showIcon: !p.showIcon })); sfx.confirm() }}
                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '10px 14px', borderRadius: 10, marginBottom: 12 }}
                         >
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -2404,8 +2421,8 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                         </div>
 
                         <div 
-                            className={`ag-field-row ${isFocused('content', 3) ? 'ag-field-row--focused' : ''}`}
-                            onClick={() => { setFocusArea('content'); setContentIndex(3); }}
+                            className={`ag-field-row ${isFocused('content', 4) ? 'ag-field-row--focused' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(4); }}
                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, opacity: form.showIcon ? 1 : 0.4 }}
                         >
                             <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Posición del icono <span style={{ fontSize: 11 }}>←→</span></span>
@@ -2428,8 +2445,8 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                         </div>
 
                         <div 
-                            className={`ag-field-row ${isFocused('content', 4) ? 'ag-field-row--focused' : ''}`}
-                            onClick={() => { setFocusArea('content'); setContentIndex(4); }}
+                            className={`ag-field-row ${isFocused('content', 5) ? 'ag-field-row--focused' : ''}`}
+                            onClick={() => { setFocusArea('content'); setContentIndex(5); }}
                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, opacity: form.showIcon ? 1 : 0.4, marginTop: 8 }}
                         >
                             <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Tamaño del icono <span style={{ fontSize: 11 }}>←→</span></span>

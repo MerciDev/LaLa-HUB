@@ -15,6 +15,7 @@ import { buildOccupiedCells, getSlotCells, repackItemsAfterResize, computeMinGri
 import PageNavigator from '../../components/PageNavigator'
 import ContextMenu from '../../components/ContextMenu'
 import LibraryPickerModal from '../../components/LibraryPickerModal'
+import { ShiftContentModal } from '../../components/ShiftContentModal'
 import AddGamePanel from '../../components/AddGameModal'
 import SettingsPanel from '../../components/SettingsPanel'
 import { DownloadManager } from '../../components/download/DownloadManager'
@@ -95,12 +96,16 @@ function MainApp(): React.JSX.Element {
     const { displayText, islandWidth, textOpacity, setInfoText, setIslandWidth, collapse: collapseIsland } = useInfoIsland()
 
     // --- Grid ---
-    const [homeGrid, setHomeGrid] = useState<HomeGrid>({
-        rows: 4,
-        cols: 6,
-        aspectRatio: 1,
-        gap: 10,
-        items: []
+    const [homeGrid, setHomeGrid] = useState<HomeGrid>(() => {
+        const screenW = typeof window !== 'undefined' ? window.screen.availWidth : 1920
+        const canonicalCols = Math.max(3, Math.min(18, Math.floor(screenW / 210) - 1))
+        return {
+            rows: 4,
+            cols: canonicalCols,
+            aspectRatio: 1,
+            gap: 10,
+            items: []
+        }
     })
     const [currentPage, setCurrentPage] = useState(0)
     const [direction, setDirection] = useState<'next' | 'prev'>('next')
@@ -177,6 +182,9 @@ function MainApp(): React.JSX.Element {
     // --- Resize Mode ---
     const [resizeMode, setResizeMode] = useState<{ slotId: string } | null>(null)
 
+    // --- Shift Content Mode ---
+    const [shiftContentSlot, setShiftContentSlot] = useState<HomeSlot | null>(null)
+
     // --- Route Navigation Stack ---
     const navStackRef = useRef<string[]>([])
     const currentViewRef = useRef<string>('grid')
@@ -225,6 +233,7 @@ function MainApp(): React.JSX.Element {
         setDownloadManagerVisible(false)
         setProfilePageVisible(false)
         setLibraryPickerVisible(false)
+        setShiftContentSlot(null)
         setFocusedHeader(null)
         setSocialExpanded(false)
         setPersonalExpanded(false)
@@ -379,6 +388,14 @@ function MainApp(): React.JSX.Element {
         collapseIsland()
     }, [collapseIsland])
 
+    const enterShiftContentMode = useCallback((slot: HomeSlot) => {
+        sfx.confirm()
+        setShiftContentSlot(slot)
+        window.api.contextMenuControl.send('toggle', false)
+        window.api.movementControl.send('SET_SECTION', 'shift-content-modal')
+        setInfoText(`Encuadrando: ${slot.label}`)
+    }, [setInfoText])
+
     // ─── Context Option Click ─────────────────────────────────────────────────────
 
     const handleContextOptionClick = (option: ContextOption) => {
@@ -401,6 +418,8 @@ function MainApp(): React.JSX.Element {
             enterMoveMode(selectedSlotItem)
         } else if (option.action === 'RESIZE_GAME' && selectedSlotItem) {
             enterResizeMode(selectedSlotItem)
+        } else if (option.action === 'SHIFT_CONTENT' && selectedSlotItem) {
+            enterShiftContentMode(selectedSlotItem)
         } else if (option.action === 'OPEN_DOWNLOADS') {
             window.api.contextMenuControl.send('toggle', false)
             openDownloadManager()
@@ -643,6 +662,7 @@ function MainApp(): React.JSX.Element {
                     setProfilePageVisible(false)
                     setAddGamePanelVisible(false)
                     setLibraryPickerVisible(false)
+                    setShiftContentSlot(null)
                     setPersonalExpanded(false)
                     setSocialExpanded(false)
                     setFocusedHeader(null)
@@ -935,7 +955,7 @@ function MainApp(): React.JSX.Element {
                         window.api.contextMenuControl.send('toggle', false)
                         break
                 }
-            } else if (section === 'add-game-modal' || section === 'settings' || section === 'profile' || section === 'library-picker') {
+            } else if (section === 'add-game-modal' || section === 'settings' || section === 'profile' || section === 'library-picker' || section === 'shift-content-modal') {
                 window.dispatchEvent(new CustomEvent('panel-move', { detail: action }))
             } else if (section === 'download-manager') {
                 if (action === 'back' || action === 'escape') { goBack(); return }
@@ -1189,9 +1209,34 @@ function MainApp(): React.JSX.Element {
                 }}
             />
 
+            {shiftContentSlot && (
+                <ShiftContentModal
+                    slot={shiftContentSlot}
+                    onLiveUpdate={(offsets) => {
+                        setHomeGrid(prev => ({
+                            ...prev,
+                            items: prev.items.map(it => ((it.id && it.id === shiftContentSlot.id) || (it.page === shiftContentSlot.page && it.position === shiftContentSlot.position)) ? { ...it, contentOffsets: offsets } : it)
+                        }))
+                    }}
+                    onSave={(offsets) => {
+                        const newItems = homeGrid.items.map(it => ((it.id && it.id === shiftContentSlot.id) || (it.page === shiftContentSlot.page && it.position === shiftContentSlot.position)) ? { ...it, contentOffsets: offsets } : it)
+                        persistItems(newItems)
+                        setShiftContentSlot(null)
+                        window.api.movementControl.send('SET_SECTION', 'grid')
+                        collapseIsland()
+                    }}
+                    onClose={() => {
+                        window.api?.slots?.getAll?.().then(items => items && setHomeGrid(p => ({ ...p, items })))
+                        setShiftContentSlot(null)
+                        window.api.movementControl.send('SET_SECTION', 'grid')
+                        collapseIsland()
+                    }}
+                />
+            )}
+
             {/* ── Footer ── */}
             <AnimatePresence>
-                {!settingsPanelVisible && !addGamePanelVisible && !downloadManagerVisible && !profilePageVisible && !moveMode && !resizeMode && (
+                {!settingsPanelVisible && !addGamePanelVisible && !downloadManagerVisible && !profilePageVisible && !moveMode && !resizeMode && !shiftContentSlot && (
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}

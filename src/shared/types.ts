@@ -54,6 +54,8 @@ export type AppAction =
   | { type: 'EXIT_MOVE_MODE' }
   | { type: 'ENTER_RESIZE_MODE'; payload: HomeSlot }
   | { type: 'EXIT_RESIZE_MODE' }
+  | { type: 'OPEN_SHIFT_CONTENT'; payload: HomeSlot }
+  | { type: 'EXIT_SHIFT_CONTENT' }
 
 export interface ContextOption {
   id: string
@@ -150,10 +152,18 @@ export interface HomeSlot {
   scale?: { x: number; y: number }
   page?: number
   showLabel?: boolean
+  showLogo?: boolean
   labelPosition?: 'bottom' | 'top' | 'center'
   showIcon?: boolean
   iconPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
   iconSize?: number
+  contentOffsets?: ContentOffsetSettings
+}
+
+export interface ContentOffsetSettings {
+  image?: { x: number; y: number; scale?: number }
+  label?: { x: number; y: number; scale?: number }
+  icon?: { x: number; y: number; scale?: number }
 }
 
 export interface HomeGrid {

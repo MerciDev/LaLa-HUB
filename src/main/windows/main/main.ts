@@ -441,6 +441,7 @@ export function toggleContextMenu(show?: boolean): void {
                 { id: 'info',   label: playtimeStr,  icon: 'mdi:clock-outline',                action: '' },
                 { id: 'edit',   label: 'Editar',      icon: 'mynaui:edit',                 action: 'EDIT_GAME' },
                 { id: 'move',   label: 'Mover',       icon: 'mdi:cursor-move',                 action: 'MOVE_GAME' },
+                { id: 'shift',  label: 'Desplazar Contenido', icon: 'mdi:swap-horizontal', action: 'SHIFT_CONTENT' },
                 { id: 'resize', label: 'Tamaño',      icon: 'mdi:arrow-expand-all',             action: 'RESIZE_GAME' },
                 { id: 'remove', label: 'Eliminar',    icon: 'mynaui:trash',                action: 'REMOVE_GAME' }
             ])
@@ -472,6 +473,9 @@ export function executeContextAction(action: string): void {
         setTimeout(() => changeInfoIsland(''), 2000)
     } else if (action === 'ASSIGN_GAME_FROM_LIBRARY') {
         appWindow?.webContents.send('dispatch-action', { type: 'OPEN_LIBRARY_PICKER' })
+        toggleContextMenu(false)
+        return
+    } else if (action === 'SHIFT_CONTENT' || action === 'MOVE_GAME' || action === 'RESIZE_GAME') {
         toggleContextMenu(false)
         return
     }

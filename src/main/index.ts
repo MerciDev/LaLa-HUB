@@ -121,9 +121,17 @@ function createWindow(): void {
 
         event.preventDefault()
         if (action === 'nextPage') {
-          mainApp.handlePageChange('next')
+          if (mainApp.getSection() === 'grid') {
+            mainApp.handlePageChange('next')
+          } else {
+            appWindow?.webContents.send('movement-action', mainApp.getSection(), action)
+          }
         } else if (action === 'prevPage') {
-          mainApp.handlePageChange('prev')
+          if (mainApp.getSection() === 'grid') {
+            mainApp.handlePageChange('prev')
+          } else {
+            appWindow?.webContents.send('movement-action', mainApp.getSection(), action)
+          }
         } else if (action === 'contextMenu') {
           debouncedToggleContextMenu()
         } else if (action === 'back') {
@@ -131,10 +139,10 @@ function createWindow(): void {
             mainApp.toggleContextMenu(false)
             mainApp.setSection('grid')
           } else {
-            appWindow?.webContents.send('movement-action', mainApp.currentSection, action)
+            appWindow?.webContents.send('movement-action', mainApp.getSection(), action)
           }
         } else {
-          appWindow?.webContents.send('movement-action', mainApp.currentSection, action)
+          appWindow?.webContents.send('movement-action', mainApp.getSection(), action)
         }
         break // ← stop processing other keymaps for the same keypress
       }
@@ -180,7 +188,7 @@ ipcMain.on('overlay-show-main', () => {
 const performToggleContextMenu = (show?: boolean) => {
   if (show !== undefined) {
     if (show) {
-      if (mainApp.currentSection !== 'grid' && !mainApp.isContextMenuVisible) return
+      if (mainApp.getSection() !== 'grid' && !mainApp.isContextMenuVisible) return
       mainApp.toggleContextMenu(true)
       mainApp.setSection('context-menu')
     } else {
@@ -192,7 +200,7 @@ const performToggleContextMenu = (show?: boolean) => {
       mainApp.toggleContextMenu(false)
       mainApp.setSection('grid')
     } else {
-      if (mainApp.currentSection !== 'grid') return
+      if (mainApp.getSection() !== 'grid') return
       mainApp.toggleContextMenu(true)
       mainApp.setSection('context-menu')
     }
@@ -486,9 +494,19 @@ async function main(): Promise<void> {
     }
 
     if (logicAction === 'nextPage') {
-      mainApp.handlePageChange('next')
+      if (mainApp.getSection() === 'grid') {
+        mainApp.handlePageChange('next')
+      } else {
+        const targetWin = overlayWindow?.isVisible() ? overlayWindow : appWindow
+        targetWin?.webContents.send('movement-action', mainApp.getSection(), logicAction)
+      }
     } else if (logicAction === 'prevPage') {
-      mainApp.handlePageChange('prev')
+      if (mainApp.getSection() === 'grid') {
+        mainApp.handlePageChange('prev')
+      } else {
+        const targetWin = overlayWindow?.isVisible() ? overlayWindow : appWindow
+        targetWin?.webContents.send('movement-action', mainApp.getSection(), logicAction)
+      }
     } else if (logicAction === 'contextMenu') {
       debouncedToggleContextMenu()
     } else if (logicAction === 'back') {
@@ -497,11 +515,11 @@ async function main(): Promise<void> {
         mainApp.setSection('grid')
       } else {
         const targetWin = overlayWindow?.isVisible() ? overlayWindow : appWindow
-        targetWin?.webContents.send('movement-action', mainApp.currentSection, logicAction)
+        targetWin?.webContents.send('movement-action', mainApp.getSection(), logicAction)
       }
     } else {
       const targetWin = overlayWindow?.isVisible() ? overlayWindow : appWindow
-      targetWin?.webContents.send('movement-action', mainApp.currentSection, logicAction)
+      targetWin?.webContents.send('movement-action', mainApp.getSection(), logicAction)
     }
   })
 }
