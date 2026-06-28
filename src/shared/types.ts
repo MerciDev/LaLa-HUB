@@ -187,12 +187,11 @@ export interface GridSettings {
   aspectRatio: number
 }
 
-export type MetadataProvider = 'steam' | 'rawg' | 'tgdb'
-
 export interface GameMetadata {
   title: string
   backgroundImage?: string
   coverImage?: string
+  logoImage?: string
   screenshots: string[]
   description?: string
   releaseDate?: string
@@ -218,9 +217,7 @@ export interface AppTheme {
 
 export interface InterfaceSettings {
   showGameBackground: boolean
-  rawgApiKey?: string
-  tgdbApiKey?: string
-  gameMetadataProvider?: MetadataProvider
+  sgdbApiKey?: string
   activeTheme?: string
   customThemes?: AppTheme[]
 }

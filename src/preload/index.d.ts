@@ -1,5 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-import { AppAction, HomeSlot, Emulator, RetroArchSettings, DownloadSource, DownloadEntry, DownloadTask, DownloadProgress, MetadataProvider, GameMetadata, AuthState, AuthResult, LoginCredentials, RegisterCredentials, UserProfile, SyncStatus, SaveFileInfo } from '../shared/types'
+import { AppAction, HomeSlot, Emulator, RetroArchSettings, DownloadSource, DownloadEntry, DownloadTask, DownloadProgress, GameMetadata, AuthState, AuthResult, LoginCredentials, RegisterCredentials, UserProfile, SyncStatus, SaveFileInfo } from '../shared/types'
 
 export interface API {
   onMainMessage: (callback: (action: AppAction) => void) => void
@@ -124,9 +124,9 @@ export interface API {
     onProgress: (callback: (progress: DownloadProgress) => void) => () => void
   }
 
-  /** Game metadata lookup (Steam / RAWG / TGDB) */
+  /** Game metadata lookup via SteamGridDB */
   metadata: {
-    searchGame: (title: string, provider: MetadataProvider) => Promise<{ success: boolean; data?: GameMetadata | null; error?: string }>
+    searchGame: (title: string) => Promise<{ success: boolean; data?: GameMetadata | null; error?: string }>
   }
 
   /** Game API (replaces direct LaLa-API calls from renderer) */

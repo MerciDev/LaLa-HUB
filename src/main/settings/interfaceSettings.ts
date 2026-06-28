@@ -5,6 +5,7 @@ export const interfaceSettings: InterfaceSettings = {
     showGameBackground: true,
     activeTheme: 'dark',
     customThemes: [],
+    sgdbApiKey: undefined,
 }
 
 export function loadInterfaceSettings(): void {

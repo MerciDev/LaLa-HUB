@@ -18,7 +18,7 @@ interface ProfilePageProps {
 
 const LOGGED_IN_TABS: ConsolePanelTab[] = [
     { id: 'overview', label: 'Vista General', icon: 'mynaui:user', description: 'Tu tarjeta de jugador y estado en la nube' },
-    { id: 'themes', label: 'Gestor de Temas', icon: 'mynaui:palette', description: 'Personaliza colores, estilos y temas visuales de la aplicación' },
+    { id: 'themes', label: 'Gestor de Temas', icon: 'mdi:paint-outline', description: 'Personaliza colores, estilos y temas visuales de la aplicación' },
     { id: 'security', label: 'Cuenta y Seguridad', icon: 'mynaui:shield-check', description: 'Personaliza tu identidad o gestiona tu sesión activa' },
     { id: 'library', label: 'Gestionar Biblioteca', icon: 'mynaui:folder', description: 'Opciones de sincronización y descubrimiento de juegos' }
 ]
@@ -26,7 +26,7 @@ const LOGGED_IN_TABS: ConsolePanelTab[] = [
 const GUEST_TABS: ConsolePanelTab[] = [
     { id: 'login', label: 'Iniciar Sesión', icon: 'mynaui:log-in', description: 'Accede a tu biblioteca sincronizada en la nube' },
     { id: 'register', label: 'Crear Cuenta', icon: 'mynaui:user-plus', description: 'Regístrate gratis para respaldar tus partidas en línea' },
-    { id: 'themes', label: 'Gestor de Temas', icon: 'mynaui:palette', description: 'Personaliza colores, estilos y temas visuales de la aplicación' }
+    { id: 'themes', label: 'Gestor de Temas', icon: 'mdi:paint-outline', description: 'Personaliza colores, estilos y temas visuales de la aplicación' }
 ]
 
 function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: ProfilePageProps): React.JSX.Element {
@@ -647,11 +647,12 @@ const handleSyncPlatforms = async () => {
                         else if (idx === 4) handleSelectTheme('apple-glass-light')
                         else if (idx === 5) handleSelectTheme('xmas')
                         else if (idx === 6) handleSelectTheme('halloween')
-                        else if (idx >= 7 && idx < 7 + customThemes.length) {
-                            handleSelectTheme(customThemes[idx - 7].id)
-                        } else if (idx === 7 + customThemes.length) {
-                            handleCreateTheme()
+                        else if (idx === 7) handleSelectTheme('twilight-princess')
+                        else if (idx >= 8 && idx < 8 + customThemes.length) {
+                            handleSelectTheme(customThemes[idx - 8].id)
                         } else if (idx === 8 + customThemes.length) {
+                            handleCreateTheme()
+                        } else if (idx === 9 + customThemes.length) {
                             handleImportTheme()
                         }
                     } else if (curTab === 'security') {

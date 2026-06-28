@@ -1,32 +1,51 @@
-import { GameMetadata, MetadataProvider } from '../../../../shared/types'
+import { GameMetadata, HomeSlot } from '../../../../shared/types'
 
 const searchCache = new Map<string, GameMetadata | null>()
 const pendingSearches = new Map<string, Promise<GameMetadata | null>>()
+let libraryCache: HomeSlot[] | null = null
+let libraryLoadPromise: Promise<HomeSlot[]> | null = null
 
-let cachedProvider: MetadataProvider | null = null
+function loadLibrary(): Promise<HomeSlot[]> {
+  if (libraryCache) return Promise.resolve(libraryCache)
+  if (libraryLoadPromise) return libraryLoadPromise
+  libraryLoadPromise = window.api.slots.getAll().then((slots) => {
+    libraryCache = slots
+    libraryLoadPromise = null
+    return slots
+  }).catch(() => {
+    libraryCache = []
+    libraryLoadPromise = null
+    return []
+  })
+  return libraryLoadPromise
+}
 
-export async function getProvider(): Promise<MetadataProvider> {
-  if (cachedProvider) return cachedProvider
-  try {
-    const settings = await window.api.ui.getSettings()
-    cachedProvider = settings.gameMetadataProvider ?? 'steam'
-  } catch {
-    cachedProvider = 'steam'
+function gameInLibrary(title: string): { coverUrl?: string; bgUrl?: string; logoUrl?: string } | null {
+  if (!libraryCache) return null
+  const lower = title.toLowerCase().trim()
+  for (const slot of libraryCache) {
+    const slotName = (slot.label || slot.game?.name || '').toLowerCase().trim()
+    if (slotName === lower) {
+      return {
+        coverUrl: slot.verticalImage || slot.squareImage || slot.coverImage,
+        bgUrl: slot.horizontalImage || slot.backgroundImage || slot.squareImage,
+        logoUrl: slot.logoImage
+      }
+    }
   }
-  return cachedProvider
+  return null
 }
 
 export function invalidateProviderCache(): void {
-  cachedProvider = null
+  searchCache.clear()
+  pendingSearches.clear()
+  libraryCache = null
+  libraryLoadPromise = null
 }
 
 export async function isConfigured(): Promise<boolean> {
-  const provider = await getProvider()
-  if (provider === 'steam') return true
   const settings = await window.api.ui.getSettings()
-  if (provider === 'rawg') return !!settings.rawgApiKey
-  if (provider === 'tgdb') return !!settings.tgdbApiKey
-  return false
+  return !!settings.sgdbApiKey
 }
 
 export function imageUrl(url?: string): string | undefined {
@@ -43,13 +62,36 @@ export function searchGameByTitle(title: string): Promise<GameMetadata | null> {
   if (inFlight) return inFlight
 
   const promise = (async (): Promise<GameMetadata | null> => {
-    const provider = await getProvider()
+    // 1. Check local library first
+    await loadLibrary()
+    const local = gameInLibrary(title)
+    if (local && (local.coverUrl || local.bgUrl || local.logoUrl)) {
+      console.log('[Cache] Found in library:', title, JSON.stringify(local))
+      const meta: GameMetadata = {
+        title,
+        screenshots: [],
+        platforms: [],
+        genres: [],
+        developers: [],
+        publishers: [],
+        coverImage: local.coverUrl,
+        backgroundImage: local.bgUrl,
+        logoImage: local.logoUrl
+      }
+      searchCache.set(key, meta)
+      return meta
+    }
+
+    // 2. Fallback to SGDB
+    console.log('[Cache] Not in library, searching SGDB:', title)
     try {
-      const result = await window.api.metadata.searchGame(title, provider)
+      const result = await window.api.metadata.searchGame(title)
+      console.log('[Cache] SGDB result:', result.success ? (result.data ? `${result.data.title} cover=${!!result.data.coverImage} bg=${!!result.data.backgroundImage} logo=${!!result.data.logoImage}` : 'null data') : 'error: ' + result.error)
       const data = result.data ?? null
       searchCache.set(key, data)
       return data
-    } catch {
+    } catch (err) {
+      console.log('[Cache] searchGameByTitle error:', err)
       searchCache.set(key, null)
       return null
     } finally {
@@ -63,4 +105,5 @@ export function searchGameByTitle(title: string): Promise<GameMetadata | null> {
 
 export function clearCache(): void {
   searchCache.clear()
+  libraryCache = null
 }

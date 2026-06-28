@@ -4,7 +4,7 @@ import { DownloadSource, DownloadEntry } from '../../../../shared/types'
 import { sfx } from '../../utils/audioManager'
 import { searchGameByTitle, imageUrl } from './gameDetailCache'
 
-const PAGE_SIZE = 25
+const PAGE_SIZE = 30
 
 interface SourceBrowserProps {
   source: DownloadSource
@@ -28,6 +28,15 @@ function formatDate(dateStr: string): string {
   }
 }
 
+function cleanTitle(title: string): string {
+  return title
+    .replace(/\s*\[v?[\d.]+\]\s*$/, '')
+    .replace(/\s*\[L\]\s*/, '')
+    .replace(/\s*\[ENG(?:\s*\+\s*\w+)?\]\s*/, '')
+    .replace(/\s*\[\w+\]\s*/g, '')
+    .trim()
+}
+
 export function SourceBrowser({
   source,
   onDownload,
@@ -37,26 +46,33 @@ export function SourceBrowser({
   focusIndex,
   onFocusChange
 }: SourceBrowserProps): React.JSX.Element {
-  const entries = source.downloads
-  const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE))
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  const filtered = searchQuery
+    ? source.downloads.filter(e => cleanTitle(e.title).toLowerCase().includes(searchQuery.toLowerCase()))
+    : source.downloads
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const [page, setPage] = useState(0)
 
-  // Reset page when source changes
   useEffect(() => {
     setPage(0)
     onFocusChange(0)
-  }, [source.name, source.downloads.length, onFocusChange])
+  }, [source.name, source.downloads.length, searchQuery, onFocusChange])
 
   const pageStart = page * PAGE_SIZE
-  const pageEntries = entries.slice(pageStart, pageStart + PAGE_SIZE)
+  const pageEntries = filtered.slice(pageStart, pageStart + PAGE_SIZE)
+  const COLS = 5
+  const ROWS = Math.ceil(pageEntries.length / COLS)
+  const totalCells = ROWS * COLS
+
   const [thumbnails, setThumbnails] = useState<Record<string, string | null>>({})
   const thumbnailsRef = useRef(thumbnails)
   thumbnailsRef.current = thumbnails
 
-  // Fetch thumbnails for focused + nearby entries
   useEffect(() => {
     const indices = new Set<number>()
-    for (let d = -2; d <= 2; d++) {
+    for (let d = -6; d <= 6; d++) {
       const i = focusIndex + d
       if (i >= 0 && i < pageEntries.length) indices.add(i)
     }
@@ -99,17 +115,25 @@ export function SourceBrowser({
       if (e.key === 'ArrowDown') {
         e.preventDefault()
         sfx.navigate()
-        onFocusChange(Math.min(focusIndex + 1, pageEntries.length - 1))
+        const next = Math.min(focusIndex + COLS, pageEntries.length - 1)
+        onFocusChange(next)
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
         sfx.navigate()
-        onFocusChange(Math.max(focusIndex - 1, 0))
+        const prev = Math.max(focusIndex - COLS, 0)
+        onFocusChange(prev)
       } else if (e.key === 'ArrowRight') {
         e.preventDefault()
-        goNext()
+        if (focusIndex < pageEntries.length - 1) {
+          sfx.navigate()
+          onFocusChange(focusIndex + 1)
+        }
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
-        goPrev()
+        if (focusIndex > 0) {
+          sfx.navigate()
+          onFocusChange(focusIndex - 1)
+        }
       } else if (e.key === 'Enter') {
         e.preventDefault()
         const entry = pageEntries[focusIndex]
@@ -137,125 +161,151 @@ export function SourceBrowser({
   return (
     <div className="dl-browser">
       <div className="dl-browser__header">
-        <button
-          className="dl-browser__back"
-          onClick={() => {
-            sfx.cancel()
-            onBack()
-          }}
-        >
+        <button className="dl-browser__back" onClick={() => { sfx.cancel(); onBack() }}>
           <Icon icon="mynaui:arrow-left" />
           <span>{source.name}</span>
         </button>
-        <span className="dl-browser__count">{entries.length} juegos</span>
+        <div className="dl-browser__search">
+          <Icon icon="mynaui:search" className="dl-browser__search-icon" />
+          <input
+            ref={searchInputRef}
+            className="dl-browser__search-input"
+            type="text"
+            placeholder="Buscar juegos..."
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setPage(0); onFocusChange(0) }}
+            onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); searchInputRef.current?.blur() } }}
+          />
+          {searchQuery && (
+            <button className="dl-browser__search-clear" onClick={() => { setSearchQuery(''); setPage(0); onFocusChange(0); searchInputRef.current?.focus() }}>
+              <Icon icon="mynaui:x" />
+            </button>
+          )}
+        </div>
+        <div className="dl-browser__header-right">
+          <span className="dl-browser__count">{filtered.length} juegos</span>
+          {totalPages > 1 && (
+            <div className="dl-browser__header-pages">
+              <button className="dl-browser__page-btn" disabled={page === 0} onClick={() => { sfx.navigate(); goPrev() }}>
+                <Icon icon="mynaui:chevron-left" />
+              </button>
+              <span className="dl-browser__page-label">{page + 1} / {totalPages}</span>
+              <button className="dl-browser__page-btn" disabled={page >= totalPages - 1} onClick={() => { sfx.navigate(); goNext() }}>
+                <Icon icon="mynaui:chevron-right" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="dl-browser__list">
+      <div className="dl-browser__grid-wrap">
         {pageEntries.length === 0 ? (
           <div className="dl-empty">
-            <Icon icon="mynaui:package" className="dl-empty__icon" />
-            <p>No hay juegos disponibles en esta fuente</p>
+            <Icon icon="mynaui:search" className="dl-empty__icon" style={{ fontSize: 40, marginBottom: 8 }} />
+            <p>{searchQuery ? 'No se encontraron juegos con ese nombre' : 'No hay juegos disponibles en esta fuente'}</p>
           </div>
         ) : (
-          pageEntries.map((entry, idx) => {
-            const isDownloading = activeDownloads.has(entry.title)
-            return (
-              <div
-                key={pageStart + idx}
-                className={`dl-browser__entry ${focusIndex === idx ? 'dl-browser__entry--focused' : ''} ${isDownloading ? 'dl-browser__entry--active' : ''}`}
-                data-focused={focusIndex === idx ? 'true' : undefined}
-                data-dl-idx={idx}
-                onClick={() => {
-                  onFocusChange(idx)
-                  sfx.confirm()
-                  onSelect(entry)
-                }}
-                onMouseEnter={() => onFocusChange(idx)}
-              >
-                <div className="dl-browser__entry-icon">
-                  {thumbnails[entry.title] ? (
-                    <img
-                      className="dl-browser__entry-thumb"
-                      src={thumbnails[entry.title]!}
-                      alt=""
-                      loading="lazy"
-                    />
-                  ) : (
-                    <Icon icon={isDownloading ? 'mynaui:download' : 'mynaui:package'} />
-                  )}
-                </div>
-                <div className="dl-browser__entry-info">
-                  <div className="dl-browser__entry-title">{entry.title}</div>
-                  <div className="dl-browser__entry-meta">
-                    <span>{entry.fileSize}</span>
-                    <span>{formatDate(entry.uploadDate)}</span>
-                  </div>
-                </div>
-                <button
-                  className={`dl-browser__dl-btn ${focusIndex === idx ? 'dl-browser__dl-btn--focused' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    sfx.confirm()
-                    onDownload(entry)
-                  }}
-                  disabled={isDownloading}
-                >
-                  <Icon icon={isDownloading ? 'mynaui:clock' : 'mynaui:download'} />
-                  {isDownloading ? 'En cola' : 'Descargar'}
-                </button>
-              </div>
-            )
-          })
-        )}
-      </div>
-
-      {totalPages > 1 && (
-        <div className="dl-browser__pagination">
-          <button
-            className="dl-browser__page-btn"
-            disabled={page === 0}
-            onClick={() => { sfx.navigate(); goPrev() }}
+          <div
+            className="dl-browser__grid"
+            style={{
+              gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+              gridTemplateRows: `repeat(${ROWS}, auto)`
+            }}
           >
-            <Icon icon="mynaui:chevron-left" />
-          </button>
-
-          <div className="dl-browser__page-info">
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-              let pageNum: number
-              if (totalPages <= 7) {
-                pageNum = i
-              } else if (page < 4) {
-                pageNum = i
-              } else if (page > totalPages - 5) {
-                pageNum = totalPages - 7 + i
-              } else {
-                pageNum = page - 3 + i
+            {Array.from({ length: totalCells }, (_, cellIdx) => {
+              const entry = pageEntries[cellIdx]
+              if (!entry) {
+                return <div key={`empty-${cellIdx}`} className="dl-browser__grid-cell dl-browser__grid-cell--empty" />
               }
+
+              const isDownloading = activeDownloads.has(entry.title)
+              const isFocused = focusIndex === cellIdx
+              const thumb = thumbnails[entry.title]
+
               return (
-                <button
-                  key={pageNum}
-                  className={`dl-browser__page-dot ${page === pageNum ? 'dl-browser__page-dot--active' : ''}`}
-                  onClick={() => { sfx.navigate(); setPage(pageNum); onFocusChange(0) }}
+                <div
+                  key={pageStart + cellIdx}
+                  className={`dl-browser__grid-cell ${isFocused ? 'dl-browser__grid-cell--focused' : ''} ${isDownloading ? 'dl-browser__grid-cell--active' : ''}`}
+                  data-focused={isFocused ? 'true' : undefined}
+                  data-dl-idx={cellIdx}
+                  onClick={() => {
+                    onFocusChange(cellIdx)
+                    sfx.confirm()
+                    onSelect(entry)
+                  }}
+                  onMouseEnter={() => onFocusChange(cellIdx)}
                 >
-                  {pageNum + 1}
-                </button>
+                  <div className="dl-browser__grid-cover">
+                    {thumb ? (
+                      <img
+                        className="dl-browser__grid-img"
+                        src={thumb}
+                        alt={cleanTitle(entry.title)}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="dl-browser__grid-placeholder">
+                        <Icon icon="mynaui:package" />
+                      </div>
+                    )}
+                    {isDownloading && (
+                      <div className="dl-browser__grid-badge">
+                        <Icon icon="mynaui:clock" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="dl-browser__grid-info">
+                    <div className="dl-browser__grid-title" title={cleanTitle(entry.title)}>
+                      {cleanTitle(entry.title)}
+                    </div>
+                    <div className="dl-browser__grid-meta">
+                      <span>{entry.fileSize}</span>
+                    </div>
+                  </div>
+                  <button
+                    className={`dl-browser__grid-dl ${isFocused ? 'dl-browser__grid-dl--visible' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      sfx.confirm()
+                      onDownload(entry)
+                    }}
+                    disabled={isDownloading}
+                  >
+                    <Icon icon={isDownloading ? 'mynaui:clock' : 'mynaui:download'} />
+                  </button>
+                </div>
               )
             })}
           </div>
+        )}
+      </div>
 
-          <button
-            className="dl-browser__page-btn"
-            disabled={page >= totalPages - 1}
-            onClick={() => { sfx.navigate(); goNext() }}
-          >
-            <Icon icon="mynaui:chevron-right" />
-          </button>
-
-          <span className="dl-browser__page-label">
-            {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, entries.length)} / {entries.length}
-          </span>
+      <div className="dl-browser__footer">
+        <span className="dl-browser__footer-info">
+          {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} de {filtered.length}
+        </span>
+        <div className="dl-browser__footer-dots">
+          {Array.from({ length: Math.min(totalPages, 9) }, (_, i) => {
+            let pageNum: number
+            if (totalPages <= 9) {
+              pageNum = i
+            } else if (page < 4) {
+              pageNum = i
+            } else if (page > totalPages - 6) {
+              pageNum = totalPages - 9 + i
+            } else {
+              pageNum = page - 4 + i
+            }
+            return (
+              <button
+                key={pageNum}
+                className={`dl-browser__dot ${page === pageNum ? 'dl-browser__dot--active' : ''}`}
+                onClick={() => { sfx.navigate(); setPage(pageNum); onFocusChange(0) }}
+              />
+            )
+          })}
         </div>
-      )}
+      </div>
     </div>
   )
 }

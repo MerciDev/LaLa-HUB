@@ -222,10 +222,10 @@ const api = {
     }
   },
 
-  /** Game metadata lookup (Steam / RAWG / TGDB) */
+  /** Game metadata lookup via SteamGridDB */
   metadata: {
-    searchGame: (title: string, provider: import('../shared/types').MetadataProvider): Promise<{ success: boolean; data?: import('../shared/types').GameMetadata | null; error?: string }> =>
-      ipcRenderer.invoke('metadata-search-game', title, provider)
+    searchGame: (title: string): Promise<{ success: boolean; data?: import('../shared/types').GameMetadata | null; error?: string }> =>
+      ipcRenderer.invoke('metadata-search-game', title)
   },
 
   /** Authentication */
