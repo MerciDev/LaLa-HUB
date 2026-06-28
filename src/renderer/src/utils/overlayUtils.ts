@@ -1,8 +1,8 @@
-import { Theme, THEMES, SectionId } from '../components/overlay/types'
+import { THEMES, SectionId } from '../components/overlay/types'
 
 export function execPanelAction(
   section: SectionId, idx: number,
-  theme: Theme, setTheme: (t: Theme) => void,
+  theme: string, setTheme: (t: string) => void,
   volume: number, setVolume: (v: number) => void,
   _notifyOn: boolean, setNotifyOn: (fn: (p: boolean) => boolean) => void,
   dismiss: () => void

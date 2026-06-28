@@ -4,7 +4,7 @@ import './style.css'
 import { useGamepad } from '../../hooks/useGamepad'
 import {
   PanelGame, PanelSocial, PanelTrophies, PanelSettings, PanelPower,
-  SECTIONS, FRIENDS, ACHIEVEMENTS, SectionId, Theme, panelCount
+  SECTIONS, FRIENDS, ACHIEVEMENTS, SectionId, panelCount
 } from '../../components/overlay'
 import { execPanelAction } from '../../utils/overlayUtils'
 
@@ -20,7 +20,8 @@ export default function OverlayApp(): React.JSX.Element {
   const [panelIdx, setPanelIdx]     = useState(0)
   const [time, setTime]             = useState('')
   const [date, setDate]             = useState('')
-  const [theme, setTheme]           = useState<Theme>('dark')
+  const [theme, setTheme]           = useState<string>('dark')
+  const [customThemes, setCustomThemes] = useState<any[]>([])
   const [volume, setVolume]         = useState(70)
   const [notifyOn, setNotifyOn]     = useState(true)
   const [sessionTimeStr, setSessionTimeStr] = useState('00:00:00')
@@ -28,7 +29,6 @@ export default function OverlayApp(): React.JSX.Element {
 
   // ── Clock ───────────────────────────────────────────────────────────────
   useEffect(() => {
-return undefined;
     const tick = () => {
       const d = new Date()
       setTime(d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }))
@@ -41,7 +41,6 @@ return undefined;
 
   // ── Session Timer ───────────────────────────────────────────────────────
   useEffect(() => {
-return undefined;
     if (!visible || !activeGame?.sessionStartTime) return
     
     const updateSessionTime = () => {
@@ -61,14 +60,39 @@ return undefined;
   }, [visible, activeGame?.sessionStartTime])
 
   // ── Theme on <html> ──────────────────────────────────────────────────────
+  const applyOverlayTheme = useCallback((themeId: string, customs: any[]) => {
+    const builtIn = ['dark', 'platinum', 'midnight', 'apple-glass', 'apple-glass-light', 'xmas', 'halloween', 'twilight-princess']
+    if (builtIn.includes(themeId)) {
+      document.documentElement.setAttribute('data-theme', themeId)
+      const existing = document.getElementById('custom-theme-style')
+      if (existing) existing.remove()
+    } else {
+      const custom = (customs || []).find((t: any) => t.id === themeId)
+      if (custom) {
+        document.documentElement.setAttribute('data-theme', 'custom')
+        let css = ':root, [data-theme="custom"] {\n'
+        for (const [key, value] of Object.entries(custom.colors || {})) {
+          css += `  ${key.startsWith('--') ? key : '--' + key}: ${value};\n`
+        }
+        css += '}\n'
+        if (custom.customCss) css += `\n/* Custom CSS */\n${custom.customCss}\n`
+        let style = document.getElementById('custom-theme-style') as HTMLStyleElement
+        if (!style) {
+          style = document.createElement('style')
+          style.id = 'custom-theme-style'
+          document.head.appendChild(style)
+        }
+        style.textContent = css
+      }
+    }
+  }, [])
+
   useEffect(() => {
-return undefined;
-    document.documentElement.setAttribute('data-theme', theme)
-  }, [theme])
+    applyOverlayTheme(theme, customThemes)
+  }, [theme, customThemes, applyOverlayTheme])
 
   // ── IPC ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-return undefined;
     const api = (window as any).api
     if (!api) {
       // Dev: auto-open after delay if in browser/no api
@@ -89,6 +113,10 @@ return undefined;
       } else {
         setActiveGame(null)
       }
+      ;(window as any).api?.ui?.getSettings?.().then((s: any) => {
+        if (s?.activeTheme) setTheme(s.activeTheme)
+        if (s?.customThemes) setCustomThemes(s.customThemes)
+      })
       setVisible(true)
     }
     const hide = () => {
@@ -105,6 +133,7 @@ return undefined;
       })
       return () => api.offMainMessage?.()
     }
+    return
   }, [])
 
   // ── Dismiss ───────────────────────────────────────────────────────────────
@@ -127,7 +156,6 @@ return undefined;
 
   // ── Keyboard & Gamepad navigation ───────────────────────────────────────────
   useEffect(() => {
-return undefined;
     if (!visible) return
 
     const count = section ? panelCount(section as any) : 0
@@ -220,28 +248,30 @@ return undefined;
   return (
     <div id="overlay-root" onClick={dismiss}>
       {/* Top Left: Game Info Dashboard */}
-      <div className={`ov-top-left${visible ? ' visible' : ''}`} onClick={(e) => e.stopPropagation()}>
-        <div className="ov-game-hud__art">
-          {activeGame?.imageUrl ? <img src={activeGame.imageUrl} alt="" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit'}} /> : <Icon icon="mynaui:gamepad" />}
-        </div>
-        <div className="ov-game-hud__info">
-          <div className="ov-game-hud__title">{activeGame?.label || 'Ningún juego activo'}</div>
-          <div className="ov-game-hud__meta">
-            <span className="ov-game-hud__pill">
-              <Icon icon={activeGame?.platform?.icon || 'mynaui:desktop'} /> 
-              {activeGame?.platform?.name || activeGame?.console || '---'}
-            </span>
-            <span className="ov-game-hud__pill"><Icon icon="mynaui:clock" /> {sessionTimeStr}</span>
+      {activeGame && (
+        <div className={`ov-top-left${visible ? ' visible' : ''}`} onClick={(e) => e.stopPropagation()}>
+          <div className="ov-game-hud__art">
+            {activeGame?.imageUrl ? <img src={activeGame.imageUrl} alt="" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit'}} /> : <Icon icon="mynaui:gamepad" />}
+          </div>
+          <div className="ov-game-hud__info">
+            <div className="ov-game-hud__title">{activeGame?.label}</div>
+            <div className="ov-game-hud__meta">
+              <span className="ov-game-hud__pill">
+                <Icon icon={activeGame?.platform?.icon || 'mynaui:desktop'} /> 
+                {activeGame?.platform?.name || activeGame?.console || '---'}
+              </span>
+              <span className="ov-game-hud__pill"><Icon icon="mynaui:clock" /> {sessionTimeStr}</span>
+            </div>
+          </div>
+          <div className="ov-game-hud__stats">
+            <Icon icon="mynaui:trophy" style={{ fontSize: 18, color: 'var(--accent-bright)' }} />
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'baseline', gap: 2 }}>
+              2
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>/ {ACHIEVEMENTS.length}</span>
+            </div>
           </div>
         </div>
-        <div className="ov-game-hud__stats">
-          <Icon icon="mynaui:trophy" style={{ fontSize: 18, color: 'var(--accent-bright)' }} />
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'baseline', gap: 2 }}>
-            2
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>/ {ACHIEVEMENTS.length}</span>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Top Right: Clock & Date */}
       <div className={`ov-top-right${visible ? ' visible' : ''}`} onClick={(e) => e.stopPropagation()}>

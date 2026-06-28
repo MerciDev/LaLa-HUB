@@ -66,6 +66,106 @@
   --border-active:  rgba(168, 85, 247, 0.5);
 }
 
+[data-theme='apple-glass'] {
+  --bg-base:        #050508;
+  --bg-surface:     rgba(255, 255, 255, 0.06);
+  --bg-elevated:    rgba(255, 255, 255, 0.12);
+  --bg-hover:       rgba(255, 255, 255, 0.18);
+
+  --accent:         #0A84FF;
+  --accent-glow:    rgba(10, 132, 255, 0.5);
+  --accent-bright:  #5ebdff;
+
+  --text-primary:   #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.75);
+  --text-muted:     rgba(255, 255, 255, 0.45);
+
+  --border:         rgba(255, 255, 255, 0.18);
+  --border-active:  rgba(255, 255, 255, 0.5);
+
+  --blur: blur(40px) saturate(220%) brightness(1.05);
+}
+
+[data-theme='apple-glass-light'] {
+  --bg-base:        #eef1f5;
+  --bg-surface:     rgba(255, 255, 255, 0.55);
+  --bg-elevated:    rgba(255, 255, 255, 0.75);
+  --bg-hover:       rgba(255, 255, 255, 0.9);
+
+  --accent:         #0071e3;
+  --accent-glow:    rgba(0, 113, 227, 0.35);
+  --accent-bright:  #0077ed;
+
+  --text-primary:   #1d1d1f;
+  --text-secondary: rgba(0, 0, 0, 0.65);
+  --text-muted:     rgba(0, 0, 0, 0.4);
+
+  --border:         rgba(255, 255, 255, 0.6);
+  --border-active:  rgba(0, 113, 227, 0.5);
+
+  --blur: blur(40px) saturate(180%);
+}
+
+[data-theme='xmas'] {
+  --bg-base:        #081c15;
+  --bg-surface:     rgba(216, 27, 96, 0.25);
+  --bg-elevated:    rgba(216, 27, 96, 0.4);
+  --bg-hover:       rgba(255, 255, 255, 0.15);
+
+  --accent:         #f4a261;
+  --accent-glow:    rgba(244, 162, 97, 0.5);
+  --accent-bright:  #e9c46a;
+
+  --text-primary:   #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.8);
+  --text-muted:     rgba(255, 255, 255, 0.5);
+
+  --border:         rgba(244, 162, 97, 0.4);
+  --border-active:  rgba(244, 162, 97, 0.8);
+
+  --blur: blur(24px) saturate(160%);
+}
+
+[data-theme='halloween'] {
+  --bg-base:        #0f0518;
+  --bg-surface:     rgba(255, 102, 0, 0.25);
+  --bg-elevated:    rgba(255, 102, 0, 0.4);
+  --bg-hover:       rgba(255, 255, 255, 0.15);
+
+  --accent:         #ff6600;
+  --accent-glow:    rgba(255, 102, 0, 0.5);
+  --accent-bright:  #ff9933;
+
+  --text-primary:   #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.8);
+  --text-muted:     rgba(255, 255, 255, 0.5);
+
+  --border:         rgba(255, 102, 0, 0.4);
+  --border-active:  rgba(255, 102, 0, 0.8);
+
+  --blur: blur(24px) saturate(160%);
+}
+
+[data-theme='twilight-princess'] {
+  --bg-base:        #060805;
+  --bg-surface:     rgba(189, 169, 114, 0.15);
+  --bg-elevated:    rgba(189, 169, 114, 0.25);
+  --bg-hover:       rgba(255, 255, 255, 0.12);
+
+  --accent:         #bda972;
+  --accent-glow:    rgba(189, 169, 114, 0.45);
+  --accent-bright:  #dfcc93;
+
+  --text-primary:   #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.75);
+  --text-muted:     rgba(255, 255, 255, 0.45);
+
+  --border:         rgba(189, 169, 114, 0.3);
+  --border-active:  rgba(189, 169, 114, 0.6);
+
+  --blur: blur(24px) saturate(160%);
+}
+
 /* ── Base ───────────────────────────────────────────────── */
 body {
   background: transparent;
@@ -86,6 +186,7 @@ body {
   justify-content: flex-end;
   align-items: center;
   pointer-events: auto;
+  background: rgba(0, 0, 0, 0.55);
 }
 
 /* ══════════════════════════════════════════════════════════

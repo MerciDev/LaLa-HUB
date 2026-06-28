@@ -2,16 +2,23 @@ import { exec } from 'child_process'
 import { debugLog } from './debug'
 
 /**
- * Attempts to detect when a newly launched game window appears in the foreground,
- * then calls onComplete(true).
+ * Waits until the launched game process has a visible window, then calls onComplete(true).
  *
- * @param windowTitle Hint name used for Windows + debug logs.
- * @param keys Keys to send after focusing (Windows only).
- * @param maxAttempts Maximum polling attempts before giving up.
- * @param intervalMs Milliseconds between attempts.
- * @param onComplete Called with true on success, false on timeout.
- * @param pid Optional PID hint (Windows).
- * @param processNameOverride Optional: if provided, macOS will search for THIS process instead of just frontmost.
+ * On Windows: two-phase detection —
+ *   Phase 1: process appears in the OS process list (Get-Process by name/PID).
+ *   Phase 2: process.MainWindowHandle != 0 (window is actually rendered on screen).
+ *   This avoids closing the loading screen too early (process exists but no window yet).
+ *
+ * On macOS: polls with osascript / System Events to detect a new frontmost window.
+ *
+ * @param windowTitle          Hint name for macOS detection and Windows fallback.
+ * @param keys                 Keys to send after focusing (unused on Windows).
+ * @param maxAttempts          Maximum polling attempts before giving up.
+ * @param intervalMs           Milliseconds between attempts.
+ * @param onComplete           Called with true on success, false on timeout.
+ * @param pid                  PID of the spawned process (child-search seed on Windows).
+ * @param processNameOverride  Exe name (no .exe) to search on Windows, or process
+ *                             name to target on macOS.
  */
 export function focusWindowAndSendKeys(
     windowTitle: string,
@@ -29,30 +36,74 @@ export function focusWindowAndSendKeys(
         debugLog(`[WindowManager] Attempt ${attempts}/${maxAttempts}: waiting for game window...`)
 
         if (process.platform === 'win32') {
-            // ── Windows: focus by PID or title ──────────────────────────────────
-            const target = processNameOverride || windowTitle
-            const safeTitle = target.replace(/'/g, "''")
-            const safeKeys = keys.replace(/'/g, "''")
-            const psCommand = `
-                $wsh = New-Object -ComObject WScript.Shell;
-                $activated = $false;
-                if ('${pid}' -ne '') { $activated = $wsh.AppActivate(${pid}); }
-                if (-not $activated) { $activated = $wsh.AppActivate('${safeTitle}'); }
-                if ($activated) {
-                    Start-Sleep -Milliseconds 200;
-                    $wsh.SendKeys('${safeKeys}');
-                    Write-Output "SUCCESS";
-                } else { Write-Output "FAILED"; }
-            `
-            exec(`powershell -Command "${psCommand.replace(/\n/g, ' ')}"`, (_error, stdout) => {
-                const result = stdout?.trim()
-                if (result === 'SUCCESS') {
-                    debugLog(`[WindowManager] Focused "${target}" (Win).`)
-                    if (onComplete) onComplete(true)
-                } else if (attempts < maxAttempts) {
-                    setTimeout(tryFocus, intervalMs)
+            // ── Windows: two-phase detection ────────────────────────────────────
+            // We need the game process to both exist AND have a visible window.
+            // MainWindowHandle is 0 while the process is initializing (black screen /
+            // splash), and becomes non-zero once the main window is created.
+            const safePid = pid ? String(pid) : ''
+
+            const procName = (processNameOverride || '')
+                .replace(/\.exe$/i, '')
+                .replace(/'/g, '')
+                || windowTitle.replace(/\s+/g, '*').replace(/'/g, '')
+
+            const psLines = [
+                `$found = $null`,
+                // 1. Search by process name wildcard
+                `$procs = Get-Process -Name '*${procName}*' -ErrorAction SilentlyContinue`,
+                `if ($procs) { $found = $procs | Select-Object -First 1 }`,
+                // 2. Child-process fallback (handles intermediate launchers)
+                `if (-not $found -and '${safePid}' -ne '') {`,
+                `  try {`,
+                `    $kids = Get-CimInstance Win32_Process -Filter "ParentProcessId=${safePid}" -ErrorAction SilentlyContinue`,
+                `    foreach ($k in $kids) {`,
+                `      $kp = Get-Process -Id $k.ProcessId -ErrorAction SilentlyContinue`,
+                `      if ($kp -and $kp.Name -notlike 'conhost' -and $kp.Name -notlike 'cmd') { $found = $kp; break }`,
+                `    }`,
+                `  } catch {}`,
+                `}`,
+                // Phase 2: check MainWindowHandle — non-zero means window is visible
+                `if ($found) {`,
+                `  if ($found.MainWindowHandle -ne 0) {`,
+                `    Write-Output "FOUND:$($found.Id):$($found.Name)"`,
+                `  } else {`,
+                `    Write-Output "WAITING:$($found.Id):$($found.Name)"`,
+                `  }`,
+                `} else {`,
+                `  Write-Output 'NOT_FOUND'`,
+                `}`
+            ]
+
+            exec(`powershell -NoProfile -Command "${psLines.join('; ')}"`, (_error, stdout) => {
+                const result = (stdout ?? '').trim()
+
+                if (result.startsWith('FOUND:')) {
+                    const [, foundPid, foundName] = result.split(':')
+                    debugLog(`[WindowManager] "${foundName}" has a visible window (PID ${foundPid}) — bringing to front.`)
+                    // Bring the game window to the foreground automatically
+                    const activateCmd = `$wsh = New-Object -ComObject WScript.Shell; $wsh.AppActivate([int]${foundPid})`
+                    exec(`powershell -NoProfile -Command "${activateCmd}"`, () => {
+                        if (onComplete) onComplete(true)
+                    })
+
+                } else if (result.startsWith('WAITING:')) {
+                    const [, , foundName] = result.split(':')
+                    debugLog(`[WindowManager] "${foundName}" is running but window not visible yet...`)
+                    if (attempts < maxAttempts) {
+                        setTimeout(tryFocus, intervalMs)
+                    } else {
+                        if (onComplete) onComplete(false)
+                    }
+
                 } else {
-                    if (onComplete) onComplete(false)
+                    // NOT_FOUND
+                    if (attempts < maxAttempts) {
+                        setTimeout(tryFocus, intervalMs)
+                    } else {
+                        debugLog(`[WindowManager] Process "${procName}" not found after ${maxAttempts} attempts.`)
+                        if (onComplete) onComplete(false)
+
+                    }
                 }
             })
 
@@ -64,8 +115,8 @@ export function focusWindowAndSendKeys(
             //
             // 2. Otherwise:
             //    Find the frontmost app. If it's NOT us and has a window, SUCCESS.
-            
-            const appleScript = processNameOverride 
+
+            const appleScript = processNameOverride
                 ? [
                     'tell application "System Events"',
                     '    try',
@@ -136,7 +187,7 @@ export function focusWindowAndSendKeys(
                     }
                 } else {
                     debugLog(`[WindowManager] Current Frontmost: "${frontName}" | Windows: ${winCount}`)
-                    // Success condition: Frontmost is not us AND has at least one window
+                    // Success condition: frontmost app is not us AND has at least one window
                     const isUs = frontName === "Electron" || frontName === "LaLa" || frontName === "LaLa-HUB"
                     if (!isUs && winCount > 0) {
                         debugLog(`[WindowManager] New window detected: "${frontName}" — SUCCESS.`)

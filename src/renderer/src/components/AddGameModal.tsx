@@ -1165,7 +1165,6 @@ const hasBtns = !!(r.current.editSlot && r.current.form.savesPath)
         const searchId = r.current.form.searchId
         if (!searchId) { sfx.error(); showToast('No hay un ID de búsqueda para sincronizar', 'warning'); return }
         const gamePath = r.current.form.path
-        if (!gamePath) { sfx.error(); showToast('Establece la ruta del juego primero', 'warning'); return }
         try {
             const gameData = await window.api.gameApi.getGameById(searchId)
             if (!gameData || !gameData.savesPath) {
@@ -1370,7 +1369,6 @@ const handleBrowseArtwork = useCallback(async () => {
 
         setError(null)
         if (!f.name.trim()) { sfx.error(); setError('Falta asignar un nombre.'); return }
-        if (!f.path.trim()) { sfx.error(); setError('Falta elegir la ruta.'); return }
 
         setIsSaving(true)
         try {

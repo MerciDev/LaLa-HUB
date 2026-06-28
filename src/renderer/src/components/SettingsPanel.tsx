@@ -51,13 +51,13 @@ interface SettingsPanelProps {
 }
 
 const TABS: ConsolePanelTab[] = [
-    { id: 'platforms', label: 'Plataformas', icon: 'mynaui:grid-nine',    description: 'Define las consolas y sistemas disponibles' },
+    { id: 'platforms', label: 'Plataformas', icon: 'game-icons:platform',    description: 'Define las consolas y sistemas disponibles' },
     { id: 'emulators', label: 'Emuladores',  icon: 'mynaui:chip',         description: 'Gestiona tus emuladores y rutas de acceso' },
-    { id: 'controls',  label: 'Controles',   icon: 'mynaui:joystick',     description: 'Reasigna los botones de tu mando o teclado' },
+    { id: 'controls',  label: 'Controles',   icon: 'mdi:controller',     description: 'Reasigna los botones de tu mando o teclado' },
     { id: 'grid',      label: 'Cuadrícula',  icon: 'mynaui:grid',         description: 'Personaliza las filas, columnas y aspecto del grid' },
     { id: 'interface', label: 'Descargas',    icon: 'mynaui:download',      description: 'API Key de SteamGridDB para carátulas e imágenes de juegos' },
     { id: 'friends',   label: 'Amigos',      icon: 'mynaui:users',        description: 'Próximamente — Lista de amigos y estado' },
-    { id: 'trophies',  label: 'Logros',      icon: 'mynaui:award',        description: 'Próximamente — Logros desbloqueados' },
+    { id: 'trophies',  label: 'Logros',      icon: 'material-symbols:star-outline-rounded',        description: 'Próximamente — Logros desbloqueados' },
 ]
 
 const TAB_IDS = TABS.map(t => t.id) as Tab[]
@@ -87,6 +87,8 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
 
     const [keymaps, setKeymaps]             = useState<Record<string, string | boolean>>({})
     const [listeningKey, setListeningKey]   = useState<string | null>(null)
+    const [gamepadListeningKey, setGamepadListeningKey] = useState<string | null>(null)
+    const prevGamepadRef = useRef<{ [key: number]: boolean[] }>({})
     const [keymapDirty, setKeymapDirty]     = useState(false)
     const [keymapSaving, setKeymapSaving]   = useState(false)
 
@@ -118,13 +120,13 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
     // ── Refs: always-fresh snapshots used inside the event handler ────────────
     const r = useRef({
         tab, controlsSubTab, focusArea, selectedIndex, isDeleteFocused, footerIndex,
-        emulators, platforms: sortedPlatforms, keymaps, listeningKey, visible, onJumpToHeader,
+        emulators, platforms: sortedPlatforms, keymaps, listeningKey, gamepadListeningKey, visible, onJumpToHeader,
         gridRows, gridCols, gridGap, gridAspect, hasUnsavedChanges,
         isInputEditing, isPlatFormExpanded, editingPlatId, editingEmuId, platForm, emuForm, 
         focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex, onClearGrid, interfaceSettings, interfaceDirty
     })
     useEffect(() => {
-        r.current = { tab, controlsSubTab, focusArea, selectedIndex, isDeleteFocused, footerIndex, emulators, platforms: sortedPlatforms, keymaps, listeningKey, visible, onJumpToHeader, gridRows, gridCols, gridGap, gridAspect, hasUnsavedChanges, isInputEditing, isPlatFormExpanded, editingPlatId, editingEmuId, platForm, emuForm, focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex, onClearGrid, interfaceSettings, interfaceDirty }
+        r.current = { tab, controlsSubTab, focusArea, selectedIndex, isDeleteFocused, footerIndex, emulators, platforms: sortedPlatforms, keymaps, listeningKey, gamepadListeningKey, visible, onJumpToHeader, gridRows, gridCols, gridGap, gridAspect, hasUnsavedChanges, isInputEditing, isPlatFormExpanded, editingPlatId, editingEmuId, platForm, emuForm, focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex, onClearGrid, interfaceSettings, interfaceDirty }
     })
 
     // ── Load / reset when panel opens ─────────────────────────────────────────
@@ -143,6 +145,7 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
         setIsDeleteFocused(false)
         setFooterIndex(0)
         setListeningKey(null)
+        setGamepadListeningKey(null)
         setIsPlatFormExpanded(false)
         // Sync grid from parent
         if (gridConfig) {
@@ -162,6 +165,7 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
         setIsDeleteFocused(false)
         setFooterIndex(0)
         setListeningKey(null)
+        setGamepadListeningKey(null)
         setControlsSubTab('menu')
     }, [tab])
 
@@ -368,6 +372,64 @@ const handleBrowsePlatIcon = async () => {
         }
     }, [listeningKey])
 
+    const GAMEPAD_BUTTON_NAMES: Record<number, string> = {
+        0: 'A', 1: 'B', 2: 'X', 3: 'Y',
+        4: 'LB', 5: 'RB', 6: 'LT', 7: 'RT',
+        8: 'Select', 9: 'Start', 10: 'Left Stick', 11: 'Right Stick',
+        12: 'Up', 13: 'Down', 14: 'Left', 15: 'Right',
+        20: 'Left', 21: 'Right', 22: 'Up', 23: 'Down'
+    }
+
+    useEffect(() => {
+        if (!gamepadListeningKey) {
+            window.api.movementControl.setInputCapture(false)
+            return
+        }
+
+        window.api.movementControl.setInputCapture(true)
+
+        let rafId = 0
+        const scanGamepads = () => {
+            const gamepads = navigator.getGamepads()
+            for (let i = 0; i < gamepads.length; i++) {
+                const gp = gamepads[i]
+                if (!gp) continue
+
+                if (!prevGamepadRef.current[i]) {
+                    prevGamepadRef.current[i] = []
+                }
+                const prev = prevGamepadRef.current[i]
+
+                for (let btnIdx = 0; btnIdx < gp.buttons.length; btnIdx++) {
+                    const pressed = gp.buttons[btnIdx]?.pressed
+                    const prevPressed = prev[btnIdx] || false
+
+                    if (pressed && !prevPressed) {
+                        const name = GAMEPAD_BUTTON_NAMES[btnIdx]
+                        if (name) {
+                            setKeymaps(prev => ({ ...prev, [gamepadListeningKey]: name }))
+                            setKeymapDirty(true)
+                            setGamepadListeningKey(null)
+                            window.api.movementControl.setInputCapture(false)
+                            prevGamepadRef.current = {}
+                            sfx.confirm()
+                            return
+                        }
+                    }
+                    prev[btnIdx] = pressed
+                }
+            }
+            rafId = requestAnimationFrame(scanGamepads)
+        }
+
+        rafId = requestAnimationFrame(scanGamepads)
+        return () => {
+            cancelAnimationFrame(rafId)
+            prevGamepadRef.current = {}
+            window.api.movementControl.setInputCapture(false)
+        }
+    }, [gamepadListeningKey])
+
     // ── Platform Dropdown Scrolling ───────────────────────────────────────────
     useEffect(() => {
         if (isEmuPlatMenuOpen) {
@@ -433,7 +495,7 @@ const handleBrowsePlatIcon = async () => {
         const handler = (e: Event) => {
             const { visible: vis, tab: ct, controlsSubTab: cSub, focusArea: area, selectedIndex: idx,
                     footerIndex: fIdx, emulators: emus,
-                    listeningKey: lKey } = r.current
+                    listeningKey: lKey, gamepadListeningKey: gpLKey } = r.current
 
             if (!vis) return
             // If a dropdown is open, handle it first
@@ -468,7 +530,7 @@ const handleBrowsePlatIcon = async () => {
             // If a dialog is open, let it handle the events exclusively
             if (document.querySelector('.ag-dialog-overlay')) return
             // While remapping or typing, ignore navigation
-            if (lKey || r.current.isInputEditing) return
+            if (lKey || gpLKey || r.current.isInputEditing) return
 
             const action = (e as CustomEvent<string>).detail
 
@@ -548,7 +610,7 @@ const handleBrowsePlatIcon = async () => {
                 } else if (ct === 'controls') {
                     if (cSub === 'menu') count = 2
                     else if (cSub === 'keyboard') count = KEYBOARD_KEYS.length + 1
-                    else if (cSub === 'gamepad') count = 1
+                    else if (cSub === 'gamepad') count = GAMEPAD_KEYS.length + 1
                 } else if (ct === 'grid') {
                     count = 3
                 }
@@ -658,7 +720,7 @@ const handleBrowsePlatIcon = async () => {
                         return
                     }
                     sfx.navigate()
-                    if (ct === 'controls' && cSub !== 'menu') setControlsSubTab('menu')
+                    if (ct === 'controls' && cSub !== 'menu') { setControlsSubTab('menu'); setSelectedIndex(0) }
                     else setFocusArea('nav')
                 } else if (action === 'select') {
                     if (ct === 'platforms') {
@@ -724,8 +786,12 @@ const handleBrowsePlatIcon = async () => {
                                 setListeningKey(KEYBOARD_KEYS[idx - 1])
                             }
                         } else if (cSub === 'gamepad') {
-                            setControlsSubTab('menu')
-                            setSelectedIndex(1)
+                            if (idx === 0) {
+                                setControlsSubTab('menu')
+                                setSelectedIndex(0)
+                            } else {
+                                setGamepadListeningKey(GAMEPAD_KEYS[idx - 1])
+                            }
                         }
                     } else if (ct === 'grid') {
                         if (idx === 2) {
@@ -745,7 +811,7 @@ const handleBrowsePlatIcon = async () => {
                 } else if (ct === 'controls') {
                     if (cSub === 'menu') count = 2
                     else if (cSub === 'keyboard') count = KEYBOARD_KEYS.length + 1
-                    else if (cSub === 'gamepad') count = 1
+                    else if (cSub === 'gamepad') count = GAMEPAD_KEYS.length + 1
                 }
 
                 if (action === 'up') {
@@ -1218,7 +1284,7 @@ const handleBrowsePlatIcon = async () => {
                                 onClick={() => { setControlsSubTab('gamepad'); setSelectedIndex(0) }}
                             >
                                 <div className="cp-choice-row__icon-wrap">
-                                    <Icon icon="mynaui:gamepad" />
+                                    <Icon icon="mdi:controller" />
                                 </div>
                                 <div className="cp-choice-row__content">
                                     <span className="cp-choice-row__label">Controles de Mando</span>
@@ -1266,20 +1332,39 @@ const handleBrowsePlatIcon = async () => {
                     )}
 
                     {controlsSubTab === 'gamepad' && (
-                        <div className="cp-coming-soon">
-                             <li 
-                                className={`cp-list__item cp-list__item--back ${focusArea === 'content' && selectedIndex === 0 ? 'cp-list__item--focused' : ''}`}
-                                onClick={() => setControlsSubTab('menu')}
-                                data-focused={focusArea === 'content' && selectedIndex === 0 ? 'true' : undefined}
-                                style={{ listStyle: 'none', marginBottom: '20px' }}
-                             >
-                                <Icon icon="mynaui:arrow-left" className="cp-list__item-icon" />
-                                <span className="cp-list__item-name">Volver al menú</span>
-                             </li>
-                             <Icon icon="mynaui:gamepad" className="cp-coming-soon__icon" />
-                             <h3>Configuración Visual de Mando</h3>
-                             <p>Próximamente — Una interfaz interactiva para mapear tu gamepad.</p>
-                        </div>
+                        <>
+                            <ul className="cp-list cp-list--compact cp-list--controls-table">
+                                <li 
+                                    className={`cp-list__item cp-list__item--back ${focusArea === 'content' && selectedIndex === 0 ? 'cp-list__item--focused' : ''}`}
+                                    onClick={() => setControlsSubTab('menu')}
+                                    data-focused={focusArea === 'content' && selectedIndex === 0 ? 'true' : undefined}
+                                >
+                                    <Icon icon="mynaui:arrow-left" className="cp-list__item-icon" />
+                                    <span className="cp-list__item-name">Volver al menú</span>
+                                </li>
+                                {GAMEPAD_KEYS.map((key, idx) => {
+                                    const actualIdx = idx + 1
+                                    const fl = focusArea === 'content' && selectedIndex === actualIdx
+                                    return (
+                                        <li
+                                            key={key}
+                                            data-focused={fl ? 'true' : undefined}
+                                            className={`cp-list__item cp-list__item--table-row ${fl ? 'cp-list__item--focused' : ''} ${gamepadListeningKey === key ? 'cp-list__item--listening' : ''}`}
+                                            onClick={() => setGamepadListeningKey(k => k === key ? null : key)}
+                                        >
+                                            <div className="cp-list__col-label">
+                                                <span className="cp-list__item-name">{KEYMAP_LABELS[key] ?? key}</span>
+                                            </div>
+                                            <div className="cp-list__col-value">
+                                                <kbd className={`cp-kbd ${gamepadListeningKey === key ? 'cp-kbd--listening' : ''}`}>
+                                                    {gamepadListeningKey === key ? '—' : (keymaps[key] || 'None')}
+                                                </kbd>
+                                            </div>
+                                        </li>
+                                    )
+                                })}
+                            </ul>
+                        </>
                     )}
                 </div>
             )}

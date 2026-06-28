@@ -33,14 +33,15 @@ export const THEMES: { id: Theme; label: string }[] = [
   { id: 'apple-glass-light', label: 'Liquid Glass (Light)' },
   { id: 'xmas', label: 'Navidad' },
   { id: 'halloween', label: 'Halloween' },
+  { id: 'twilight-princess', label: 'Twilight Princess' },
 ]
 
 export const SECTIONS: { id: SectionId; icon: string; label: string; badge?: true }[] = [
   { id: 'home',     icon: 'mynaui:home-solid', label: 'Inicio'  },
   { id: 'game',     icon: 'mynaui:controller', label: 'Juego'   },
   { id: 'social',   icon: 'mynaui:users',      label: 'Social', badge: true },
-  { id: 'trophies', icon: 'mynaui:trophy',     label: 'Logros'  },
-  { id: 'settings', icon: 'mynaui:cog-six',    label: 'Ajustes' },
+  { id: 'trophies', icon: 'material-symbols:star-outline-rounded', label: 'Logros'  },
+  { id: 'settings', icon: 'ri:wrench-line',    label: 'Ajustes' },
   { id: 'power',    icon: 'mynaui:power',      label: 'Sistema' },
 ]
 

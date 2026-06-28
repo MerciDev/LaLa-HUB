@@ -43,6 +43,7 @@ import { registerSavesHandlers } from './handlers/savesHandler'
 import { initSyncEngine } from './utils/syncEngine'
 import { initDiscordRPC } from './utils/discord'
 import { loadInterfaceSettings } from './settings/interfaceSettings'
+import { createMainProcessGamepadPoller } from './utils/gamepadPoller'
 
 export let appWindow: BrowserWindow | null = null
 export let overlayWindow: BrowserWindow | null = null
@@ -179,6 +180,29 @@ ipcMain.on('context-menu-control', (_, action: string, data?: any) => {
 })
 
 export const debouncedToggleOverlay = keymaps.createDebouncedToggle(overlay.toggleOverlay);
+
+// ── Main-process gamepad poller ───────────────────────────────────────────────
+// Reads XInput state directly via PowerShell so the overlay combo (RS+Select)
+// works even when a game has focus and the Electron renderer can't see gamepad events.
+const mainGamepadPoller = createMainProcessGamepadPoller((combo) => {
+  if (combo === 'RS+Select' || combo === 'L3R3') {
+    debouncedToggleOverlay()
+  }
+})
+
+// Start/stop the poller from the main launch logic
+ipcMain.on('game-started', () => {
+  if (!mainGamepadPoller.isRunning()) {
+    mainGamepadPoller.start()
+    debugLog('[Main] GamepadPoller started for in-game overlay.')
+  }
+})
+ipcMain.on('game-ended', () => {
+  if (mainGamepadPoller.isRunning()) {
+    mainGamepadPoller.stop()
+    debugLog('[Main] GamepadPoller stopped.')
+  }
+})
 
 // Sync overlay state when closed from renderer (background click)
 ipcMain.on('overlay-close', () => {
@@ -349,7 +373,7 @@ async function main(): Promise<void> {
     })
     mainApp.addSocialIcon({
       id: 'trophies',
-      icon: 'mynaui:star',
+      icon: 'material-symbols:star-outline-rounded',
       label: 'Trofeos',
       onClick: 'click-trophies',
       onMouseEnter: 'mouse-enter-trophies',
@@ -401,7 +425,7 @@ async function main(): Promise<void> {
     })
     mainApp.addPersonalIcon({
       id: 'settings',
-      icon: 'mynaui:cog-four',
+      icon: 'ri:wrench-line',
       label: 'Configuración',
       onClick: 'click-settings',
       onMouseEnter: 'mouse-enter-settings',
@@ -481,8 +505,11 @@ async function main(): Promise<void> {
     if (isInputCaptureActive) return // Let the renderer handle gamepad input during capture if needed
     if (keymaps.keymaps.useJoyToKey) return // JoyToKey will handle this via keyboard events
     debugLog(`Received gamepad input: ${button}`)
-    const action = Object.entries(keymaps.keymaps).find(([_, value]) => value === button)?.[0]
-    if (!action) return
+    let action = Object.entries(keymaps.keymaps).find(([_, value]) => value === button)?.[0]
+    if (!action) {
+      if (button === 'RS+Select' || button === 'L3R3') action = 'gamepadOverlayCombo'
+      else return
+    }
 
     let logicAction = action
     switch (action) {
@@ -497,6 +524,8 @@ async function main(): Promise<void> {
       case 'gamepadStart': logicAction = 'contextMenu'; break
       case 'gamepadX': logicAction = 'overlay'; break
       case 'gamepadOverlayCombo': logicAction = 'overlay'; break
+      case 'gamepadLT': logicAction = 'openMain'; break
+      case 'gamepadRT': logicAction = 'openSocial'; break
     }
 
     if (logicAction === 'overlay') {

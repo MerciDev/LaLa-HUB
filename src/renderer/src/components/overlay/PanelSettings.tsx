@@ -1,10 +1,10 @@
 import { Icon } from '@iconify/react'
-import { Theme, THEMES } from './types'
+import { THEMES } from './types'
 
 interface PanelSettingsProps {
   inPanel: boolean
   panelIdx: number
-  theme: Theme
+  theme: string
   volume: number
   notifyOn: boolean
 }

@@ -46,10 +46,25 @@ export function useGamepad(): void {
             }
             const prevButtons = prevButtonsRef.current[i]
 
-            // 1. Process Physical Buttons
+            // 3. Process Combo: Hold Right Stick (index 11) + Press Select (index 8)
+            const rsHeld = gp.buttons[11]?.pressed
+            const selectPressed = gp.buttons[8]?.pressed
+            const prevSelectPressed = prevButtons[8] || false
+            const rsSelectCombo = rsHeld && selectPressed && !prevSelectPressed
+
+            if (rsSelectCombo) {
+                window.api.gamepadControl.sendInput('RS+Select')
+            }
+
+            // 1. Process Physical Buttons (skip Select when RS is held to avoid double-fire)
             gp.buttons.forEach((button, btnIndex) => {
                 const pressed = button.pressed
                 const prevPressed = prevButtons[btnIndex] || false
+
+                if (btnIndex === 8 && rsHeld) {
+                    prevButtons[btnIndex] = pressed
+                    return
+                }
 
                 if (pressed && !prevPressed) {
                     console.log(`Gamepad [${i}] Button pressed:`, btnIndex)
@@ -60,17 +75,6 @@ export function useGamepad(): void {
                 }
                 prevButtons[btnIndex] = pressed
             })
-
-            // 3. Process Combo: L3 + R3 (Indices 10 and 11)
-            const l3 = gp.buttons[10]?.pressed
-            const r3 = gp.buttons[11]?.pressed
-            const comboPressed = l3 && r3
-            const prevComboPressed = prevButtons[100] || false // Index 100 for combo state
-
-            if (comboPressed && !prevComboPressed) {
-                window.api.gamepadControl.sendInput('L3R3')
-            }
-            prevButtons[100] = comboPressed
 
             // 2. Process Axes (Left Stick - Standard Indices 0 and 1)
             // Axis 0: Left (-1) to Right (1)

@@ -41,7 +41,7 @@ export const keymaps = {
     gamepadDown: 'Down',
     gamepadLeft: 'Left',
     gamepadRight: 'Right',
-    gamepadOverlayCombo: 'L3R3',
+    gamepadOverlayCombo: 'RS+Select',
 }
 
 export function createDebouncedToggle(toggleFn: () => void, cooldownMs = 300) {
@@ -64,14 +64,18 @@ export function loadKeymaps(): void {
     
     const keymapsData = readJson<any>('config', 'keymaps');
     if (keymapsData) {
-        // Merge data, but also check if we are adding new keys that weren't there
         const existingKeys = Object.keys(keymapsData)
         const defaultKeys = Object.keys(keymaps)
         const hasNewKeys = defaultKeys.some(k => !existingKeys.includes(k))
+        const needsMigration = keymapsData.gamepadOverlayCombo === 'L3R3'
 
         Object.assign(keymaps, keymapsData);
 
-        if (hasNewKeys) {
+        if (needsMigration) {
+            keymaps.gamepadOverlayCombo = 'RS+Select'
+        }
+
+        if (hasNewKeys || needsMigration) {
             saveJson('config', 'keymaps', keymaps);
         }
     }

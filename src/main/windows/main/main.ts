@@ -1,6 +1,7 @@
 import { IconOption, HomeGrid, HomeSlot, ContextOption } from '../../../shared/types'
 import { removeSlot, loadSlots } from '../../utils/storage'
 import { spawn } from 'child_process'
+import { ipcMain } from 'electron'
 import { debugLog } from '../../utils/debug'
 import { showLoading, hideLoading } from '../loading/loading'
 import { startPlaySession, formatPlaytime } from '../../utils/playtime'
@@ -301,10 +302,20 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
                         stdio: 'ignore'
                     })
                 } else {
-                    gameProcess = spawn(gamePath, (gameArgs || '').split(' '), {
-                        shell: true,
+                    // On Windows, use shell: true so paths with spaces and special
+                    // characters are handled correctly (same as the emulator path above).
+                    const nativeArgs = gameArgs ? gameArgs.split(' ') : []
+                    const useShell = process.platform === 'win32'
+                    const spawnPath = useShell
+                        ? `"${gamePath}"` // quote the path for shell execution
+                        : gamePath
+                    gameProcess = spawn(spawnPath, nativeArgs, {
+                        shell: useShell,
                         detached: true,
                         stdio: 'ignore'
+                    })
+                    gameProcess.on('error', (err: Error) => {
+                        console.error(`[Launch] Failed to start process: ${err.message}`)
                     })
                 }
             }
@@ -330,6 +341,15 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
 
             startPlaySession(item.id, gameProcess)
 
+            // Notify index.ts to start the main-process gamepad poller
+            // so RS+Select works even while the game has focus
+            ipcMain.emit('game-started')
+
+            // Stop the poller when the game process exits
+            gameProcess.on('exit', () => {
+                ipcMain.emit('game-ended')
+            })
+
             import('../../utils/windowManager').then(({ focusWindowAndSendKeys }) => {
                 // On macOS, use the .app bundle name as the process name (more reliable)
                 let targetTitle = gameEmulator ? gameEmulator.name : (gameName || '')
@@ -339,6 +359,18 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
                     debugLog(`[Launch] Mac: using bundle name "${bundleName}" as process target`)
                 }
                 const keysToSend = item.game?.launchKeys || '%+a'
+
+                // On Windows, derive the process name from the exe path if not manually set.
+                // e.g. "E:\Games\Cyberpunk 2077\bin\x64\Cyberpunk2077.exe" → "Cyberpunk2077"
+                // This is more reliable than using the game title which may have spaces/typos.
+                let winProcessName = item.game?.processName
+                if (process.platform === 'win32' && !winProcessName && gamePath) {
+                    const exeFile = gamePath.split(/[\\/]/).pop() || ''
+                    winProcessName = exeFile.replace(/\.exe$/i, '') || undefined
+                    if (winProcessName) {
+                        debugLog(`[Launch] Win: auto-derived process name "${winProcessName}" from path`)
+                    }
+                }
 
                 // 60 attempts × 1500ms = 90s — enough for heavy launchers like Minecraft
                 focusWindowAndSendKeys(targetTitle, keysToSend, 60, 1500, (success) => {
@@ -351,7 +383,7 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
                         hideLoading()
                     }
                     isLaunching = false
-                }, gameProcess.pid, item.game?.processName)
+                }, gameProcess.pid, winProcessName)
             })
 
         },
