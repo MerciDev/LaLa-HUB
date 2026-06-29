@@ -1,0 +1,84 @@
+/* 
+@name: Resident Evil Custom
+@author: Antigravity
+@description: A dark, bloody Resident Evil theme.
+@backgroundImage: https://i.redd.it/resident-evil-remake-has-some-stunning-pre-rendered-v0-3zj6p4wjmyud1.jpg?width=1920&format=pjpg&auto=webp&s=626893c4d3a0e117a1699b70ff201618fc416aad
+*/
+
+:root, [data-theme="custom"] {
+  /* 3DS-inspired UI overrides */
+  --bg-base:        #0a0505;
+  --bg-surface:     rgba(40, 15, 15, 0.65);
+  --bg-elevated:    rgba(60, 20, 20, 0.8);
+  --bg-hover:       rgba(200, 50, 50, 0.15);
+
+  --accent:         #a60000;
+  --accent-glow:    rgba(166, 0, 0, 0.5);
+  --accent-bright:  #ff3333;
+
+  --text-primary:   #f0f0f0;
+  --text-secondary: rgba(255, 200, 200, 0.75);
+  --text-muted:     rgba(255, 200, 200, 0.45);
+
+  --border:         rgba(255, 50, 50, 0.15);
+  --border-active:  rgba(255, 50, 50, 0.6);
+
+  --bg-overlay:     rgba(15, 5, 5, 0.85);
+  --bg-header-gradient: rgba(15, 5, 5, 0.7);
+
+  --shadow-island:  0 10px 40px rgba(100, 0, 0, 0.3), inset 0 1px 1px rgba(255, 100, 100, 0.1), inset 0 0 20px rgba(255, 0, 0, 0.05);
+  --shadow-island-hover: 0 15px 50px rgba(150, 0, 0, 0.4), inset 0 1px 1px rgba(255, 100, 100, 0.15), inset 0 0 20px rgba(255, 0, 0, 0.1);
+  --shadow-modal:   0 30px 80px rgba(50, 0, 0, 0.8), inset 0 1px 1px rgba(255, 50, 50, 0.15);
+}
+
+/* Base App Overrides */
+.island {
+  box-shadow: var(--shadow-island);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.island:hover {
+  box-shadow: var(--shadow-island-hover);
+}
+
+.dot-background {
+  background-color: var(--bg-base);
+  background-image: radial-gradient(rgba(166, 0, 0, 0.2) 2px, transparent 0);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 15px var(--accent-glow);
+}
+
+.btn-primary:hover {
+  background: var(--accent-bright);
+  box-shadow: 0 6px 20px var(--accent-glow);
+}
+
+.btn-secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-active);
+}
+
+h1, h2, h3, h4, p, span, div {
+  color: var(--text-primary);
+}
+
+/* Custom visual effects for Resident Evil theme */
+#root::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, transparent 30%, rgba(10, 0, 0, 0.85) 100%);
+  z-index: 9999;
+}
