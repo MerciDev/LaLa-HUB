@@ -81,9 +81,10 @@ async function syncPlaytimeToCloud(slot: any, totalMinutes: number): Promise<voi
     if (!client) return;
 
     try {
+        const slugId = (slot.game?.name || slot.label || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
         const { error } = await client.from('playtime').upsert({
             user_id: userId,
-            slot_id: slot.id,
+            slot_id: slot.game?.searchId || slugId || slot.id,
             game_name: slot.game?.name || slot.label,
             platform: slot.game?.platform?.name || slot.game?.emulator?.name || 'PC',
             minutes: totalMinutes,
@@ -112,14 +113,17 @@ export async function syncAllPlaytimesToCloud(): Promise<void> {
     if (recordsToSync.length === 0) return;
 
     try {
-        const payload = recordsToSync.map(slot => ({
-            user_id: userId,
-            slot_id: slot.id,
-            game_name: slot.game?.name || slot.label,
-            platform: slot.game?.platform?.name || slot.game?.emulator?.name || 'PC',
-            minutes: slot.game!.playtimeMinutes,
-            updated_at: new Date().toISOString()
-        }))
+        const payload = recordsToSync.map(slot => {
+            const slugId = (slot.game?.name || slot.label || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            return {
+                user_id: userId,
+                slot_id: slot.game?.searchId || slugId || slot.id,
+                game_name: slot.game?.name || slot.label,
+                platform: slot.game?.platform?.name || slot.game?.emulator?.name || 'PC',
+                minutes: slot.game!.playtimeMinutes,
+                updated_at: new Date().toISOString()
+            }
+        })
 
         const { error } = await client.from('playtime').upsert(payload, { onConflict: 'user_id, slot_id' })
         

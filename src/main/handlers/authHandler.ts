@@ -1,5 +1,5 @@
 import { ipcMain, BrowserWindow } from 'electron'
-import { getSupabaseClient, setSession, getCurrentSession, getUserId } from '../utils/supabase'
+import { getSupabaseClient, getAuthenticatedClient, setSession, getCurrentSession, getUserId } from '../utils/supabase'
 import { debugLog } from '../utils/debug'
 import { readJson, saveJson, checkFileExists, USER_DATA_PATH } from '../utils/storage'
 import { AuthState, LoginCredentials, RegisterCredentials, UserProfile } from '../../shared/types'
@@ -88,14 +88,17 @@ function clearStoredSession(): void {
 }
 
 async function mapUserToProfile(user: any): Promise<UserProfile> {
-  const username = user.user_metadata?.username || user.email?.split('@')[0] || 'Usuario'
+  let username = user.user_metadata?.username || user.email?.split('@')[0] || 'Usuario'
+  let avatarUrl = user.user_metadata?.avatar_url || ''
   let accountType = 'standard'
 
   try {
     const client = getSupabaseClient()
-    const { data } = await client.from('profiles').select('account_type').eq('id', user.id).single()
-    if (data?.account_type) {
-      accountType = data.account_type
+    const { data } = await client.from('profiles').select('username, avatar_url, account_type').eq('id', user.id).single()
+    if (data) {
+      if (data.account_type) accountType = data.account_type
+      if (data.username) username = data.username
+      if (data.avatar_url !== undefined && data.avatar_url !== null) avatarUrl = data.avatar_url
     }
   } catch { }
 
@@ -103,7 +106,7 @@ async function mapUserToProfile(user: any): Promise<UserProfile> {
     id: user.id,
     email: user.email || '',
     username,
-    avatarUrl: user.user_metadata?.avatar_url || '',
+    avatarUrl,
     accountType,
     createdAt: user.created_at || new Date().toISOString()
   }
@@ -204,12 +207,26 @@ export function registerAuthHandlers(mainWindow: BrowserWindow | null): void {
     if (!authState.isLoggedIn || !authState.user) return authState
     try {
       const client = getSupabaseClient()
-      const { data } = await client.from('profiles').select('account_type').eq('id', authState.user.id).single()
-      if (data?.account_type && data.account_type !== authState.user.accountType) {
-        authState.user = { ...authState.user, accountType: data.account_type }
-        persistSession(authState.user)
-        notifyAuthState(mainWindow)
-        debugLog(`[Auth] Perfil refrescado: accountType = ${data.account_type}`)
+      const { data } = await client.from('profiles').select('username, avatar_url, account_type').eq('id', authState.user.id).single()
+      if (data) {
+        let changed = false
+        if (data.account_type && data.account_type !== authState.user.accountType) {
+          authState.user.accountType = data.account_type
+          changed = true
+        }
+        if (data.username && data.username !== authState.user.username) {
+          authState.user.username = data.username
+          changed = true
+        }
+        if (data.avatar_url !== undefined && data.avatar_url !== null && data.avatar_url !== authState.user.avatarUrl) {
+          authState.user.avatarUrl = data.avatar_url
+          changed = true
+        }
+        if (changed) {
+          persistSession(authState.user)
+          notifyAuthState(mainWindow)
+          debugLog(`[Auth] Perfil refrescado desde BD`)
+        }
       }
     } catch (err: any) {
       debugLog(`[Auth] Error refrescando perfil: ${err.message}`)
@@ -222,11 +239,24 @@ export function registerAuthHandlers(mainWindow: BrowserWindow | null): void {
       const userId = getUserId()
       if (!userId) throw new Error('No hay sesión activa')
 
-      const client = getSupabaseClient()
+      const client = (await getAuthenticatedClient()) || getSupabaseClient()
       const { error } = await client.auth.updateUser({
         data: { username: profile.username, avatar_url: profile.avatarUrl }
       })
       if (error) throw error
+
+      const updates: any = { updated_at: new Date().toISOString() }
+      if (profile.username !== undefined) updates.username = profile.username
+      if (profile.avatarUrl !== undefined) updates.avatar_url = profile.avatarUrl
+
+      const { error: dbError } = await client
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId)
+
+      if (dbError) {
+        debugLog(`[Auth] Warning: Error actualizando profiles DB: ${dbError.message}`)
+      }
 
       if (authState.user) {
         authState.user = { ...authState.user, ...profile }

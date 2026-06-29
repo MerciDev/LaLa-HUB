@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Icon } from '@iconify/react'
 import { FriendProfile, UserProfile } from '../../../../../shared/types'
+import UserProfileModal from '../UserProfileModal'
 
 interface FriendsTabProps {
     focusArea: string
@@ -25,6 +26,8 @@ function FriendsTab({
     onSearchQueryChange, onSearch, onSendFriendRequest,
     onAcceptFriendRequest, onRemoveFriend
 }: FriendsTabProps) {
+    const [selectedUser, setSelectedUser] = useState<any | null>(null)
+
     const isFriend = (userId: string) => friendsList.some(f => f.id === userId)
     const friendStatus = (userId: string) => friendsList.find(f => f.id === userId)?.friendshipStatus
 
@@ -57,7 +60,7 @@ function FriendsTab({
                     <ul className="cp-list">
                         {friendSearchResults.map(user => (
                             <li key={user.id} className="cp-list-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '8px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => setSelectedUser(user)}>
                                     {user.avatarUrl ? (
                                         <img src={user.avatarUrl} alt="" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
                                     ) : (
@@ -66,7 +69,7 @@ function FriendsTab({
                                         </div>
                                     )}
                                     <div>
-                                        <div className="cp-list__item-name">{user.username}</div>
+                                        <div className="cp-list__item-name" style={{ transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-color, #e60012)'} onMouseLeave={e => e.currentTarget.style.color = ''}>{user.username}</div>
                                     </div>
                                 </div>
                                 <button
@@ -87,7 +90,7 @@ function FriendsTab({
                     <ul className="cp-list">
                         {friendsList.filter(f => f.friendshipStatus === 'pending').map(req => (
                             <li key={req.id} className="cp-list-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '8px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => setSelectedUser(req)}>
                                     {req.avatarUrl ? (
                                         <img src={req.avatarUrl} alt="" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
                                     ) : (
@@ -96,7 +99,7 @@ function FriendsTab({
                                         </div>
                                     )}
                                     <div>
-                                        <div className="cp-list__item-name">{req.username}</div>
+                                        <div className="cp-list__item-name" style={{ transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-color, #e60012)'} onMouseLeave={e => e.currentTarget.style.color = ''}>{req.username}</div>
                                         <div className="cp-list__item-sub">{!req.isSender ? 'Te ha enviado una solicitud' : 'Solicitud enviada'}</div>
                                     </div>
                                 </div>
@@ -126,34 +129,35 @@ function FriendsTab({
                         <div>Aún no tienes amigos añadidos en tu lista.</div>
                     </div>
                 ) : (
-                    <ul className="cp-list">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '16px' }}>
                         {friendsList.filter(f => f.friendshipStatus === 'accepted').map(friend => (
-                            <li key={friend.id} className="cp-list-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '8px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <div style={{ position: 'relative' }}>
-                                        {friend.avatarUrl ? (
-                                            <img src={friend.avatarUrl} alt="" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
-                                        ) : (
-                                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <Icon icon="mynaui:user" style={{ fontSize: '24px', color: 'rgba(255,255,255,0.7)' }} />
-                                            </div>
-                                        )}
-                                        <span style={{ position: 'absolute', bottom: 0, right: 0, width: '10px', height: '10px', borderRadius: '50%', background: friend.status === 'online' || friend.status === 'in-game' ? '#2ec4b6' : '#6c757d', border: '2px solid #1a1a1a' }} />
-                                    </div>
-                                    <div>
-                                        <div className="cp-list__item-name" style={{ fontWeight: 600 }}>{friend.username}</div>
-                                    </div>
+                            <div key={friend.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)', transition: 'transform 0.2s, background 0.2s' }} onClick={() => setSelectedUser(friend)} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }} onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}>
+                                <div style={{ position: 'relative', marginBottom: '12px' }}>
+                                    {friend.avatarUrl ? (
+                                        <img src={friend.avatarUrl} alt="" style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }} />
+                                    ) : (
+                                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Icon icon="mynaui:user" style={{ fontSize: '32px', color: 'rgba(255,255,255,0.7)' }} />
+                                        </div>
+                                    )}
+                                    <span style={{ position: 'absolute', bottom: '2px', right: '2px', width: '14px', height: '14px', borderRadius: '50%', background: friend.status === 'online' || friend.status === 'in-game' ? '#2ec4b6' : '#6c757d', border: '3px solid #1a1a1a' }} />
                                 </div>
-                                <button className="cp-icon-btn cp-icon-btn--danger" title="Eliminar amigo" onClick={() => onRemoveFriend(friend.id)}>
-                                    <Icon icon="mynaui:trash" />
-                                </button>
-                            </li>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ fontWeight: 700, fontSize: '15px', color: '#fff', transition: 'color 0.2s', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-color, #e60012)'} onMouseLeave={e => e.currentTarget.style.color = '#fff'}>{friend.username}</div>
+                                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>{friend.status === 'online' || friend.status === 'in-game' ? 'En línea' : 'Desconectado'}</div>
+                                </div>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                 )}
             </div>
+            
+            {selectedUser && (
+                <UserProfileModal user={selectedUser} onClose={() => setSelectedUser(null)} />
+            )}
         </div>
     )
 }
 
 export default FriendsTab
+

@@ -324,3 +324,19 @@ export interface PresenceState {
   statusText: string
 }
 
+export interface UserPlaytime {
+  gameName: string
+  platform: string
+  minutes: number
+  imageUrl: string | null
+}
+
+export interface UserPublicProfile {
+  id: string
+  username: string
+  avatarUrl?: string
+  status: 'online' | 'away' | 'offline'
+  statusText: string
+  playtimes: UserPlaytime[]
+}
+

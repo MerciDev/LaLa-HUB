@@ -250,4 +250,129 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
       return { success: false, error: err.message }
     }
   })
+
+  ipcMain.handle('social-get-user-profile', async (_, targetUserId: string): Promise<{ success: boolean; data?: any; error?: string }> => {
+    const userId = getUserId()
+    if (!userId) return { success: false, error: 'No autenticado' }
+
+    console.log(`[Social Debug] Obteniendo perfil para targetUserId: ${targetUserId} (solicitado por ${userId})`)
+
+    try {
+      const client = getSupabaseClient()
+      
+      const { data: profile, error: profileError } = await client
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .eq('id', targetUserId)
+        .single()
+
+      console.log(`[Social Debug] Resultado profile:`, profile, `Error profile:`, profileError)
+
+      if (profileError) {
+        // Si hay error al obtener perfil (ej RLS), intentemos buscarlo en friends o devolver datos básicos
+        console.error(`[Social Debug] Error en profile:`, profileError)
+      }
+
+      const { data: playtimes, error: playtimeError } = await client
+        .from('playtime')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .order('minutes', { ascending: false })
+
+      console.log(`[Social Debug] Resultado playtime:`, playtimes, `Error playtime:`, playtimeError)
+
+      if (playtimeError && playtimeError.code !== '42P01') {
+        console.error(`[Social Debug] Error en playtime:`, playtimeError)
+      }
+
+      const gameNames = Array.from(new Set((playtimes || []).map((p: any) => p.game_name).filter(Boolean))) as string[]
+      const playtimeSlotIds = Array.from(new Set((playtimes || []).map((p: any) => p.slot_id).filter(Boolean))) as string[]
+      
+      const gameAssetsMap: Record<string, string> = {}
+      const gameNamesMap: Record<string, string> = {}
+
+      if (gameNames.length > 0 || playtimeSlotIds.length > 0) {
+        const generatedSlugs = gameNames.map(n => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''))
+        const possibleIds = Array.from(new Set([...generatedSlugs, ...playtimeSlotIds]))
+
+        const { data: gamesByName } = await client.from('games').select('id, name, data').in('name', gameNames)
+        const { data: gamesById } = await client.from('games').select('id, name, data').in('id', possibleIds)
+        
+        const allGames = [...(gamesByName || []), ...(gamesById || [])]
+        const games = Array.from(new Map(allGames.map(g => [g.id, g])).values())
+
+        if (games && games.length > 0) {
+          for (const g of games) {
+            gameNamesMap[g.id] = g.name
+            
+            // Extract image from game.data.images if available
+            let dataObj = g.data || {};
+            if (typeof g.data === 'string') {
+              try { dataObj = JSON.parse(g.data); } catch (e) {}
+            }
+            
+            const imgs = dataObj.images || {}
+            const cover = imgs.v_grid || imgs.cover || imgs.vertical || imgs.square || imgs.boxart || imgs.h_grid
+            if (cover) {
+              // Si es un path local o /images/, lo dejamos tal cual o lo parseamos (idealmente usar URLs absolutas)
+              gameAssetsMap[g.id] = cover
+              for (const originalName of gameNames) {
+                const slug = originalName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+                if (originalName === g.name || slug === g.id) {
+                  gameAssetsMap[originalName] = cover
+                }
+              }
+            }
+          }
+
+          const gameIds = games.map((g: any) => g.id)
+          const { data: assets } = await client
+            .from('assets')
+            .select('game_id, storage_path')
+            .in('game_id', gameIds)
+            .in('type', ['boxart', 'cover'])
+
+          if (assets && assets.length > 0) {
+            for (const asset of assets) {
+              const game = games.find((g: any) => g.id === asset.game_id)
+              if (game) {
+                const { data } = client.storage.from('game-images').getPublicUrl(asset.storage_path)
+                gameAssetsMap[game.id] = data.publicUrl
+                for (const originalName of gameNames) {
+                  const slug = originalName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+                  if (originalName === game.name || slug === game.id) {
+                    gameAssetsMap[originalName] = data.publicUrl
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const combinedPlaytimes = (playtimes || []).map((p: any) => ({
+        gameName: gameNamesMap[p.slot_id] || p.game_name || p.slot_id || 'Desconocido',
+        platform: p.platform || 'PC',
+        minutes: p.minutes || 0,
+        imageUrl: gameAssetsMap[p.slot_id] || (p.game_name ? gameAssetsMap[p.game_name] : null) || null
+      }))
+
+      const presence = presenceStates[targetUserId]
+      const result = {
+        id: targetUserId,
+        username: profile?.username || 'Usuario',
+        avatarUrl: profile?.avatar_url || '',
+        status: presence?.status || 'offline',
+        statusText: presence?.statusText || 'Desconectado',
+        playtimes: combinedPlaytimes
+      }
+
+      console.log(`[Social Debug] Devolviendo result final para perfil:`, result)
+
+      return { success: true, data: result }
+    } catch (err: any) {
+      console.error(`[Social Debug] Error general en social-get-user-profile:`, err)
+      return { success: false, error: err.message }
+    }
+  })
 }
