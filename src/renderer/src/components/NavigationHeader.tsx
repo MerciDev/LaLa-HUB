@@ -32,10 +32,22 @@ function NavigationHeader({
     const [windowWidth, setWindowWidth] = React.useState(window.innerWidth)
 
     const [sideWidth, setSideWidth] = React.useState(0)
+    const [realFriends, setRealFriends] = React.useState<any[]>([])
     const profileRef = useRef<HTMLButtonElement>(null)
     const friendsRef = useRef<HTMLButtonElement>(null)
 
     const isSocialExpanded = socialExpanded || focusedHeader === 'left'
+
+    useEffect(() => {
+        const load = () => {
+            window.api?.social?.getFriends()?.then(res => {
+                if (res?.success && res.data) setRealFriends(res.data)
+            }).catch(() => {})
+        }
+        load()
+        const unsub = window.api?.social?.onPresenceUpdate?.(() => load())
+        return () => { unsub && unsub() }
+    }, [])
 
     // Synchronize side widths (Profile and Friends)
     useEffect(() => {
@@ -100,8 +112,11 @@ function NavigationHeader({
                 >
                     {socialIcons.map((icon, idx) => {
                         const focused = focusedHeader === 'left' && focusedIndex === idx
-                        const hasFriends = icon.id === 'friends' && icon.extraData?.friends
-                        const friends = icon.extraData?.friends || []
+                        const isFriendsIcon = icon.id === 'friends'
+                        const acceptedFriends = isFriendsIcon ? realFriends.filter(f => f.friendshipStatus === 'accepted') : []
+                        const onlineFriends = acceptedFriends.filter(f => f.status !== 'offline')
+                        const displayFriends = onlineFriends.length > 0 ? onlineFriends : acceptedFriends
+                        const hasFriends = isFriendsIcon
 
                         return (
                             <button
@@ -114,31 +129,33 @@ function NavigationHeader({
                                 onMouseLeave={() => icon.onMouseLeave && window.api.mainOptionControl(icon.onMouseLeave)}
                                 onClick={() => icon.onClick && window.api.mainOptionControl(icon.onClick)}
                             >
-                                {hasFriends && friends.length > 0 ? (
+                                {hasFriends ? (
                                     <>
-                                        <div className="friends-stack-container">
-                                            <div className="friends-stack">
-                                                {friends.slice(0, 3).map((f, i) => (
-                                                    <div key={f.id} className="friend-avatar-wrapper" style={{ zIndex: 10 - i }}>
-                                                        <div className="friend-avatar">
-                                                            <Icon icon="mynaui:user" />
-                                                        </div>
-                                                        {f.playingIcon ? (
-                                                            <div className="status-dot-mini status-icon-wrapper-mini">
-                                                                <Icon icon={f.playingIcon} className="status-platform-icon-mini" />
+                                        {displayFriends.length > 0 ? (
+                                            <div className="friends-stack-container">
+                                                <div className="friends-stack">
+                                                    {displayFriends.slice(0, 3).map((f, i) => (
+                                                        <div key={f.id} className="friend-avatar-wrapper" style={{ zIndex: 10 - i }}>
+                                                            <div className="friend-avatar" style={{ overflow: 'hidden' }}>
+                                                                {f.avatarUrl ? (
+                                                                    <img src={f.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                                ) : (
+                                                                    <span style={{ fontSize: 11, fontWeight: 'bold' }}>{f.username?.charAt(0).toUpperCase()}</span>
+                                                                )}
                                                             </div>
-                                                        ) : (
-                                                            <span className={`status-dot-mini status-dot--${f.status}`} />
-                                                        )}
-                                                    </div>
-                                                ))}
-                                                {friends.length > 3 && (
-                                                    <div className="friends-remaining">
-                                                        +{friends.length - 3}
-                                                    </div>
-                                                )}
+                                                            <span className={`status-dot-mini status-dot--${f.status || 'offline'}`} />
+                                                        </div>
+                                                    ))}
+                                                    {displayFriends.length > 3 && (
+                                                        <div className="friends-remaining">
+                                                            +{displayFriends.length - 3}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
+                                        ) : (
+                                            <Icon icon="mynaui:users-group" style={{ fontSize: 22, marginRight: 6 }} />
+                                        )}
                                         <div className="friends-info">
                                             <div 
                                                 className={`friends-label-marquee-container ${icon.label && icon.label.length > 15 ? 'active' : ''}`}
@@ -148,12 +165,12 @@ function NavigationHeader({
                                                 </span>
                                             </div>
                                             <div className="friends-status">
-                                                <span className={`status-dot status-dot--online`} />
+                                                <span className={`status-dot status-dot--${onlineFriends.length > 0 ? 'online' : 'offline'}`} />
                                                 <div 
                                                     className={`friends-status-marquee-container`}
                                                 >
                                                     <span>
-                                                        {friends.filter(f => f.status === 'online').length} en línea
+                                                        {onlineFriends.length} en línea
                                                     </span>
                                                 </div>
                                             </div>

@@ -140,3 +140,6 @@ electron-*.zip
 
 # environment variables
 .env
+
+# tmp-profile (Electron local storage / cookies)
+tmp-profile/

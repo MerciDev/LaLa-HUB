@@ -42,6 +42,7 @@ export type AppAction =
   | { type: 'REMOVE_CONTEXT_OPTION'; payload: string }
   // UI Panels
   | { type: 'OPEN_SETTINGS' }
+  | { type: 'OPEN_SETTINGS_FRIENDS' }
   | { type: 'CLOSE_SETTINGS' }
   | { type: 'OPEN_EDIT_GAME'; payload: HomeSlot }
   | { type: 'CLOSE_ADD_GAME' }
@@ -303,3 +304,23 @@ export interface DownloadProgress {
   status: DownloadTask['status']
   error?: string
 }
+
+// ─── Social & Friends Types ──────────────────────────────────────────────────
+
+export interface FriendProfile {
+  id: string
+  username: string
+  avatarUrl?: string
+  status: 'online' | 'away' | 'offline'
+  statusText: string
+  friendshipStatus: 'pending' | 'accepted' | 'blocked' | 'none'
+  isSender?: boolean // True if current user sent the pending request
+}
+
+export interface PresenceState {
+  userId: string
+  username: string
+  status: 'online' | 'away' | 'offline'
+  statusText: string
+}
+

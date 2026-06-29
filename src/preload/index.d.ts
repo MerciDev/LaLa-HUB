@@ -156,6 +156,17 @@ export interface API {
     pullCloud: () => Promise<{ success: boolean; error?: string }>
     onStatusChange: (callback: (status: SyncStatus) => void) => () => void
   }
+
+  /** Social & Friends */
+  social: {
+    getFriends: () => Promise<{ success: boolean; data?: import('../shared/types').FriendProfile[]; error?: string }>
+    searchUsers: (query: string) => Promise<{ success: boolean; data?: any[]; error?: string }>
+    sendFriendRequest: (friendId: string) => Promise<{ success: boolean; error?: string }>
+    acceptFriendRequest: (friendId: string) => Promise<{ success: boolean; error?: string }>
+    removeFriend: (friendshipId: string) => Promise<{ success: boolean; error?: string }>
+    updatePresence: (status: 'online' | 'away' | 'offline', statusText: string) => Promise<{ success: boolean; error?: string }>
+    onPresenceUpdate: (callback: (presence: import('../shared/types').PresenceState[]) => void) => () => void
+  }
 }
 
 declare global {

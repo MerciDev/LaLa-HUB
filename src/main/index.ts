@@ -39,6 +39,7 @@ import { registerMetadataHandlers } from './handlers/metadataHandler'
 import { registerGameApiHandlers } from './handlers/gameApiHandler'
 import { registerAuthHandlers, getAuthState } from './handlers/authHandler'
 import { registerSyncHandlers } from './handlers/syncHandler'
+import { registerSocialHandlers } from './handlers/socialHandler'
 import { registerSavesHandlers } from './handlers/savesHandler'
 import { initSyncEngine } from './utils/syncEngine'
 import { initDiscordRPC } from './utils/discord'
@@ -332,6 +333,7 @@ async function main(): Promise<void> {
   // Register auth/sync handlers with the window reference
   registerAuthHandlers(appWindow)
   registerSyncHandlers(appWindow)
+  registerSocialHandlers(appWindow)
 
   // Auto-sync on reconnect
   const { triggerSync } = await import('./utils/syncEngine')
@@ -363,12 +365,7 @@ async function main(): Promise<void> {
       onMouseEnter: 'mouse-enter-friends',
       onMouseLeave: 'mouse-leave-friends',
       extraData: {
-        friends: [
-          { id: '1', status: 'online', playingIcon: 'simple-icons:playstation5' },
-          { id: '2', status: 'online' },
-          { id: '3', status: 'online' },
-          { id: '4', status: 'online' }
-        ]
+        friends: []
       }
     })
     mainApp.addSocialIcon({

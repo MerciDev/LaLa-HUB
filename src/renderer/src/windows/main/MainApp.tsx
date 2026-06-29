@@ -240,6 +240,7 @@ function MainApp(): React.JSX.Element {
 
     // --- Settings Panel ---
     const [settingsPanelVisible, setSettingsPanelVisible] = useState(false)
+    const [settingsInitialTab, setSettingsInitialTab] = useState<'platforms' | 'emulators' | 'controls' | 'grid' | 'interface' | 'friends' | 'trophies'>('platforms')
 
     // --- Download Manager ---
     const [downloadManagerVisible, setDownloadManagerVisible] = useState(false)
@@ -768,6 +769,21 @@ function MainApp(): React.JSX.Element {
                 case 'REMOVE_CONTEXT_OPTION': setContextOptions((prev) => prev.filter((o) => o.id !== a.payload)); break
                 case 'OPEN_SETTINGS':
                     sfx.open()
+                    setSettingsInitialTab('platforms')
+                    pushRoute('settings')
+                    setSettingsPanelVisible(true)
+                    setAddGamePanelVisible(false)
+                    setFocusedHeader(null)
+                    setSocialExpanded(false)
+                    setPersonalExpanded(false)
+                    setIslandWidth('56px')
+                    setLastGridIndex(stateRef.current.selectedSlotIndex ?? 0)
+                    setSelectedSlotIndex(null)
+                    window.api.movementControl.send('SET_SECTION', 'settings')
+                    break
+                case 'OPEN_SETTINGS_FRIENDS':
+                    sfx.open()
+                    setSettingsInitialTab('friends')
                     pushRoute('settings')
                     setSettingsPanelVisible(true)
                     setAddGamePanelVisible(false)
@@ -1233,6 +1249,7 @@ function MainApp(): React.JSX.Element {
                         >
                             <SettingsPanel
                                 visible={settingsPanelVisible}
+                                initialTab={settingsInitialTab}
                                 onClose={async () => { 
                                     // Refresh interface settings when closing panel
                                     const settings = await window.api.ui.getSettings();

@@ -276,6 +276,27 @@ const api = {
       ipcRenderer.on('sync-status-changed', fn)
       return () => { ipcRenderer.removeListener('sync-status-changed', fn) }
     }
+  },
+
+  /** Social & Friends */
+  social: {
+    getFriends: (): Promise<{ success: boolean; data?: import('../shared/types').FriendProfile[]; error?: string }> =>
+      ipcRenderer.invoke('social-get-friends'),
+    searchUsers: (query: string): Promise<{ success: boolean; data?: any[]; error?: string }> =>
+      ipcRenderer.invoke('social-search-users', query),
+    sendFriendRequest: (friendId: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('social-send-request', friendId),
+    acceptFriendRequest: (friendId: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('social-accept-request', friendId),
+    removeFriend: (friendshipId: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('social-remove-friend', friendshipId),
+    updatePresence: (status: 'online' | 'away' | 'offline', statusText: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('social-update-presence', status, statusText),
+    onPresenceUpdate: (callback: (presence: import('../shared/types').PresenceState[]) => void): (() => void) => {
+      const fn = (_, presence) => callback(presence)
+      ipcRenderer.on('social-presence-update', fn)
+      return () => { ipcRenderer.removeListener('social-presence-update', fn) }
+    }
   }
 }
 

@@ -43,6 +43,14 @@ function loadStoredSession(): void {
                   setSession(data.session)
                   persistSession(stored.user) // Update token on disk if it changed
                   debugLog('[Auth] Sesión de Supabase restaurada con token')
+
+                  try {
+                    import('../utils/syncEngine').then(({ triggerSync }) => triggerSync()).catch(() => {})
+                  } catch { }
+
+                  try {
+                    import('./socialHandler').then(({ triggerPresenceSetup }) => triggerPresenceSetup()).catch(() => {})
+                  } catch { }
                 }
               })
               .catch(err => debugLog(`[Auth] Fallo restaurando token en Supabase: ${err.message}`))
@@ -118,6 +126,11 @@ export function registerAuthHandlers(mainWindow: BrowserWindow | null): void {
         triggerSync()
       } catch { }
 
+      try {
+        const { triggerPresenceSetup } = await import('./socialHandler')
+        triggerPresenceSetup()
+      } catch { }
+
       return { success: true, user }
     } catch (err: any) {
       debugLog(`[Auth] Error login: ${err.message}`)
@@ -145,6 +158,12 @@ export function registerAuthHandlers(mainWindow: BrowserWindow | null): void {
       persistSession(user)
       notifyAuthState(mainWindow)
       debugLog(`[Auth] Usuario ${user.email} registrado`)
+
+      try {
+        const { triggerPresenceSetup } = await import('./socialHandler')
+        triggerPresenceSetup()
+      } catch { }
+
       return { success: true, user }
     } catch (err: any) {
       debugLog(`[Auth] Error registro: ${err.message}`)
