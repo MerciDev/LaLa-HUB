@@ -5,13 +5,33 @@ import { TabSharedProps } from '../types'
 interface SecurityTabProps extends TabSharedProps {
     newUsername: string
     newAvatarUrl: string
+    newBannerUrl: string
     onUsernameChange: (value: string) => void
     onAvatarUrlChange: (value: string) => void
+    onBannerUrlChange: (value: string) => void
     onSave: () => void
     onLogout: () => void
 }
 
-function SecurityTab({ focusArea, selectedIndex, isFocused, user, loading, error, newUsername, newAvatarUrl, onUsernameChange, onAvatarUrlChange, onSave, onLogout }: SecurityTabProps) {
+function SecurityTab({ focusArea, selectedIndex, isFocused, user, loading, error, newUsername, newAvatarUrl, newBannerUrl, onUsernameChange, onAvatarUrlChange, onBannerUrlChange, onSave, onLogout }: SecurityTabProps) {
+    const isStandard = !user?.accountType || user.accountType === 'standard'
+    
+    // Parse gradient if present
+    const isGradient = newBannerUrl?.startsWith('linear-gradient')
+    const color1Match = isGradient ? newBannerUrl.match(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})/) : null
+    let color1 = color1Match ? color1Match[0] : '#1a1a2e'
+    
+    // Extract second color by finding the second hex match
+    const restStr = isGradient && color1Match ? newBannerUrl.substring(color1Match.index! + color1Match[0].length) : ''
+    const color2Match = restStr.match(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})/)
+    let color2 = color2Match ? color2Match[0] : '#e60012'
+
+    const handleColor1Change = (c: string) => {
+        onBannerUrlChange(`linear-gradient(135deg, ${c} 0%, ${color2} 100%)`)
+    }
+    const handleColor2Change = (c: string) => {
+        onBannerUrlChange(`linear-gradient(135deg, ${color1} 0%, ${c} 100%)`)
+    }
     return (
         <div className="profile-container">
             <div className="profile-section-card">
@@ -63,9 +83,53 @@ function SecurityTab({ focusArea, selectedIndex, isFocused, user, loading, error
                     </div>
                 </div>
 
+                <div className="profile-field-group">
+                    <label className="profile-field-label">Fondo de Perfil (Banner)</label>
+                    <div className={`profile-input-wrap ${isFocused('content', 2) ? 'focused' : ''}`} style={{ flexDirection: 'column', height: 'auto', padding: '12px', gap: '12px', alignItems: 'flex-start' }}>
+                        {!isStandard && (
+                            <div style={{ display: 'flex', width: '100%', gap: '12px', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                                <Icon icon="mynaui:image" className="profile-input-icon" style={{ position: 'static' }} />
+                                <input
+                                    id="profile-input-banner"
+                                    className="profile-input"
+                                    style={{ padding: 0 }}
+                                    type="text"
+                                    value={newBannerUrl}
+                                    onChange={e => onBannerUrlChange(e.target.value)}
+                                    placeholder="Ej: https://tusitio.com/mi-banner.png"
+                                    onFocus={() => {}}
+                                />
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', width: '100%' }}>
+                            <Icon icon="mynaui:palette" className="profile-input-icon" style={{ position: 'static' }} />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>Color 1:</span>
+                                <input 
+                                    id={isStandard ? "profile-input-banner" : "profile-input-banner-color"}
+                                    type="color" 
+                                    value={color1} 
+                                    onChange={e => handleColor1Change(e.target.value)}
+                                    style={{ width: '32px', height: '32px', padding: 0, border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>Color 2:</span>
+                                <input 
+                                    type="color" 
+                                    value={color2} 
+                                    onChange={e => handleColor2Change(e.target.value)}
+                                    style={{ width: '32px', height: '32px', padding: 0, border: 'none', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }}
+                                />
+                            </div>
+                            <div style={{ flex: 1, height: '24px', borderRadius: '4px', background: isGradient ? newBannerUrl : `linear-gradient(135deg, ${color1} 0%, ${color2} 100%)` }} />
+                        </div>
+                    </div>
+                </div>
+
                 <div className="profile-actions-row">
                     <button
-                        className={`profile-btn profile-btn--primary ${isFocused('content', 2) ? 'focused' : ''}`}
+                        className={`profile-btn profile-btn--primary ${isFocused('content', 3) ? 'focused' : ''}`}
                         onClick={onSave}
                         disabled={loading}
                     >
@@ -87,7 +151,7 @@ function SecurityTab({ focusArea, selectedIndex, isFocused, user, loading, error
                 </p>
                 <div className="profile-actions-row">
                     <button
-                        className={`profile-btn profile-btn--danger ${isFocused('content', 3) ? 'focused' : ''}`}
+                        className={`profile-btn profile-btn--danger ${isFocused('content', 4) ? 'focused' : ''}`}
                         onClick={onLogout}
                         disabled={loading}
                     >

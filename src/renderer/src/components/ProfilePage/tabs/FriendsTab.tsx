@@ -27,9 +27,36 @@ function FriendsTab({
     onAcceptFriendRequest, onRemoveFriend
 }: FriendsTabProps) {
     const [selectedUser, setSelectedUser] = useState<any | null>(null)
+    const [localFriendSearch, setLocalFriendSearch] = useState('')
 
     const isFriend = (userId: string) => friendsList.some(f => f.id === userId)
     const friendStatus = (userId: string) => friendsList.find(f => f.id === userId)?.friendshipStatus
+
+    const acceptedFriends = friendsList.filter(f => f.friendshipStatus === 'accepted')
+    const filteredFriends = acceptedFriends.filter(f => 
+        f.username?.toLowerCase().includes(localFriendSearch.toLowerCase())
+    )
+    const onlineFriends = filteredFriends.filter(f => f.status === 'online' || f.status === 'in-game')
+    const offlineFriends = filteredFriends.filter(f => f.status !== 'online' && f.status !== 'in-game')
+
+    const renderFriendCard = (friend: FriendProfile) => (
+        <div key={friend.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)', transition: 'transform 0.2s, background 0.2s' }} onClick={() => setSelectedUser(friend)} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }} onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}>
+            <div style={{ position: 'relative', marginBottom: '12px' }}>
+                {friend.avatarUrl ? (
+                    <img src={friend.avatarUrl} alt="" style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }} />
+                ) : (
+                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon icon="mynaui:user" style={{ fontSize: '32px', color: 'rgba(255,255,255,0.7)' }} />
+                    </div>
+                )}
+                <span style={{ position: 'absolute', bottom: '2px', right: '2px', width: '14px', height: '14px', borderRadius: '50%', background: friend.status === 'online' || friend.status === 'in-game' ? '#2ec4b6' : '#6c757d', border: '3px solid #1a1a1a' }} />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+                <div style={{ fontWeight: 700, fontSize: '15px', color: '#fff', transition: 'color 0.2s', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-color, #e60012)'} onMouseLeave={e => e.currentTarget.style.color = '#fff'}>{friend.username}</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>{friend.status === 'online' || friend.status === 'in-game' ? 'En línea' : 'Desconectado'}</div>
+            </div>
+        </div>
+    )
 
     return (
         <div className="cp-section">
@@ -122,33 +149,63 @@ function FriendsTab({
             )}
 
             <div>
-                <div className="cp-form__title" style={{ marginBottom: '12px' }}>Mis Amigos ({friendsList.filter(f => f.friendshipStatus === 'accepted').length})</div>
-                {friendsList.filter(f => f.friendshipStatus === 'accepted').length === 0 ? (
+                <div className="cp-form__title" style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Mis Amigos ({friendsList.filter(f => f.friendshipStatus === 'accepted').length})</span>
+                    {friendsList.filter(f => f.friendshipStatus === 'accepted').length > 0 && (
+                        <div style={{ position: 'relative' }}>
+                            <Icon icon="mynaui:search" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)', fontSize: '18px' }} />
+                            <input
+                                type="text"
+                                placeholder="Filtrar amigos..."
+                                value={localFriendSearch}
+                                onChange={e => setLocalFriendSearch(e.target.value)}
+                                style={{
+                                    padding: '8px 14px 8px 36px',
+                                    borderRadius: '8px',
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    color: '#fff',
+                                    outline: 'none',
+                                    width: '200px',
+                                    fontSize: '13px'
+                                }}
+                            />
+                        </div>
+                    )}
+                </div>
+                {acceptedFriends.length === 0 ? (
                     <div className="cp-empty" style={{ padding: '30px', textAlign: 'center', opacity: 0.6 }}>
                         <Icon icon="mynaui:users" style={{ fontSize: '36px', marginBottom: '8px' }} />
                         <div>Aún no tienes amigos añadidos en tu lista.</div>
                     </div>
                 ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '16px' }}>
-                        {friendsList.filter(f => f.friendshipStatus === 'accepted').map(friend => (
-                            <div key={friend.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)', transition: 'transform 0.2s, background 0.2s' }} onClick={() => setSelectedUser(friend)} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }} onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}>
-                                <div style={{ position: 'relative', marginBottom: '12px' }}>
-                                    {friend.avatarUrl ? (
-                                        <img src={friend.avatarUrl} alt="" style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }} />
-                                    ) : (
-                                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <Icon icon="mynaui:user" style={{ fontSize: '32px', color: 'rgba(255,255,255,0.7)' }} />
-                                        </div>
-                                    )}
-                                    <span style={{ position: 'absolute', bottom: '2px', right: '2px', width: '14px', height: '14px', borderRadius: '50%', background: friend.status === 'online' || friend.status === 'in-game' ? '#2ec4b6' : '#6c757d', border: '3px solid #1a1a1a' }} />
-                                </div>
-                                <div style={{ textAlign: 'center' }}>
-                                    <div style={{ fontWeight: 700, fontSize: '15px', color: '#fff', transition: 'color 0.2s', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-color, #e60012)'} onMouseLeave={e => e.currentTarget.style.color = '#fff'}>{friend.username}</div>
-                                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>{friend.status === 'online' || friend.status === 'in-game' ? 'En línea' : 'Desconectado'}</div>
+                    <>
+                        {filteredFriends.length === 0 && (
+                            <div style={{ padding: '20px', textAlign: 'center', opacity: 0.6 }}>No se encontraron amigos con ese nombre.</div>
+                        )}
+
+                        {onlineFriends.length > 0 && (
+                            <div style={{ marginBottom: '24px' }}>
+                                <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.5, marginBottom: '12px' }}>En línea ({onlineFriends.length})</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '16px' }}>
+                                    {onlineFriends.map(renderFriendCard)}
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        )}
+
+                        {onlineFriends.length > 0 && offlineFriends.length > 0 && (
+                            <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '24px 0' }} />
+                        )}
+
+                        {offlineFriends.length > 0 && (
+                            <div>
+                                <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.5, marginBottom: '12px' }}>Desconectados ({offlineFriends.length})</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '16px', opacity: 0.7 }}>
+                                    {offlineFriends.map(renderFriendCard)}
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
             

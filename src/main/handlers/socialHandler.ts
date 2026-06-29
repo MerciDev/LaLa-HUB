@@ -128,7 +128,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
       // Fetch profiles
       const { data: profiles, error: profError } = await client
         .from('profiles')
-        .select('id, username, avatar_url')
+        .select('id, username, avatar_url, banner_url')
         .in('id', friendIds)
 
       if (profError) {
@@ -146,6 +146,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
           id: p.id,
           username: p.username || 'Usuario',
           avatarUrl: p.avatar_url || '',
+          bannerUrl: p.banner_url || '',
           status: presence?.status || 'offline',
           statusText: presence?.statusText || 'Desconectado',
           friendshipStatus: rel ? rel.status : 'none',
@@ -262,7 +263,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
       
       const { data: profile, error: profileError } = await client
         .from('profiles')
-        .select('id, username, avatar_url')
+        .select('id, username, avatar_url, banner_url')
         .eq('id', targetUserId)
         .single()
 
@@ -362,6 +363,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
         id: targetUserId,
         username: profile?.username || 'Usuario',
         avatarUrl: profile?.avatar_url || '',
+        bannerUrl: profile?.banner_url || '',
         status: presence?.status || 'offline',
         statusText: presence?.statusText || 'Desconectado',
         playtimes: combinedPlaytimes

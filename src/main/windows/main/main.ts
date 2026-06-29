@@ -157,7 +157,7 @@ export function mainOptionControl(actionId: string): void {
         'click-friends': () => {
             expandInfoIsland()
             changeInfoIsland('Amigos')
-            appWindow?.webContents.send('dispatch-action', { type: 'OPEN_SETTINGS_FRIENDS' })
+            appWindow?.webContents.send('dispatch-action', { type: 'OPEN_PROFILE_FRIENDS' })
         },
         'mouse-enter-friends': () => {
             expandInfoIsland()

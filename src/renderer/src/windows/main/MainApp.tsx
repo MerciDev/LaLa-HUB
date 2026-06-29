@@ -247,6 +247,7 @@ function MainApp(): React.JSX.Element {
 
     // --- Profile Page & Picker ---
     const [profilePageVisible, setProfilePageVisible] = useState(false)
+    const [profileInitialTab, setProfileInitialTab] = useState('overview')
     const [libraryPickerVisible, setLibraryPickerVisible] = useState(false)
     const [pickerTargetIndex, setPickerTargetIndex] = useState<number | null>(null)
 
@@ -781,19 +782,21 @@ function MainApp(): React.JSX.Element {
                     setSelectedSlotIndex(null)
                     window.api.movementControl.send('SET_SECTION', 'settings')
                     break
-                case 'OPEN_SETTINGS_FRIENDS':
+                case 'OPEN_PROFILE_FRIENDS':
                     sfx.open()
-                    setSettingsInitialTab('friends')
-                    pushRoute('settings')
-                    setSettingsPanelVisible(true)
+                    setProfileInitialTab('friends')
+                    pushRoute('profile')
+                    setProfilePageVisible(true)
+                    setSettingsPanelVisible(false)
                     setAddGamePanelVisible(false)
+                    setDownloadManagerVisible(false)
                     setFocusedHeader(null)
                     setSocialExpanded(false)
                     setPersonalExpanded(false)
                     setIslandWidth('56px')
                     setLastGridIndex(stateRef.current.selectedSlotIndex ?? 0)
                     setSelectedSlotIndex(null)
-                    window.api.movementControl.send('SET_SECTION', 'settings')
+                    window.api.movementControl.send('SET_SECTION', 'profile')
                     break
                 case 'GO_HOME':
                     sfx.close()
@@ -817,6 +820,7 @@ function MainApp(): React.JSX.Element {
                     break
                 case 'OPEN_PROFILE':
                     sfx.open()
+                    setProfileInitialTab('overview')
                     pushRoute('profile')
                     setPickerTargetIndex(null)
                     setProfilePageVisible(true)
@@ -1313,6 +1317,7 @@ function MainApp(): React.JSX.Element {
                         >
                             <ProfilePage
                                 visible={profilePageVisible}
+                                initialTab={profileInitialTab}
                                 authState={authState}
                                 onLogin={handleAuthSuccess}
                                 onClose={closeProfile}

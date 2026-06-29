@@ -90,23 +90,28 @@ function clearStoredSession(): void {
 async function mapUserToProfile(user: any): Promise<UserProfile> {
   let username = user.user_metadata?.username || user.email?.split('@')[0] || 'Usuario'
   let avatarUrl = user.user_metadata?.avatar_url || ''
+  let bannerUrl = ''
   let accountType = 'standard'
 
   try {
     const client = getSupabaseClient()
-    const { data } = await client.from('profiles').select('username, avatar_url, account_type').eq('id', user.id).single()
+    const { data } = await client.from('profiles').select('username, avatar_url, banner_url, account_type').eq('id', user.id).single()
     if (data) {
       if (data.account_type) accountType = data.account_type
       if (data.username) username = data.username
-      if (data.avatar_url !== undefined && data.avatar_url !== null) avatarUrl = data.avatar_url
+      if (data.avatar_url) avatarUrl = data.avatar_url
+      if (data.banner_url) bannerUrl = data.banner_url
     }
-  } catch { }
+  } catch (err: any) {
+    debugLog(`[Auth] Error fetching profile para ${user.id}: ${err.message}`)
+  }
 
   return {
     id: user.id,
     email: user.email || '',
     username,
     avatarUrl,
+    bannerUrl,
     accountType,
     createdAt: user.created_at || new Date().toISOString()
   }
@@ -207,7 +212,7 @@ export function registerAuthHandlers(mainWindow: BrowserWindow | null): void {
     if (!authState.isLoggedIn || !authState.user) return authState
     try {
       const client = getSupabaseClient()
-      const { data } = await client.from('profiles').select('username, avatar_url, account_type').eq('id', authState.user.id).single()
+      const { data } = await client.from('profiles').select('username, avatar_url, banner_url, account_type').eq('id', authState.user.id).single()
       if (data) {
         let changed = false
         if (data.account_type && data.account_type !== authState.user.accountType) {
@@ -220,6 +225,10 @@ export function registerAuthHandlers(mainWindow: BrowserWindow | null): void {
         }
         if (data.avatar_url !== undefined && data.avatar_url !== null && data.avatar_url !== authState.user.avatarUrl) {
           authState.user.avatarUrl = data.avatar_url
+          changed = true
+        }
+        if (data.banner_url !== undefined && data.banner_url !== null && data.banner_url !== authState.user.bannerUrl) {
+          authState.user.bannerUrl = data.banner_url
           changed = true
         }
         if (changed) {
@@ -248,14 +257,12 @@ export function registerAuthHandlers(mainWindow: BrowserWindow | null): void {
       const updates: any = { updated_at: new Date().toISOString() }
       if (profile.username !== undefined) updates.username = profile.username
       if (profile.avatarUrl !== undefined) updates.avatar_url = profile.avatarUrl
+      if (profile.bannerUrl !== undefined) updates.banner_url = profile.bannerUrl
 
-      const { error: dbError } = await client
-        .from('profiles')
-        .update(updates)
-        .eq('id', userId)
+      const { error: pError } = await client.from('profiles').update(updates).eq('id', userId)
 
-      if (dbError) {
-        debugLog(`[Auth] Warning: Error actualizando profiles DB: ${dbError.message}`)
+      if (pError) {
+        debugLog(`[Auth] Warning: Error actualizando profiles DB: ${pError.message}`)
       }
 
       if (authState.user) {

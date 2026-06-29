@@ -236,6 +236,7 @@ export interface UserProfile {
   email: string
   username: string
   avatarUrl?: string
+  bannerUrl?: string
   accountType?: string
   createdAt: string
 }
@@ -311,6 +312,7 @@ export interface FriendProfile {
   id: string
   username: string
   avatarUrl?: string
+  bannerUrl?: string
   status: 'online' | 'away' | 'offline'
   statusText: string
   friendshipStatus: 'pending' | 'accepted' | 'blocked' | 'none'
@@ -335,6 +337,7 @@ export interface UserPublicProfile {
   id: string
   username: string
   avatarUrl?: string
+  bannerUrl?: string
   status: 'online' | 'away' | 'offline'
   statusText: string
   playtimes: UserPlaytime[]

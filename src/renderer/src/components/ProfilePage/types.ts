@@ -2,6 +2,7 @@ import { AuthState, AuthResult, HomeSlot, InterfaceSettings, UserProfile } from 
 
 export interface ProfilePageProps {
     visible: boolean
+    initialTab?: string
     authState: AuthState
     onLogin: (result: AuthResult) => void
     onClose: () => void

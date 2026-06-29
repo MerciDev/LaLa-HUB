@@ -18,7 +18,7 @@ import FriendsTab from './tabs/FriendsTab'
 import TrophiesTab from './tabs/TrophiesTab'
 import './ProfilePage.css'
 
-function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: ProfilePageProps): React.JSX.Element {
+function ProfilePage({ visible, initialTab, authState, onLogin, onClose, onOpenAddGame }: ProfilePageProps): React.JSX.Element {
     const { showToast } = useToast()
     const { showDialog } = useDialog()
     const isLoggedIn = authState.isLoggedIn
@@ -28,7 +28,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
         (user?.accountType || '').toLowerCase()
     )
 
-    const [tab, setTab] = useState<string>('overview')
+    const [tab, setTab] = useState<string>(initialTab || 'overview')
     const [focusArea, setFocusArea] = useState<'nav' | 'content' | 'nav_close' | 'nav_save' | 'footer' | 'game-actions'>('nav')
     const [selectedIndex, setSelectedIndex] = useState(0)
     const [isInputEditing, setIsInputEditing] = useState(false)
@@ -43,6 +43,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
     const [username, setUsername] = useState('')
     const [newUsername, setNewUsername] = useState('')
     const [newAvatarUrl, setNewAvatarUrl] = useState('')
+    const [newBannerUrl, setNewBannerUrl] = useState('')
     const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
     const [syncingCloud, setSyncingCloud] = useState(false)
@@ -85,6 +86,8 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
         })
     }, [showDialog, handleDeleteGame])
 
+
+
     useEffect(() => {
         if (visible) {
             if (tab === 'library') {
@@ -101,7 +104,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                 }).catch(() => {})
             }
         }
-    }, [visible, tab])
+    }, [visible, tab, isLoggedIn])
 
     const handleSelectTheme = useCallback(async (themeId: string) => {
         sfx.confirm()
@@ -251,10 +254,10 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
     const activeTabs = isLoggedIn ? LOGGED_IN_TABS : GUEST_TABS
 
     const stateRef = useRef({
-        visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame, settings, friendsList, friendSearchQuery, friendSearchResults, isSearchingFriends
+        visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, newBannerUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame, settings, friendsList, friendSearchQuery, friendSearchResults, isSearchingFriends
     })
     useEffect(() => {
-        stateRef.current = { visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame, settings, friendsList, friendSearchQuery, friendSearchResults, isSearchingFriends }
+        stateRef.current = { visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, newBannerUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame, settings, friendsList, friendSearchQuery, friendSearchResults, isSearchingFriends }
     })
 
     useEffect(() => {
@@ -262,11 +265,12 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
             setFocusArea('nav')
             setSelectedIndex(0)
             setError(null)
-            setTab(isLoggedIn ? 'overview' : 'login')
+            setTab(initialTab || (isLoggedIn ? 'overview' : 'login'))
             if (user?.username) setNewUsername(user.username)
             if (user?.avatarUrl) setNewAvatarUrl(user.avatarUrl)
+            if (user?.bannerUrl) setNewBannerUrl(user.bannerUrl)
         }
-    }, [visible, isLoggedIn, user])
+    }, [visible, isLoggedIn, user, initialTab])
 
     useEffect(() => {
         if (visible && isLoggedIn) {
@@ -359,27 +363,23 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
         }
     }, [onLogin])
 
-    const handleUpdateProfile = useCallback(async () => {
-        const targetUsername = stateRef.current.newUsername.trim()
-        const targetAvatarUrl = stateRef.current.newAvatarUrl.trim()
-        if (!targetUsername) {
-            setError('Ingresa un nombre de usuario válido')
-            sfx.error()
-            return
-        }
+    const handleSaveProfile = useCallback(async () => {
+        sfx.confirm()
         setLoading(true)
         setError(null)
         try {
-            const updateData: { username: string; avatarUrl?: string } = { username: targetUsername }
-            if (targetAvatarUrl) updateData.avatarUrl = targetAvatarUrl
-            
-            const result = await window.api.auth.updateProfile(updateData)
-            if (result.success) {
-                sfx.confirm()
+            const updatePayload = {
+                username: stateRef.current.newUsername.trim(),
+                avatarUrl: stateRef.current.newAvatarUrl.trim(),
+                bannerUrl: (stateRef.current.newBannerUrl || '').trim()
+            }
+            const res = await window.api.auth?.updateProfile(updatePayload)
+            if (res && res.success) {
+                showToast('Perfil actualizado correctamente', 'success')
                 setTab('overview')
             } else {
-                setError(result.error || 'No se pudo actualizar el perfil')
-                sfx.error()
+                setError(res?.error || 'Error al guardar')
+                showToast(`Error al guardar: ${res?.error || 'Desconocido'}`, 'error')
             }
         } catch {
             setError('Error de conexión al actualizar el perfil')
@@ -387,7 +387,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
         } finally {
             setLoading(false)
         }
-    }, [onLogin])
+    }, [showToast])
 
     const handlePushCloud = useCallback(async () => {
         if (!hasPremiumAccess || syncingCloud) return
@@ -527,7 +527,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                 let maxCount = 2
                 if (curTab === 'overview') maxCount = 2
                 if (curTab === 'themes') maxCount = 10 + (stateRef.current.settings?.customThemes?.length || 0)
-                if (curTab === 'security') maxCount = 4
+                if (curTab === 'security') maxCount = 5
                 if (curTab === 'friends') maxCount = friendsList.length + 2
                 if (curTab === 'trophies') maxCount = 1
                 if (curTab === 'library') maxCount = totalLibItems
@@ -617,8 +617,9 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                     } else if (curTab === 'security') {
                         if (idx === 0) { sfx.confirm(); document.getElementById('profile-input-user')?.focus() }
                         else if (idx === 1) { sfx.confirm(); document.getElementById('profile-input-avatar')?.focus() }
-                        else if (idx === 2) { handleUpdateProfile() }
-                        else if (idx === 3) { handleLogout() }
+                        else if (idx === 2) { sfx.confirm(); document.getElementById('profile-input-banner')?.focus() }
+                        else if (idx === 3) { handleSaveProfile() }
+                        else if (idx === 4) { handleLogout() }
                     } else if (curTab === 'library') {
                         if (idx === 0) { if (stateRef.current.hasPremiumAccess) { sfx.confirm(); setAutoSync(prev => !prev) } else sfx.cancel() }
                         else if (idx === 1) { if (stateRef.current.hasPremiumAccess) handlePushCloud(); else sfx.cancel() }
@@ -680,7 +681,7 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
         }
         window.addEventListener('panel-move', handler as EventListener)
         return () => window.removeEventListener('panel-move', handler as EventListener)
-    }, [visible, onClose, handleAuth, handleLogout, handleUpdateProfile, filteredLibSlots])
+    }, [visible, onClose, handleAuth, handleLogout, handleSaveProfile, filteredLibSlots])
 
     useEffect(() => {
         if (focusArea !== 'content') return
@@ -761,9 +762,11 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                         error={error}
                         newUsername={newUsername}
                         newAvatarUrl={newAvatarUrl}
+                        newBannerUrl={newBannerUrl}
                         onUsernameChange={setNewUsername}
                         onAvatarUrlChange={setNewAvatarUrl}
-                        onSave={handleUpdateProfile}
+                        onBannerUrlChange={setNewBannerUrl}
+                        onSave={handleSaveProfile}
                         onLogout={handleLogout}
                     />
                 )}
