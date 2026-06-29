@@ -48,18 +48,41 @@ function SecurityTab({ focusArea, selectedIndex, isFocused, user, loading, error
                 )}
 
                 <div className="profile-field-group">
-                    <label className="profile-field-label">URL de Imagen de Perfil</label>
-                    <div className={`profile-input-wrap ${isFocused('content', 1) ? 'focused' : ''}`}>
-                        <input
-                            id="profile-input-avatar"
-                            className="profile-input"
-                            type="text"
-                            value={newAvatarUrl}
-                            onChange={e => onAvatarUrlChange(e.target.value)}
-                            placeholder="Ej: https://.../avatar.png o media://..."
-                            onFocus={() => {}}
-                        />
-                        <Icon icon="mynaui:image" className="profile-input-icon" />
+                    <label className="profile-field-label">URL o Archivo de Imagen de Perfil</label>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <div className={`profile-input-wrap ${isFocused('content', 1) ? 'focused' : ''}`} style={{ flex: 1, marginBottom: 0 }}>
+                            <input
+                                id="profile-input-avatar"
+                                className="profile-input"
+                                type="text"
+                                value={newAvatarUrl}
+                                onChange={e => onAvatarUrlChange(e.target.value)}
+                                placeholder="Ej: https://.../avatar.png o media://..."
+                                onFocus={() => {}}
+                            />
+                            <Icon icon="mynaui:image" className="profile-input-icon" />
+                        </div>
+                        <label className="profile-btn profile-btn--secondary" style={{ margin: 0, padding: '0 15px', height: '42px', display: 'flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                            <Icon icon="mynaui:upload" style={{ marginRight: '8px' }} />
+                            Subir
+                            <input
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        const reader = new FileReader();
+                                        reader.onload = (event) => {
+                                            if (event.target?.result) {
+                                                onAvatarUrlChange(event.target.result as string);
+                                            }
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }
+                                }}
+                            />
+                        </label>
                     </div>
                 </div>
 

@@ -37,15 +37,23 @@ function loadStoredSession(): void {
         Promise.resolve().then(() => {
           try {
             const client = getSupabaseClient()
-            return client.auth.refreshSession({ refresh_token: stored.refreshToken })
-              .then(({ data }) => {
-                if (data.session) {
+            debugLog('[Auth] Solicitando refreshSession a Supabase...')
+            const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout de 10s en refreshSession')), 10000))
+            return Promise.race([client.auth.refreshSession({ refresh_token: stored.refreshToken }), timeout])
+              .then((result: any) => {
+                const { data } = result
+                debugLog('[Auth] Respuesta de refreshSession recibida.')
+                if (data?.session) {
                   setSession(data.session)
                   persistSession(stored.user) // Update token on disk if it changed
                   debugLog('[Auth] Sesión de Supabase restaurada con token')
 
                   try {
                     import('../utils/syncEngine').then(({ triggerSync }) => triggerSync()).catch(() => {})
+                  } catch { }
+
+                  try {
+                    import('../utils/playtime').then(({ syncAllPlaytimesToCloud }) => syncAllPlaytimesToCloud()).catch(() => {})
                   } catch { }
 
                   try {
@@ -124,6 +132,11 @@ export function registerAuthHandlers(mainWindow: BrowserWindow | null): void {
       try {
         const { triggerSync } = await import('../utils/syncEngine')
         triggerSync()
+      } catch { }
+
+      try {
+        const { syncAllPlaytimesToCloud } = await import('../utils/playtime')
+        syncAllPlaytimesToCloud()
       } catch { }
 
       try {

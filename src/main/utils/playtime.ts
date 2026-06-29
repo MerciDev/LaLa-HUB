@@ -4,6 +4,7 @@ import { debugLog } from './debug'
 import { setActivity } from './discord'
 import { showMainWindow } from '../windows/main/main'
 import { pushSaveToCloud } from './cloudSaves'
+import { getAuthenticatedClient, getUserId, isOnline } from './supabase'
 
 export interface PlaySession {
     slotId: string
@@ -66,6 +67,72 @@ function endPlaySession(slotId: string): void {
     }
 }
 
+async function syncPlaytimeToCloud(slot: any, totalMinutes: number): Promise<void> {
+    if (!isOnline()) {
+        debugLog(`[Playtime] No hay conexión a internet, saltando sync de tiempo.`)
+        return;
+    }
+    const userId = getUserId()
+    if (!userId) {
+        debugLog(`[Playtime] No hay sesión activa (userId nulo), saltando sync de tiempo.`)
+        return;
+    }
+    const client = await getAuthenticatedClient()
+    if (!client) return;
+
+    try {
+        const { error } = await client.from('playtime').upsert({
+            user_id: userId,
+            slot_id: slot.id,
+            game_name: slot.game?.name || slot.label,
+            platform: slot.game?.platform?.name || slot.game?.emulator?.name || 'PC',
+            minutes: totalMinutes,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id, slot_id' })
+        
+        if (error) {
+            debugLog(`[Playtime] Error syncing to cloud: ${error.message}`)
+        } else {
+            debugLog(`[Playtime] Synced cloud record for ${slot.label}`)
+        }
+    } catch (err: any) {
+        debugLog(`[Playtime] Cloud sync exception: ${err.message}`)
+    }
+}
+
+export async function syncAllPlaytimesToCloud(): Promise<void> {
+    if (!isOnline()) return;
+    const userId = getUserId()
+    if (!userId) return;
+    const client = await getAuthenticatedClient()
+    if (!client) return;
+
+    const slots = loadSlots()
+    const recordsToSync = slots.filter(s => s.game && (s.game.playtimeMinutes || 0) > 0)
+    if (recordsToSync.length === 0) return;
+
+    try {
+        const payload = recordsToSync.map(slot => ({
+            user_id: userId,
+            slot_id: slot.id,
+            game_name: slot.game?.name || slot.label,
+            platform: slot.game?.platform?.name || slot.game?.emulator?.name || 'PC',
+            minutes: slot.game!.playtimeMinutes,
+            updated_at: new Date().toISOString()
+        }))
+
+        const { error } = await client.from('playtime').upsert(payload, { onConflict: 'user_id, slot_id' })
+        
+        if (error) {
+            debugLog(`[Playtime] Error en sync masivo a la nube: ${error.message}`)
+        } else {
+            debugLog(`[Playtime] Sync masivo a la nube completado (${recordsToSync.length} juegos)`)
+        }
+    } catch (err: any) {
+        debugLog(`[Playtime] Excepción en sync masivo: ${err.message}`)
+    }
+}
+
 function persistPlaytime(slotId: string, minutes: number): void {
     const slots = loadSlots()
     const slot = slots.find(s => s.id === slotId)
@@ -83,6 +150,10 @@ function persistPlaytime(slotId: string, minutes: number): void {
         debugLog(`[Playtime] Triggering cloud sync push for ${slot.label}...`)
         pushSaveToCloud(slot).catch(() => {})
     }
+    
+    syncPlaytimeToCloud(slot, slot.game.playtimeMinutes).catch((err) => {
+        debugLog(`[Playtime] Error starting cloud sync: ${err.message || err}`)
+    })
 }
 
 /** Returns the active session for a slot, or undefined if not playing. */

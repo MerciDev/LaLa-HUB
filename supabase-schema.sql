@@ -82,6 +82,8 @@ CREATE POLICY "Users can delete own slots"
 CREATE TABLE IF NOT EXISTS public.playtime (
   slot_id TEXT NOT NULL,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  game_name TEXT,
+  platform TEXT,
   minutes INTEGER DEFAULT 0,
   updated_at TIMESTAMPTZ DEFAULT now(),
   PRIMARY KEY (user_id, slot_id)

@@ -96,7 +96,7 @@ function OverviewTab({ focusArea, selectedIndex, isFocused, user, hasPremiumAcce
                         onClick={() => { sfx.confirm(); onOpenSecurity() }}
                     >
                         <Icon icon="mynaui:edit-pencil" />
-                        Editar Nombre de Usuario
+                        Editar Nombre y Avatar
                     </button>
                     <button
                         className={`profile-btn profile-btn--secondary ${isFocused('content', 1) ? 'focused' : ''}`}

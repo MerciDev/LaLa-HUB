@@ -54,16 +54,23 @@ export function getUserId(): string | null {
 }
 
 export function isOnline(): boolean {
-  return navigator?.onLine ?? true
+  if (typeof navigator !== 'undefined') {
+    return navigator.onLine ?? true
+  }
+  return true
 }
 
 export async function refreshSession(): Promise<boolean> {
   try {
     const client = getSupabaseClient()
-    const { data, error } = await client.auth.refreshSession()
+    debugLog('[Supabase] Refreshing session...')
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout en refreshSession')), 10000))
+    const result: any = await Promise.race([client.auth.refreshSession(), timeout])
+    const { data, error } = result
     if (error) throw error
-    if (data.session) {
+    if (data?.session) {
       currentSession = data.session
+      debugLog('[Supabase] Session refreshed successfully.')
       return true
     }
     return false
