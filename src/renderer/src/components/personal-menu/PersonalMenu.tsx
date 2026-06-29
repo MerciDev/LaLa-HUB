@@ -102,7 +102,7 @@ function PersonalMenu({
                             key={icon.id}
                             ref={hasExtraData ? profileRef : null}
                             className={`icon-button ${focused ? 'focused' : ''} ${hasExtraData ? 'icon-button--profile' : ''}`}
-                            style={hasExtraData && sideWidth > 0 ? { minWidth: `${Math.max(sideWidth, 120)}px` } : {}}
+                            style={hasExtraData ? { minWidth: sideWidth > 0 ? `${Math.max(sideWidth, 240)}px` : '240px' } : {}}
                             title={icon.label}
                             onMouseEnter={() => icon.onMouseEnter && (window as any).api?.mainOptionControl(icon.onMouseEnter)}
                             onMouseLeave={() => icon.onMouseLeave && (window as any).api?.mainOptionControl(icon.onMouseLeave)}

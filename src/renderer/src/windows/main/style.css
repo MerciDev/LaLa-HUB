@@ -572,7 +572,7 @@ body {
 }
 
 .mainOptions {
-  max-width: 500px;
+  max-width: 650px;
   min-width: 60px;
   width: fit-content;
   overflow: visible;
@@ -717,7 +717,7 @@ body {
 /* ── Friends Stack ────────────────────────────────── */
 .icon-button--friends {
   width: auto !important;
-  min-width: 40px;
+  min-width: 240px !important;
   height: 40px !important;
   padding: 2px 12px 2px 4px !important;
   background: rgba(255, 255, 255, 0.03) !important;
@@ -775,6 +775,8 @@ body {
   gap: 0px;
   overflow: visible;
   text-align: left;
+  flex: 1;
+  min-width: 0;
 }
 
 .friends-label {

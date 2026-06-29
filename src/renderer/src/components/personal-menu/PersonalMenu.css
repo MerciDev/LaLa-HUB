@@ -14,7 +14,7 @@
   justify-content: flex-start;
   gap: 0;
 
-  max-width: 500px;
+  max-width: 650px;
   min-width: 52px;
   width: fit-content;
   padding: 4px;
@@ -81,7 +81,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 120px;
+  min-width: 240px;
   height: 40px;
   padding: 2px 4px 2px 14px;
 

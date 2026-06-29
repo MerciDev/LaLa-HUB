@@ -123,7 +123,7 @@ function NavigationHeader({
                                 key={icon.id}
                                 ref={hasFriends ? friendsRef : null}
                                 className={`icon-button ${focused ? 'focused' : ''} ${hasFriends ? 'icon-button--friends' : ''}`}
-                                style={hasFriends && sideWidth > 0 ? { minWidth: `${sideWidth}px` } : {}}
+                                style={hasFriends ? { minWidth: sideWidth > 0 ? `${Math.max(sideWidth, 240)}px` : '240px' } : {}}
                                 title={icon.label}
                                 onMouseEnter={() => icon.onMouseEnter && window.api.mainOptionControl(icon.onMouseEnter)}
                                 onMouseLeave={() => icon.onMouseLeave && window.api.mainOptionControl(icon.onMouseLeave)}
