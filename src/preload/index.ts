@@ -292,6 +292,8 @@ const api = {
       ipcRenderer.invoke('social-remove-friend', friendshipId),
     getUserProfile: (userId: string): Promise<{ success: boolean; data?: import('../shared/types').UserPublicProfile; error?: string }> =>
       ipcRenderer.invoke('social-get-user-profile', userId),
+    renewFriendCode: (): Promise<{ success: boolean; friendCode?: string; error?: string }> =>
+      ipcRenderer.invoke('social-renew-friend-code'),
     updatePresence: (status: 'online' | 'away' | 'offline', statusText: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('social-update-presence', status, statusText),
     onPresenceUpdate: (callback: (presence: import('../shared/types').PresenceState[]) => void): (() => void) => {

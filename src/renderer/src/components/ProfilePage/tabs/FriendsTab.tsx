@@ -28,6 +28,7 @@ function FriendsTab({
 }: FriendsTabProps) {
     const [selectedUser, setSelectedUser] = useState<any | null>(null)
     const [localFriendSearch, setLocalFriendSearch] = useState('')
+    const [showAddModal, setShowAddModal] = useState(false)
 
     const isFriend = (userId: string) => friendsList.some(f => f.id === userId)
     const friendStatus = (userId: string) => friendsList.find(f => f.id === userId)?.friendshipStatus
@@ -60,57 +61,6 @@ function FriendsTab({
 
     return (
         <div className="cp-section">
-            <form onSubmit={onSearch} className="cp-form" style={{ background: 'transparent', border: 'none', padding: 0, marginBottom: '24px' }}>
-                <div className="cp-form__title" style={{ marginBottom: '12px' }}>Añadir amigos</div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <input type="text" placeholder="Buscar por nombre de usuario..."
-                           value={friendSearchQuery}
-                           onChange={e => { onSearchQueryChange(e.target.value) }}
-                           style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', outline: 'none' }} />
-                    <button type="submit" disabled={isSearchingFriends}
-                            style={{ padding: '10px 16px', borderRadius: '8px', background: 'var(--accent-color, #e60012)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
-                        {isSearchingFriends ? 'Buscando...' : 'Buscar'}
-                    </button>
-                </div>
-            </form>
-
-            {friendSearchMessage && (
-                <div style={{ padding: '12px 16px', background: 'rgba(255, 183, 3, 0.1)', border: '1px solid rgba(255, 183, 3, 0.3)', borderRadius: '8px', color: '#ffb703', marginBottom: '20px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Icon icon="mynaui:info-circle" style={{ fontSize: '18px', flexShrink: 0 }} />
-                    <span>{friendSearchMessage}</span>
-                </div>
-            )}
-
-            {friendSearchResults.length > 0 && (
-                <div style={{ marginBottom: '24px' }}>
-                    <div className="cp-form__title" style={{ marginBottom: '12px' }}>Resultados de búsqueda</div>
-                    <ul className="cp-list">
-                        {friendSearchResults.map(user => (
-                            <li key={user.id} className="cp-list-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '8px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => setSelectedUser(user)}>
-                                    {user.avatarUrl ? (
-                                        <img src={user.avatarUrl} alt="" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
-                                    ) : (
-                                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <Icon icon="mynaui:user" style={{ fontSize: '20px', color: 'rgba(255,255,255,0.7)' }} />
-                                        </div>
-                                    )}
-                                    <div>
-                                        <div className="cp-list__item-name" style={{ transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-color, #e60012)'} onMouseLeave={e => e.currentTarget.style.color = ''}>{user.username}</div>
-                                    </div>
-                                </div>
-                                <button
-                                    disabled={isFriend(user.id)}
-                                    onClick={() => onSendFriendRequest(user.id)}
-                                    style={{ padding: '6px 12px', borderRadius: '6px', background: isFriend(user.id) ? 'transparent' : 'rgba(255,255,255,0.1)', color: isFriend(user.id) ? 'rgba(255,255,255,0.5)' : '#fff', border: 'none', cursor: isFriend(user.id) ? 'default' : 'pointer', fontSize: '13px' }}>
-                                    {friendStatus(user.id) === 'accepted' ? 'Amigos' : isFriend(user.id) ? 'Pendiente' : 'Enviar solicitud'}
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-
             {friendsList.filter(f => f.friendshipStatus === 'pending').length > 0 && (
                 <div style={{ marginBottom: '24px' }}>
                     <div className="cp-form__title" style={{ marginBottom: '12px', color: '#ffb703' }}>Solicitudes pendientes</div>
@@ -151,27 +101,51 @@ function FriendsTab({
             <div>
                 <div className="cp-form__title" style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Mis Amigos ({friendsList.filter(f => f.friendshipStatus === 'accepted').length})</span>
-                    {friendsList.filter(f => f.friendshipStatus === 'accepted').length > 0 && (
-                        <div style={{ position: 'relative' }}>
-                            <Icon icon="mynaui:search" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)', fontSize: '18px' }} />
-                            <input
-                                type="text"
-                                placeholder="Filtrar amigos..."
-                                value={localFriendSearch}
-                                onChange={e => setLocalFriendSearch(e.target.value)}
-                                style={{
-                                    padding: '8px 14px 8px 36px',
-                                    borderRadius: '8px',
-                                    background: 'rgba(255,255,255,0.05)',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    color: '#fff',
-                                    outline: 'none',
-                                    width: '200px',
-                                    fontSize: '13px'
-                                }}
-                            />
-                        </div>
-                    )}
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        {friendsList.filter(f => f.friendshipStatus === 'accepted').length > 0 && (
+                            <div style={{ position: 'relative' }}>
+                                <Icon icon="mynaui:search" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)', fontSize: '18px' }} />
+                                <input
+                                    type="text"
+                                    placeholder="Filtrar amigos..."
+                                    value={localFriendSearch}
+                                    onChange={e => setLocalFriendSearch(e.target.value)}
+                                    style={{
+                                        padding: '8px 14px 8px 36px',
+                                        borderRadius: '8px',
+                                        background: 'rgba(255,255,255,0.05)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        color: '#fff',
+                                        outline: 'none',
+                                        width: '180px',
+                                        fontSize: '13px'
+                                    }}
+                                />
+                            </div>
+                        )}
+                        <button
+                            onClick={() => setShowAddModal(true)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 14px',
+                                borderRadius: '8px',
+                                background: 'var(--accent-color, #e60012)',
+                                color: '#fff',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                                fontSize: '13px',
+                                transition: 'transform 0.2s, opacity 0.2s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                        >
+                            <Icon icon="mynaui:user-plus" style={{ fontSize: '16px' }} />
+                            <span>Añadir amigo</span>
+                        </button>
+                    </div>
                 </div>
                 {acceptedFriends.length === 0 ? (
                     <div className="cp-empty" style={{ padding: '30px', textAlign: 'center', opacity: 0.6 }}>
@@ -211,6 +185,74 @@ function FriendsTab({
             
             {selectedUser && (
                 <UserProfileModal user={selectedUser} onClose={() => setSelectedUser(null)} />
+            )}
+
+            {showAddModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                    <div style={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '24px', width: '90%', maxWidth: '480px', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#fff' }}>Añadir nuevos amigos</h3>
+                            <button onClick={() => setShowAddModal(false)} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '20px', display: 'flex', alignItems: 'center' }}>
+                                <Icon icon="mynaui:x" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={onSearch} style={{ marginBottom: '20px' }}>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <input type="text" placeholder="Buscar por código (ej: #7X9K-2M4P) o usuario..."
+                                       value={friendSearchQuery}
+                                       onChange={e => { onSearchQueryChange(e.target.value) }}
+                                       style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', outline: 'none' }} />
+                                <button type="submit" disabled={isSearchingFriends}
+                                        style={{ padding: '10px 16px', borderRadius: '8px', background: 'var(--accent-color, #e60012)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                                    {isSearchingFriends ? 'Buscando...' : 'Buscar'}
+                                </button>
+                            </div>
+                        </form>
+
+                        {friendSearchMessage && (
+                            <div style={{ padding: '12px 16px', background: 'rgba(255, 183, 3, 0.1)', border: '1px solid rgba(255, 183, 3, 0.3)', borderRadius: '8px', color: '#ffb703', marginBottom: '20px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Icon icon="mynaui:info-circle" style={{ fontSize: '18px', flexShrink: 0 }} />
+                                <span>{friendSearchMessage}</span>
+                            </div>
+                        )}
+
+                        {friendSearchResults.length > 0 ? (
+                            <div>
+                                <div style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.7)', marginBottom: '12px' }}>Resultados</div>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                    {friendSearchResults.map(user => (
+                                        <li key={user.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '8px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => setSelectedUser(user)}>
+                                                {user.avatarUrl ? (
+                                                    <img src={user.avatarUrl} alt="" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
+                                                ) : (
+                                                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <Icon icon="mynaui:user" style={{ fontSize: '20px', color: 'rgba(255,255,255,0.7)' }} />
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <div style={{ fontWeight: 600, color: '#fff', transition: 'color 0.2s' }}>{user.username}</div>
+                                                    {user.friendCode && <div style={{ fontSize: '11px', color: 'var(--accent-color, #e60012)', fontFamily: 'monospace', fontWeight: 600 }}>{user.friendCode}</div>}
+                                                </div>
+                                            </div>
+                                            <button
+                                                disabled={isFriend(user.id)}
+                                                onClick={() => onSendFriendRequest(user.id)}
+                                                style={{ padding: '6px 12px', borderRadius: '6px', background: isFriend(user.id) ? 'transparent' : 'rgba(255,255,255,0.1)', color: isFriend(user.id) ? 'rgba(255,255,255,0.5)' : '#fff', border: 'none', cursor: isFriend(user.id) ? 'default' : 'pointer', fontSize: '13px' }}>
+                                                {friendStatus(user.id) === 'accepted' ? 'Amigos' : isFriend(user.id) ? 'Pendiente' : 'Enviar solicitud'}
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '20px', opacity: 0.5, fontSize: '13px' }}>
+                                Escribe un código de amigo o nombre de usuario para buscar.
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     )

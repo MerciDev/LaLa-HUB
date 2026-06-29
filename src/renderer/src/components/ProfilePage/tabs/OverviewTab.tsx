@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Icon } from '@iconify/react'
 import { UserProfile } from '../../../../../shared/types'
 import { sfx } from '../../../utils/audioManager'
@@ -11,6 +11,30 @@ interface OverviewTabProps extends TabSharedProps {
 }
 
 function OverviewTab({ focusArea, selectedIndex, isFocused, user, hasPremiumAccess, onOpenSecurity, onLogout, loading }: OverviewTabProps) {
+    const [copied, setCopied] = useState(false)
+    const [renewing, setRenewing] = useState(false)
+    const [showCode, setShowCode] = useState(false)
+
+    const handleCopy = () => {
+        if (!user?.friendCode) return
+        navigator.clipboard.writeText(user.friendCode)
+        sfx.confirm()
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+    }
+
+    const handleRenew = async () => {
+        if (confirm('¿Estás seguro de que deseas renovar tu código de amigo? El código anterior dejará de funcionar.')) {
+            sfx.confirm()
+            setRenewing(true)
+            const res = await window.api.social.renewFriendCode()
+            if (res.success) {
+                await window.api.auth.refreshProfile()
+            }
+            setRenewing(false)
+        }
+    }
+
     return (
         <div className="profile-container">
             <div className="profile-hero-card">
@@ -29,6 +53,23 @@ function OverviewTab({ focusArea, selectedIndex, isFocused, user, hasPremiumAcce
                 </div>
                 <div className="profile-user-details">
                     <h2 className="profile-user-name">{user?.username || 'Gamer'}</h2>
+                    {user?.friendCode && (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: '20px', margin: '6px 0', fontSize: '13px', fontWeight: 600, color: '#fff', border: '1px solid rgba(255,255,255,0.15)' }}>
+                            <span style={{ fontFamily: 'monospace', letterSpacing: showCode ? '0px' : '2px' }}>Código: {showCode ? user.friendCode : '••••-••••'}</span>
+                            <button onClick={() => { setShowCode(!showCode); sfx.navigate() }} title={showCode ? 'Ocultar código' : 'Mostrar código'} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '2px' }}>
+                                <Icon icon={showCode ? 'mynaui:eye-slash' : 'mynaui:eye'} style={{ fontSize: '16px' }} />
+                            </button>
+                            <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
+                            <button onClick={handleCopy} title="Copiar código" style={{ background: 'transparent', border: 'none', color: copied ? '#2ec4b6' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '2px', gap: '4px' }}>
+                                <Icon icon={copied ? 'mynaui:check' : 'mynaui:copy'} style={{ fontSize: '16px' }} />
+                                {copied && <span style={{ fontSize: '11px', color: '#2ec4b6' }}>Copiado</span>}
+                            </button>
+                            <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
+                            <button onClick={handleRenew} disabled={renewing} title="Renovar código de amigo" style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: renewing ? 'default' : 'pointer', display: 'flex', alignItems: 'center', padding: '2px', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.6)'}>
+                                <Icon icon="mynaui:refresh" style={{ fontSize: '16px', animation: renewing ? 'spin 1s linear infinite' : 'none' }} />
+                            </button>
+                        </div>
+                    )}
                     <span className="profile-user-email">
                         <Icon icon="mynaui:mail" />
                         {user?.email || 'sin-correo@lalahub.app'}

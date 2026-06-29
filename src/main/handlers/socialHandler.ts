@@ -2,7 +2,7 @@ import { ipcMain, BrowserWindow } from 'electron'
 import { getSupabaseClient, getUserId } from '../utils/supabase'
 import { debugLog, debugError } from '../utils/debug'
 import { FriendProfile, PresenceState } from '../../shared/types'
-import { getAuthState } from './authHandler'
+import { getAuthState, generateRandomFriendCode } from './authHandler'
 
 let presenceChannel: any = null
 let presenceStates: Record<string, PresenceState> = {}
@@ -128,7 +128,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
       // Fetch profiles
       const { data: profiles, error: profError } = await client
         .from('profiles')
-        .select('id, username, avatar_url, banner_url')
+        .select('id, username, avatar_url, banner_url, friend_code')
         .in('id', friendIds)
 
       if (profError) {
@@ -145,6 +145,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
         return {
           id: p.id,
           username: p.username || 'Usuario',
+          friendCode: p.friend_code || '',
           avatarUrl: p.avatar_url || '',
           bannerUrl: p.banner_url || '',
           status: presence?.status || 'offline',
@@ -170,8 +171,8 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
       const client = getSupabaseClient()
       const { data, error } = await client
         .from('profiles')
-        .select('id, username, avatar_url')
-        .ilike('username', `%${query}%`)
+        .select('id, username, avatar_url, friend_code')
+        .or(`username.ilike.%${query}%,friend_code.ilike.%${query}%`)
         .neq('id', userId)
         .limit(10)
 
@@ -185,6 +186,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
       const mapped = (data || []).map(u => ({
         id: u.id,
         username: u.username || 'Usuario',
+        friendCode: u.friend_code || '',
         avatarUrl: u.avatar_url || ''
       }))
       return { success: true, data: mapped }
@@ -263,7 +265,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
       
       const { data: profile, error: profileError } = await client
         .from('profiles')
-        .select('id, username, avatar_url, banner_url')
+        .select('id, username, avatar_url, banner_url, friend_code')
         .eq('id', targetUserId)
         .single()
 
@@ -362,6 +364,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
       const result = {
         id: targetUserId,
         username: profile?.username || 'Usuario',
+        friendCode: profile?.friend_code || '',
         avatarUrl: profile?.avatar_url || '',
         bannerUrl: profile?.banner_url || '',
         status: presence?.status || 'offline',
@@ -374,6 +377,26 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
       return { success: true, data: result }
     } catch (err: any) {
       console.error(`[Social Debug] Error general en social-get-user-profile:`, err)
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('social-renew-friend-code', async (): Promise<{ success: boolean; friendCode?: string; error?: string }> => {
+    const userId = getUserId()
+    if (!userId) return { success: false, error: 'No autenticado' }
+    try {
+      const client = getSupabaseClient()
+      const newCode = generateRandomFriendCode()
+      const { error } = await client.from('profiles').update({ friend_code: newCode }).eq('id', userId)
+      if (error) throw error
+
+      const authState = getAuthState()
+      if (authState.user) {
+        authState.user.friendCode = newCode
+      }
+      return { success: true, friendCode: newCode }
+    } catch (err: any) {
+      debugError(`[Social] Error renovando código de amigo: ${err.message}`)
       return { success: false, error: err.message }
     }
   })

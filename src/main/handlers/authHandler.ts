@@ -87,20 +87,36 @@ function clearStoredSession(): void {
   } catch { }
 }
 
+export function generateRandomFriendCode(): string {
+  const chars = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+  let p1 = ''
+  let p2 = ''
+  for (let i = 0; i < 4; i++) p1 += chars.charAt(Math.floor(Math.random() * chars.length))
+  for (let i = 0; i < 4; i++) p2 += chars.charAt(Math.floor(Math.random() * chars.length))
+  return `#${p1}-${p2}`
+}
+
 async function mapUserToProfile(user: any): Promise<UserProfile> {
   let username = user.user_metadata?.username || user.email?.split('@')[0] || 'Usuario'
   let avatarUrl = user.user_metadata?.avatar_url || ''
   let bannerUrl = ''
   let accountType = 'standard'
+  let friendCode = ''
 
   try {
     const client = getSupabaseClient()
-    const { data } = await client.from('profiles').select('username, avatar_url, banner_url, account_type').eq('id', user.id).single()
+    const { data } = await client.from('profiles').select('username, avatar_url, banner_url, account_type, friend_code').eq('id', user.id).single()
     if (data) {
       if (data.account_type) accountType = data.account_type
       if (data.username) username = data.username
       if (data.avatar_url) avatarUrl = data.avatar_url
       if (data.banner_url) bannerUrl = data.banner_url
+      if (data.friend_code) {
+        friendCode = data.friend_code
+      } else {
+        friendCode = generateRandomFriendCode()
+        await client.from('profiles').update({ friend_code: friendCode }).eq('id', user.id)
+      }
     }
   } catch (err: any) {
     debugLog(`[Auth] Error fetching profile para ${user.id}: ${err.message}`)
@@ -110,6 +126,7 @@ async function mapUserToProfile(user: any): Promise<UserProfile> {
     id: user.id,
     email: user.email || '',
     username,
+    friendCode,
     avatarUrl,
     bannerUrl,
     accountType,
@@ -212,9 +229,18 @@ export function registerAuthHandlers(mainWindow: BrowserWindow | null): void {
     if (!authState.isLoggedIn || !authState.user) return authState
     try {
       const client = getSupabaseClient()
-      const { data } = await client.from('profiles').select('username, avatar_url, banner_url, account_type').eq('id', authState.user.id).single()
+      const { data } = await client.from('profiles').select('username, avatar_url, banner_url, account_type, friend_code').eq('id', authState.user.id).single()
       if (data) {
         let changed = false
+        if (!data.friend_code) {
+          const newCode = generateRandomFriendCode()
+          await client.from('profiles').update({ friend_code: newCode }).eq('id', authState.user.id)
+          authState.user.friendCode = newCode
+          changed = true
+        } else if (data.friend_code !== authState.user.friendCode) {
+          authState.user.friendCode = data.friend_code
+          changed = true
+        }
         if (data.account_type && data.account_type !== authState.user.accountType) {
           authState.user.accountType = data.account_type
           changed = true

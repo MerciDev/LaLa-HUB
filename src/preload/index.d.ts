@@ -164,6 +164,8 @@ export interface API {
     sendFriendRequest: (friendId: string) => Promise<{ success: boolean; error?: string }>
     acceptFriendRequest: (friendId: string) => Promise<{ success: boolean; error?: string }>
     removeFriend: (friendshipId: string) => Promise<{ success: boolean; error?: string }>
+    getUserProfile: (userId: string) => Promise<{ success: boolean; data?: any; error?: string }>
+    renewFriendCode: () => Promise<{ success: boolean; friendCode?: string; error?: string }>
     updatePresence: (status: 'online' | 'away' | 'offline', statusText: string) => Promise<{ success: boolean; error?: string }>
     onPresenceUpdate: (callback: (presence: import('../shared/types').PresenceState[]) => void) => () => void
   }

@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Icon } from '@iconify/react'
+import { sfx } from '../../../utils/audioManager'
 import { TabSharedProps } from '../types'
 
 interface SecurityTabProps extends TabSharedProps {
@@ -15,6 +16,29 @@ interface SecurityTabProps extends TabSharedProps {
 
 function SecurityTab({ focusArea, selectedIndex, isFocused, user, loading, error, newUsername, newAvatarUrl, newBannerUrl, onUsernameChange, onAvatarUrlChange, onBannerUrlChange, onSave, onLogout }: SecurityTabProps) {
     const isStandard = !user?.accountType || user.accountType === 'standard'
+    const [copied, setCopied] = useState(false)
+    const [renewing, setRenewing] = useState(false)
+    const [showCode, setShowCode] = useState(false)
+
+    const handleCopy = () => {
+        if (!user?.friendCode) return
+        navigator.clipboard.writeText(user.friendCode)
+        sfx.confirm()
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+    }
+
+    const handleRenew = async () => {
+        if (confirm('¿Estás seguro de que deseas renovar tu código de amigo? El código anterior dejará de funcionar.')) {
+            sfx.confirm()
+            setRenewing(true)
+            const res = await window.api.social.renewFriendCode()
+            if (res.success) {
+                await window.api.auth.refreshProfile()
+            }
+            setRenewing(false)
+        }
+    }
     
     // Parse gradient if present
     const isGradient = newBannerUrl?.startsWith('linear-gradient')
@@ -57,6 +81,26 @@ function SecurityTab({ focusArea, selectedIndex, isFocused, user, loading, error
                             onFocus={() => {}}
                         />
                         <Icon icon="mynaui:user" className="profile-input-icon" />
+                    </div>
+                </div>
+
+                <div className="profile-field-group" style={{ marginTop: '16px' }}>
+                    <label className="profile-field-label">Código de Amigo Único</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.04)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, color: '#fff', flex: 1, letterSpacing: showCode ? '1px' : '3px' }}>{showCode ? (user?.friendCode || 'No generado') : '••••-••••'}</span>
+                        <button onClick={() => { setShowCode(!showCode); sfx.navigate() }} type="button" title={showCode ? 'Ocultar código' : 'Mostrar código'} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }}>
+                            <Icon icon={showCode ? 'mynaui:eye-slash' : 'mynaui:eye'} style={{ fontSize: '18px' }} />
+                        </button>
+                        {user?.friendCode && (
+                            <button onClick={handleCopy} type="button" style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: copied ? '#2ec4b6' : '#fff', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}>
+                                <Icon icon={copied ? 'mynaui:check' : 'mynaui:copy'} style={{ fontSize: '16px' }} />
+                                <span>{copied ? 'Copiado' : 'Copiar'}</span>
+                            </button>
+                        )}
+                        <button onClick={handleRenew} disabled={renewing} type="button" style={{ background: 'rgba(230,0,18,0.2)', border: '1px solid rgba(230,0,18,0.4)', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: renewing ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}>
+                            <Icon icon="mynaui:refresh" style={{ fontSize: '16px', animation: renewing ? 'spin 1s linear infinite' : 'none' }} />
+                            <span>{renewing ? 'Renovando...' : 'Renovar Código'}</span>
+                        </button>
                     </div>
                 </div>
 

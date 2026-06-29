@@ -235,6 +235,7 @@ export interface UserProfile {
   id: string
   email: string
   username: string
+  friendCode?: string
   avatarUrl?: string
   bannerUrl?: string
   accountType?: string
@@ -311,6 +312,7 @@ export interface DownloadProgress {
 export interface FriendProfile {
   id: string
   username: string
+  friendCode?: string
   avatarUrl?: string
   bannerUrl?: string
   status: 'online' | 'away' | 'offline'
