@@ -4,6 +4,8 @@ export const LOGGED_IN_TABS: ConsolePanelTab[] = [
     { id: 'overview', label: 'Vista General', icon: 'mynaui:user', description: 'Tu tarjeta de jugador y estado en la nube' },
     { id: 'themes', label: 'Gestor de Temas', icon: 'mdi:paint-outline', description: 'Personaliza colores, estilos y temas visuales de la aplicación' },
     { id: 'security', label: 'Cuenta y Seguridad', icon: 'mynaui:shield-check', description: 'Personaliza tu identidad o gestiona tu sesión activa' },
+    { id: 'friends', label: 'Amigos', icon: 'mynaui:users', description: 'Lista de amigos y gestión de solicitudes' },
+    { id: 'trophies', label: 'Logros', icon: 'material-symbols:star-outline-rounded', description: 'Próximamente — Logros desbloqueados' },
     { id: 'library', label: 'Gestionar Biblioteca', icon: 'mynaui:folder', description: 'Opciones de sincronización y descubrimiento de juegos' }
 ]
 

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Icon } from '@iconify/react'
-import { AuthResult, HomeSlot, InterfaceSettings, AppTheme } from '../../../../shared/types'
-import { sfx } from '../utils/audioManager'
+import { AuthResult, HomeSlot, InterfaceSettings, AppTheme, FriendProfile, UserProfile } from '../../../../shared/types'
+import { sfx } from '../../utils/audioManager'
 import SidePanel from '../SidePanel'
-import { useToast } from '../hooks/useToast'
-import { useDialog } from '../hooks/useDialog'
+import { useToast } from '../../hooks/useToast'
+import { useDialog } from '../../hooks/useDialog'
 import ThemeEditorModal from '../ThemeEditorModal'
 import { ProfilePageProps } from './types'
 import { LOGGED_IN_TABS, GUEST_TABS, BUILTIN_THEMES } from './constants'
@@ -14,6 +14,8 @@ import SecurityTab from './tabs/SecurityTab'
 import LibraryTab from './tabs/LibraryTab'
 import LoginTab from './tabs/LoginTab'
 import RegisterTab from './tabs/RegisterTab'
+import FriendsTab from './tabs/FriendsTab'
+import TrophiesTab from './tabs/TrophiesTab'
 import './ProfilePage.css'
 
 function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: ProfilePageProps): React.JSX.Element {
@@ -48,6 +50,13 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
 
     const [settings, setSettings] = useState<InterfaceSettings>({ showGameBackground: true, activeTheme: 'dark', customThemes: [] })
     const [editingTheme, setEditingTheme] = useState<AppTheme | null>(null)
+
+    const [friendsList, setFriendsList] = useState<FriendProfile[]>([])
+    const [friendSearchQuery, setFriendSearchQuery] = useState('')
+    const [friendSearchResults, setFriendSearchResults] = useState<UserProfile[]>([])
+    const [isSearchingFriends, setIsSearchingFriends] = useState(false)
+    const [friendSearchMessage, setFriendSearchMessage] = useState<string | null>(null)
+    const [sendingRequestIds, setSendingRequestIds] = useState<string[]>([])
 
     const handleDeleteGame = useCallback(async (slotId: string) => {
         try {
@@ -85,6 +94,11 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                 window.api?.ui?.getSettings().then(res => {
                     if (res) setSettings(res)
                 }).catch(console.error)
+            }
+            if (tab === 'friends' && isLoggedIn) {
+                window.api?.social?.getFriends()?.then(res => {
+                    if (res?.success && res.data) setFriendsList(res.data)
+                }).catch(() => {})
             }
         }
     }, [visible, tab])
@@ -237,10 +251,10 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
     const activeTabs = isLoggedIn ? LOGGED_IN_TABS : GUEST_TABS
 
     const stateRef = useRef({
-        visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame, settings
+        visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame, settings, friendsList, friendSearchQuery, friendSearchResults, isSearchingFriends
     })
     useEffect(() => {
-        stateRef.current = { visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame, settings }
+        stateRef.current = { visible, isLoggedIn, tab, focusArea, selectedIndex, isInputEditing, activeTabs, newUsername, newAvatarUrl, email, password, username, consolesList, hasAddGame: !!onOpenAddGame, hasPremiumAccess, expandedGameId, confirmDeleteGame, settings, friendsList, friendSearchQuery, friendSearchResults, isSearchingFriends }
     })
 
     useEffect(() => {
@@ -287,6 +301,15 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
             window.removeEventListener('focusin', handleFocusIn)
             window.removeEventListener('focusout', handleFocusOut)
         }
+    }, [])
+
+    useEffect(() => {
+        const unsub = window.api?.social?.onPresenceUpdate?.(() => {
+            window.api?.social?.getFriends()?.then(res => {
+                if (res?.success && res.data) setFriendsList(res.data)
+            }).catch(() => {})
+        })
+        return () => { unsub && unsub() }
     }, [])
 
     const handleAuth = useCallback(async (authType: 'login' | 'register') => {
@@ -409,6 +432,55 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
         }
     }, [hasPremiumAccess, syncingCloud, showToast])
 
+    const handleSearchFriends = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault()
+        if (!friendSearchQuery.trim()) return
+        setIsSearchingFriends(true)
+        setFriendSearchMessage(null)
+        setFriendSearchResults([])
+        try {
+            const res = await window.api?.social?.searchUsers(friendSearchQuery.trim())
+            if (!res?.success) {
+                setFriendSearchMessage(res?.error || 'Error al buscar usuarios.')
+            } else if (res.data) {
+                setFriendSearchResults(res.data)
+                if (res.data.length === 0) {
+                    setFriendSearchMessage('No se han encontrado usuarios que coincidan con esa búsqueda.')
+                }
+            }
+        } catch {
+            setFriendSearchMessage('Error de conexión o de búsqueda.')
+        }
+        setIsSearchingFriends(false)
+    }
+
+    const handleSendFriendRequest = async (userId: string) => {
+        try {
+            const req = await window.api?.social?.sendFriendRequest(userId)
+            if (!req?.success) {
+                setFriendSearchMessage(req?.error || 'Error al enviar la solicitud.')
+                return
+            }
+            const res = await window.api?.social?.getFriends()
+            if (res?.success && res.data) setFriendsList(res.data)
+            setFriendSearchMessage('¡Solicitud enviada correctamente!')
+        } catch {
+            setFriendSearchMessage('Error de conexión.')
+        }
+    }
+
+    const handleAcceptFriendRequest = async (friendshipId: string) => {
+        await window.api?.social?.acceptFriendRequest(friendshipId)
+        const res = await window.api?.social?.getFriends()
+        if (res?.success && res.data) setFriendsList(res.data)
+    }
+
+    const handleRemoveFriend = async (friendshipId: string) => {
+        await window.api?.social?.removeFriend(friendshipId)
+        const res = await window.api?.social?.getFriends()
+        if (res?.success && res.data) setFriendsList(res.data)
+    }
+
     const isFocused = (area: string, idx: number) => focusArea === area && selectedIndex === idx
 
     useEffect(() => {
@@ -456,6 +528,8 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                 if (curTab === 'overview') maxCount = 2
                 if (curTab === 'themes') maxCount = 10 + (stateRef.current.settings?.customThemes?.length || 0)
                 if (curTab === 'security') maxCount = 4
+                if (curTab === 'friends') maxCount = friendsList.length + 2
+                if (curTab === 'trophies') maxCount = 1
                 if (curTab === 'library') maxCount = totalLibItems
                 if (curTab === 'login') maxCount = 4
                 if (curTab === 'register') maxCount = 5
@@ -760,6 +834,25 @@ function ProfilePage({ visible, authState, onLogin, onClose, onOpenAddGame }: Pr
                         onSwitchToLogin={() => { sfx.navigate(); setTab('login'); setSelectedIndex(0); setError(null) }}
                     />
                 )}
+                {tab === 'friends' && (
+                    <FriendsTab
+                        focusArea={focusArea}
+                        selectedIndex={selectedIndex}
+                        friendsList={friendsList}
+                        friendSearchQuery={friendSearchQuery}
+                        friendSearchResults={friendSearchResults}
+                        isSearchingFriends={isSearchingFriends}
+                        friendSearchMessage={friendSearchMessage}
+                        sendingRequestIds={sendingRequestIds}
+                        onSearchQueryChange={(v) => { setFriendSearchQuery(v); setFriendSearchMessage(null) }}
+                        onSearch={handleSearchFriends}
+                        onSendFriendRequest={handleSendFriendRequest}
+                        onAcceptFriendRequest={handleAcceptFriendRequest}
+                        onRemoveFriend={handleRemoveFriend}
+                        onClearSearchMessage={() => setFriendSearchMessage(null)}
+                    />
+                )}
+                {tab === 'trophies' && <TrophiesTab />}
             </div>
             {editingTheme && (
                 <ThemeEditorModal

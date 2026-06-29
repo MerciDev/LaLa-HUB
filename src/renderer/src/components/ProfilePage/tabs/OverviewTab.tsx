@@ -1,7 +1,7 @@
 import React from 'react'
 import { Icon } from '@iconify/react'
 import { UserProfile } from '../../../../../shared/types'
-import { sfx } from '../../utils/audioManager'
+import { sfx } from '../../../utils/audioManager'
 import { TabSharedProps } from '../types'
 
 interface OverviewTabProps extends TabSharedProps {
