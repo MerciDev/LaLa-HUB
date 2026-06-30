@@ -153,6 +153,8 @@ export interface HomeSlot {
   game?: Game
   gameRef?: { consoleSlug: string; gameId: string }
   position?: number
+  col?: number
+  row?: number
   /** How many columns this slot spans (default 1) */
   colSpan?: number
   /** How many rows this slot spans (default 1) */
