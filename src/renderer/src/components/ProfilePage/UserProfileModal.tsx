@@ -167,7 +167,7 @@ function UserProfileModal({ user, onClose }: UserProfileModalProps) {
                             )}
                             <span style={{
                                 position: 'absolute', bottom: '8px', right: '8px', width: '20px', height: '20px',
-                                borderRadius: '50%', background: profile.status === 'online' || profile.status === 'in-game' ? '#2ec4b6' : '#6c757d',
+                                borderRadius: '50%', background: profile.status === 'online' || profile.status === 'in-game' ? '#2ec4b6' : profile.status === 'away' ? '#ffb703' : profile.status === 'dnd' ? '#e63946' : '#6c757d',
                                 border: '4px solid #18181b', boxShadow: '0 0 10px rgba(0,0,0,0.5)'
                             }} />
                         </div>
@@ -177,9 +177,14 @@ function UserProfileModal({ user, onClose }: UserProfileModalProps) {
                                 {profile.username}
                             </h2>
                             <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: profile.status === 'online' || profile.status === 'in-game' ? '#2ec4b6' : '#6c757d' }} />
-                                {profile.status === 'online' || profile.status === 'in-game' ? 'En línea' : 'Desconectado'}
-                                {profile.statusText && ` • ${profile.statusText}`}
+                                <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: profile.status === 'online' || profile.status === 'in-game' ? '#2ec4b6' : profile.status === 'away' ? '#ffb703' : profile.status === 'dnd' ? '#e63946' : '#6c757d' }} />
+                                {(() => {
+                                    if (profile.statusText && profile.statusText !== 'Desconectado' && profile.statusText !== 'En línea' && profile.statusText !== 'Explorando el Hub') return profile.statusText
+                                    if (profile.status === 'online' || profile.status === 'in-game') return 'En línea'
+                                    if (profile.status === 'away') return 'Ausente'
+                                    if (profile.status === 'dnd') return 'No molestar'
+                                    return 'Desconectado'
+                                })()}
                             </div>
                         </div>
 

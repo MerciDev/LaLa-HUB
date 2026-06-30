@@ -10,10 +10,68 @@ interface OverviewTabProps extends TabSharedProps {
     onLogout: () => void
 }
 
+const AVAILABLE_STATUSES: Array<{ id: 'online' | 'away' | 'dnd' | 'offline'; label: string; text: string }> = [
+    { id: 'online', label: 'En línea', text: 'Explorando el Hub' },
+    { id: 'away', label: 'Ausente', text: 'Ausente' },
+    { id: 'dnd', label: 'No molestar', text: 'No molestar' },
+    { id: 'offline', label: 'Invisible', text: 'Invisible' }
+]
+
 function OverviewTab({ focusArea, selectedIndex, isFocused, user, hasPremiumAccess, onOpenSecurity, onLogout, loading }: OverviewTabProps) {
     const [copied, setCopied] = useState(false)
     const [renewing, setRenewing] = useState(false)
     const [showCode, setShowCode] = useState(false)
+    const [statusMenuOpen, setStatusMenuOpen] = useState(false)
+    const [currentStatus, setCurrentStatus] = useState<{ id: 'online' | 'away' | 'dnd' | 'offline'; label: string; text: string }>(() => {
+        try {
+            const saved = localStorage.getItem('lala_user_presence')
+            if (saved) {
+                const parsed = JSON.parse(saved)
+                if (parsed.status === 'away') return { id: 'away', label: 'Ausente', text: 'Ausente' }
+                if (parsed.status === 'dnd') return { id: 'dnd', label: 'No molestar', text: 'No molestar' }
+                if (parsed.status === 'offline') return { id: 'offline', label: 'Invisible', text: 'Invisible' }
+            }
+        } catch {}
+        return { id: 'online', label: 'En línea', text: 'Explorando el Hub' }
+    })
+
+    const [pendingStatusChange, setPendingStatusChange] = useState<boolean>(false)
+
+    React.useEffect(() => {
+        if (!pendingStatusChange) return
+        const timer = setTimeout(async () => {
+            await window.api.social.updatePresence(currentStatus.id, currentStatus.text)
+            window.dispatchEvent(new CustomEvent('update-user-status', { detail: { status: currentStatus.id, statusText: currentStatus.text } }))
+            setPendingStatusChange(false)
+        }, 800)
+        return () => clearTimeout(timer)
+    }, [currentStatus, pendingStatusChange])
+
+    const cycleStatus = (direction: 'left' | 'right', e?: React.MouseEvent) => {
+        if (e) e.stopPropagation()
+        sfx.navigate()
+        sfx.confirm()
+        setCurrentStatus(prev => {
+            const currentIndex = AVAILABLE_STATUSES.findIndex(s => s.id === prev.id)
+            let nextIndex = currentIndex
+            if (direction === 'left') {
+                nextIndex = currentIndex > 0 ? currentIndex - 1 : AVAILABLE_STATUSES.length - 1
+            } else {
+                nextIndex = currentIndex < AVAILABLE_STATUSES.length - 1 ? currentIndex + 1 : 0
+            }
+            return AVAILABLE_STATUSES[nextIndex]
+        })
+        setPendingStatusChange(true)
+    }
+
+    React.useEffect(() => {
+        const handler = (e: CustomEvent) => {
+            if (!isFocused('content', 2)) return
+            cycleStatus(e.detail)
+        }
+        window.addEventListener('cycle-status', handler as EventListener)
+        return () => window.removeEventListener('cycle-status', handler as EventListener)
+    }, [isFocused])
 
     const handleCopy = () => {
         if (!user?.friendCode) return
@@ -47,8 +105,8 @@ function OverviewTab({ focusArea, selectedIndex, isFocused, user, hasPremiumAcce
                         )}
                     </div>
                     <div className="profile-status-badge">
-                        <span className="profile-status-dot" />
-                        En línea
+                        <span className={`profile-status-dot profile-status-dot--${currentStatus.id}`} />
+                        {currentStatus.label}
                     </div>
                 </div>
                 <div className="profile-user-details">
@@ -147,6 +205,37 @@ function OverviewTab({ focusArea, selectedIndex, isFocused, user, hasPremiumAcce
                         <Icon icon="mynaui:log-out" />
                         Cerrar Sesión en PC
                     </button>
+                    <div
+                        className={`profile-btn profile-btn--secondary ${isFocused('content', 2) ? 'focused' : ''}`}
+                        onKeyDown={(e) => {
+                            if (e.key === 'ArrowLeft') { e.stopPropagation(); cycleStatus('left', e as any); }
+                            if (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); cycleStatus('right', e as any); }
+                        }}
+                        tabIndex={0}
+                        style={{ minWidth: '220px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 0 }}
+                        title="Usa las flechas para cambiar de estado"
+                    >
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); cycleStatus('left', e as any); }}
+                            style={{ background: 'transparent', border: 'none', color: '#fff', padding: '0 16px', height: '100%', minHeight: '44px', cursor: 'pointer', display: 'flex', alignItems: 'center', outline: 'none' }}
+                            title="Estado anterior"
+                        >
+                            <Icon icon="mynaui:chevron-left" style={{ fontSize: '18px', opacity: 0.8 }} />
+                        </button>
+                        
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', pointerEvents: 'none' }}>
+                            <span className={`profile-status-dot profile-status-dot--${currentStatus.id}`} style={{ margin: 0 }} />
+                            <span style={{ fontSize: '13px', fontWeight: 500, color: '#fff' }}>{currentStatus.label}</span>
+                        </div>
+                        
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); cycleStatus('right', e as any); }}
+                            style={{ background: 'transparent', border: 'none', color: '#fff', padding: '0 16px', height: '100%', minHeight: '44px', cursor: 'pointer', display: 'flex', alignItems: 'center', outline: 'none' }}
+                            title="Siguiente estado"
+                        >
+                            <Icon icon="mynaui:chevron-right" style={{ fontSize: '18px', opacity: 0.8 }} />
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

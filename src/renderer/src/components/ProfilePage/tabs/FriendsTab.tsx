@@ -37,8 +37,23 @@ function FriendsTab({
     const filteredFriends = acceptedFriends.filter(f => 
         f.username?.toLowerCase().includes(localFriendSearch.toLowerCase())
     )
-    const onlineFriends = filteredFriends.filter(f => f.status === 'online' || f.status === 'in-game')
-    const offlineFriends = filteredFriends.filter(f => f.status !== 'online' && f.status !== 'in-game')
+    const onlineFriends = filteredFriends.filter(f => f.status && f.status !== 'offline' && f.status !== 'invisible')
+    const offlineFriends = filteredFriends.filter(f => !f.status || f.status === 'offline' || f.status === 'invisible')
+
+    const getStatusColor = (status?: string) => {
+        if (status === 'online' || status === 'in-game') return '#2ec4b6'
+        if (status === 'away') return '#ffb703'
+        if (status === 'dnd') return '#e63946'
+        return '#6c757d'
+    }
+
+    const getStatusLabel = (status?: string, statusText?: string) => {
+        if (statusText && statusText !== 'Desconectado' && statusText !== 'En línea' && statusText !== 'Explorando el Hub') return statusText
+        if (status === 'online' || status === 'in-game') return 'En línea'
+        if (status === 'away') return 'Ausente'
+        if (status === 'dnd') return 'No molestar'
+        return 'Desconectado'
+    }
 
     const renderFriendCard = (friend: FriendProfile) => (
         <div key={friend.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)', transition: 'transform 0.2s, background 0.2s' }} onClick={() => setSelectedUser(friend)} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }} onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}>
@@ -50,11 +65,11 @@ function FriendsTab({
                         <Icon icon="mynaui:user" style={{ fontSize: '32px', color: 'rgba(255,255,255,0.7)' }} />
                     </div>
                 )}
-                <span style={{ position: 'absolute', bottom: '2px', right: '2px', width: '14px', height: '14px', borderRadius: '50%', background: friend.status === 'online' || friend.status === 'in-game' ? '#2ec4b6' : '#6c757d', border: '3px solid #1a1a1a' }} />
+                <span style={{ position: 'absolute', bottom: '2px', right: '2px', width: '14px', height: '14px', borderRadius: '50%', background: getStatusColor(friend.status), border: '3px solid #1a1a1a' }} />
             </div>
             <div style={{ textAlign: 'center' }}>
                 <div style={{ fontWeight: 700, fontSize: '15px', color: '#fff', transition: 'color 0.2s', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-color, #e60012)'} onMouseLeave={e => e.currentTarget.style.color = '#fff'}>{friend.username}</div>
-                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>{friend.status === 'online' || friend.status === 'in-game' ? 'En línea' : 'Desconectado'}</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>{getStatusLabel(friend.status, friend.statusText)}</div>
             </div>
         </div>
     )

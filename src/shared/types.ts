@@ -7,7 +7,8 @@ export interface IconOption {
   onMouseLeave?: string
   extraData?: {
     username?: string
-    status?: 'online' | 'idle' | 'dnd' | 'offline'
+    status?: 'online' | 'idle' | 'away' | 'dnd' | 'offline' | 'invisible'
+    statusText?: string
     avatar?: string
     isPlaying?: string
     playingIcon?: string

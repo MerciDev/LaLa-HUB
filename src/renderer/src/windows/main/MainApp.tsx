@@ -131,6 +131,27 @@ function MainApp(): React.JSX.Element {
     const [personalIcons, setPersonalIcons] = useState<IconOption[]>([])
     const [personalExpanded, setPersonalExpanded] = useState(false)
 
+    const [userPresence, setUserPresence] = useState<{ status: string; statusText: string }>(() => {
+        try {
+            const saved = localStorage.getItem('lala_user_presence')
+            if (saved) return JSON.parse(saved)
+        } catch {}
+        return { status: 'online', statusText: 'Explorando el Hub' }
+    })
+
+    useEffect(() => {
+        const handleStatusUpdate = (e: any) => {
+            if (e.detail) {
+                setUserPresence(e.detail)
+                try {
+                    localStorage.setItem('lala_user_presence', JSON.stringify(e.detail))
+                } catch {}
+            }
+        }
+        window.addEventListener('update-user-status', handleStatusUpdate)
+        return () => window.removeEventListener('update-user-status', handleStatusUpdate)
+    }, [])
+
     useEffect(() => {
         setPersonalIcons(prev => prev.map(icon => {
             if (icon.id === 'profile') {
@@ -139,13 +160,15 @@ function MainApp(): React.JSX.Element {
                     extraData: {
                         ...icon.extraData,
                         username: authState.isLoggedIn && authState.user ? authState.user.username : (icon.extraData?.username || 'Usuario'),
-                        avatar: authState.isLoggedIn && authState.user ? (authState.user.avatarUrl || '') : ''
+                        avatar: authState.isLoggedIn && authState.user ? (authState.user.avatarUrl || '') : '',
+                        status: userPresence.status as any,
+                        statusText: userPresence.statusText
                     }
                 }
             }
             return icon
         }))
-    }, [authState])
+    }, [authState, userPresence])
 
     // --- Info Island ---
     const { displayText, islandWidth, textOpacity, setInfoText, setIslandWidth, collapse: collapseIsland } = useInfoIsland()

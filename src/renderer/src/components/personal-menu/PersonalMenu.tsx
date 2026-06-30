@@ -12,6 +12,16 @@ interface PersonalMenuProps {
     profileRef: React.RefObject<HTMLButtonElement | null>
 }
 
+const getStatusDisplay = (ed?: any) => {
+    if (!ed) return ''
+    if (ed.isPlaying) return `Jugando a ${ed.isPlaying}`
+    if (ed.statusText) return ed.statusText
+    if (ed.status === 'idle' || ed.status === 'away') return 'Ausente'
+    if (ed.status === 'dnd') return 'No molestar'
+    if (ed.status === 'offline' || ed.status === 'invisible') return 'Invisible'
+    return 'Explorando el Hub'
+}
+
 function PersonalMenu({
     personalIcons,
     personalExpanded,
@@ -148,11 +158,11 @@ function PersonalMenu({
                                                     style={statusOverflows[icon.id] ? { animation: 'marquee-scroll 10s linear infinite' } : {}}
                                                 >
                                                     <span>
-                                                        {icon.extraData?.isPlaying ? `Jugando a ${icon.extraData.isPlaying}` : icon.extraData?.status}
+                                                        {getStatusDisplay(icon.extraData)}
                                                     </span>
                                                     {statusOverflows[icon.id] && (
                                                         <span aria-hidden="true">
-                                                            {icon.extraData?.isPlaying ? `Jugando a ${icon.extraData.isPlaying}` : icon.extraData?.status}
+                                                            {getStatusDisplay(icon.extraData)}
                                                         </span>
                                                     )}
                                                 </div>

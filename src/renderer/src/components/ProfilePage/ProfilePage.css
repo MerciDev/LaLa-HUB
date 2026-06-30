@@ -132,7 +132,19 @@
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(35, 165, 89, 0); }
 }
 
-.profile-status-dot--offline {
+.profile-status-dot--away {
+  background: #f0b232;
+  box-shadow: none;
+  animation: none;
+}
+
+.profile-status-dot--dnd {
+  background: #f23f43;
+  box-shadow: none;
+  animation: none;
+}
+
+.profile-status-dot--offline, .profile-status-dot--invisible {
   background: var(--text-muted);
   box-shadow: none;
   animation: none;

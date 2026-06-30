@@ -166,7 +166,7 @@ export interface API {
     removeFriend: (friendshipId: string) => Promise<{ success: boolean; error?: string }>
     getUserProfile: (userId: string) => Promise<{ success: boolean; data?: any; error?: string }>
     renewFriendCode: () => Promise<{ success: boolean; friendCode?: string; error?: string }>
-    updatePresence: (status: 'online' | 'away' | 'offline', statusText: string) => Promise<{ success: boolean; error?: string }>
+    updatePresence: (status: 'online' | 'away' | 'dnd' | 'offline', statusText: string) => Promise<{ success: boolean; error?: string }>
     onPresenceUpdate: (callback: (presence: import('../shared/types').PresenceState[]) => void) => () => void
   }
 }

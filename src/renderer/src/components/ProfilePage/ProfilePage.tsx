@@ -586,12 +586,21 @@ function ProfilePage({ visible, initialTab, authState, onLogin, onClose, onOpenA
                     if (idx > 0) { sfx.navigate(); setSelectedIndex(idx - 1) }
                 } else if (action === 'down') {
                     if (idx < maxCount - 1) { sfx.navigate(); setSelectedIndex(idx + 1) }
+                } else if (action === 'right') {
+                    if (curTab === 'overview' && idx === 2) {
+                        window.dispatchEvent(new CustomEvent('cycle-status', { detail: 'right' }))
+                    }
                 } else if (action === 'left' || action === 'back' || action === 'escape') {
-                    sfx.navigate(); setFocusArea('nav')
+                    if (action === 'left' && curTab === 'overview' && idx === 2) {
+                        window.dispatchEvent(new CustomEvent('cycle-status', { detail: 'left' }))
+                    } else {
+                        sfx.navigate(); setFocusArea('nav')
+                    }
                 } else if (action === 'select') {
                     if (curTab === 'overview') {
                         if (idx === 0) { sfx.confirm(); setTab('security'); setSelectedIndex(0) }
                         else if (idx === 1) { handleLogout() }
+                        else if (idx === 2) { window.dispatchEvent(new CustomEvent('cycle-status', { detail: 'right' })) }
                     } else if (curTab === 'themes') {
                         const customThemes = stateRef.current.settings?.customThemes || []
                         if (idx === 0) {

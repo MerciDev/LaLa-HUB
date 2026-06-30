@@ -221,8 +221,11 @@
 .status-dot--dnd {
   background-color: #f23f42;
 }
-.status-dot--idle {
+.status-dot--idle, .status-dot--away {
   background-color: #f0b232;
+}
+.status-dot--invisible {
+  background-color: #747f8d;
 }
 
 /* ── Animaciones ────────────────────────────────────── */

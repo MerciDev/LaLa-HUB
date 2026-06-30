@@ -391,8 +391,9 @@ async function main(): Promise<void> {
       ? {
           username: authState.user.username,
           status: 'online' as const,
+          statusText: 'Explorando el Hub',
           avatar: authState.user.avatarUrl || '',
-          isPlaying: 'LaLa Hub',
+          isPlaying: undefined as string | undefined,
           playingIcon: undefined as string | undefined
         }
       : {

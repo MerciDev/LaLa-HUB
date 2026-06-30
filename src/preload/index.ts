@@ -294,7 +294,7 @@ const api = {
       ipcRenderer.invoke('social-get-user-profile', userId),
     renewFriendCode: (): Promise<{ success: boolean; friendCode?: string; error?: string }> =>
       ipcRenderer.invoke('social-renew-friend-code'),
-    updatePresence: (status: 'online' | 'away' | 'offline', statusText: string): Promise<{ success: boolean; error?: string }> =>
+    updatePresence: (status: 'online' | 'away' | 'dnd' | 'offline', statusText: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('social-update-presence', status, statusText),
     onPresenceUpdate: (callback: (presence: import('../shared/types').PresenceState[]) => void): (() => void) => {
       const fn = (_, presence) => callback(presence)

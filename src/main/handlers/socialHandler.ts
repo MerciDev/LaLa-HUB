@@ -62,7 +62,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
             await presenceChannel.track({
               username: authState.user?.username || 'Usuario',
               status: 'online',
-              statusText: 'En el Hub'
+              statusText: 'Explorando el Hub'
             })
             debugLog('[Social] Conectado exitosamente al canal de presencia Realtime')
           }
@@ -79,7 +79,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
     setupPresence()
   }
 
-  ipcMain.handle('social-update-presence', async (_, status: 'online' | 'away' | 'offline', statusText: string) => {
+  ipcMain.handle('social-update-presence', async (_, status: 'online' | 'away' | 'dnd' | 'offline', statusText: string) => {
     const authState = getAuthState()
     if (!presenceChannel || !authState.user) return { success: false }
     try {
