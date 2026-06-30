@@ -813,6 +813,7 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
                     focusArea={focusArea} selectedIndex={selectedIndex}
                     interfaceSettings={interfaceSettings} interfaceDirty={interfaceDirty}
                     onApiKeyChange={(value) => { setInterfaceSettings(s => s ? { ...s, sgdbApiKey: value || undefined } : s); setInterfaceDirty(true) }}
+                    onToggleSkipIntro={(value) => { setInterfaceSettings(s => s ? { ...s, skipIntroSplash: value } : s); setInterfaceDirty(true) }}
                     onSave={() => {
                         if (!interfaceSettings) return
                         window.api.ui.saveSettings(interfaceSettings).then(() => {

@@ -219,6 +219,7 @@ export interface AppTheme {
 
 export interface InterfaceSettings {
   showGameBackground: boolean
+  skipIntroSplash?: boolean
   sgdbApiKey?: string
   activeTheme?: string
   customThemes?: AppTheme[]

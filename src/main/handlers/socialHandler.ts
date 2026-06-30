@@ -25,6 +25,7 @@ export async function updatePresenceInternal(status?: 'online' | 'away' | 'dnd' 
   try {
     await presenceChannel.track({
       username: authState.user.username,
+      avatar_url: authState.user.avatarUrl,
       status: targetStatus,
       statusText: targetText
     })
@@ -37,6 +38,124 @@ export async function updatePresenceInternal(status?: 'online' | 'away' | 'dnd' 
 
 export async function restorePresence() {
   return await updatePresenceInternal(lastMyStatus, lastMyStatusText)
+}
+
+let toastWindow: BrowserWindow | null = null
+let toastTimeout: NodeJS.Timeout | null = null
+
+function showCustomToast(username: string, avatarUrl: string, gameName: string) {
+  try {
+    const { screen } = require('electron')
+    if (!toastWindow || toastWindow.isDestroyed()) {
+      toastWindow = new BrowserWindow({
+        width: 380,
+        height: 90,
+        frame: false,
+        transparent: true,
+        resizable: false,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        focusable: false,
+        show: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true
+        }
+      })
+      toastWindow.setAlwaysOnTop(true, 'screen-saver')
+    }
+
+    if (toastTimeout) {
+      clearTimeout(toastTimeout)
+      toastTimeout = null
+    }
+
+    const primaryDisplay = screen.getPrimaryDisplay()
+    const { workArea } = primaryDisplay
+    const x = Math.round(workArea.x + workArea.width - 380 - 16)
+    const y = Math.round(workArea.y + workArea.height - 90 - 16)
+    toastWindow.setBounds({ x, y, width: 380, height: 90 })
+
+    const safeAvatar = avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+  body { background: transparent; overflow: hidden; padding: 5px; }
+  .toast-card {
+    background: rgba(18, 20, 28, 0.96);
+    border: 1px solid rgba(0, 170, 255, 0.45);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7), 0 0 16px rgba(0, 170, 255, 0.25);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    height: 80px;
+    animation: slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    backdrop-filter: blur(12px);
+  }
+  @keyframes slideIn {
+    0% { transform: translateX(120%); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes slideOut {
+    0% { transform: translateX(0); opacity: 1; }
+    100% { transform: translateX(120%); opacity: 0; }
+  }
+  .toast-card.closing {
+    animation: slideOut 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .avatar-container { position: relative; width: 48px; height: 48px; flex-shrink: 0; }
+  .avatar {
+    width: 48px; height: 48px; border-radius: 50%; object-fit: cover;
+    border: 2px solid #00aaff;
+  }
+  .status-dot {
+    position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px;
+    background-color: #22c55e; border: 2px solid #12141c; border-radius: 50%;
+  }
+  .content { display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+  .header { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #00aaff; font-weight: 700; margin-bottom: 3px; }
+  .username { font-size: 14px; font-weight: 600; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .game-title { font-size: 12px; color: rgba(255, 255, 255, 0.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+  <div class="toast-card" id="card">
+    <div class="avatar-container">
+      <img class="avatar" src="${safeAvatar}" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}'" />
+      <div class="status-dot"></div>
+    </div>
+    <div class="content">
+      <div class="header">LaLa Hub • Jugando ahora</div>
+      <div class="username">${username}</div>
+      <div class="game-title">${gameName}</div>
+    </div>
+  </div>
+</body>
+</html>`
+
+    toastWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent))
+    toastWindow.showInactive()
+
+    toastTimeout = setTimeout(() => {
+      if (toastWindow && !toastWindow.isDestroyed()) {
+        toastWindow.webContents.executeJavaScript(`document.getElementById('card')?.classList.add('closing')`).catch(() => {})
+        setTimeout(() => {
+          if (toastWindow && !toastWindow.isDestroyed()) {
+            toastWindow.hide()
+          }
+        }, 380)
+      }
+    }, 4500)
+  } catch (err: any) {
+    debugError(`[Social] Error showing custom toast: ${err.message}`)
+  }
 }
 
 export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
@@ -85,13 +204,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
                   const oldState = presenceStates[key]
                   if (!oldState || oldState.statusText !== statusText) {
                     const gameName = statusText.replace(/^Jugando a /i, '')
-                    if (Notification.isSupported()) {
-                      new Notification({
-                        title: 'LaLa Hub',
-                        body: `${latest.username || 'Un amigo'} está jugando a ${gameName}`,
-                        silent: false
-                      }).show()
-                    }
+                    showCustomToast(latest.username || 'Un amigo', latest.avatar_url || '', gameName)
                   }
                 }
               }

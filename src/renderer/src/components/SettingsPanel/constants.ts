@@ -37,7 +37,7 @@ export const TABS: ConsolePanelTab[] = [
     { id: 'emulators', label: 'Emuladores',  icon: 'mynaui:chip',         description: 'Gestiona tus emuladores y rutas de acceso' },
     { id: 'controls',  label: 'Controles',   icon: 'mdi:controller',     description: 'Reasigna los botones de tu mando o teclado' },
     { id: 'grid',      label: 'Cuadrícula',  icon: 'mynaui:grid',         description: 'Personaliza las filas, columnas y aspecto del grid' },
-    { id: 'interface', label: 'Descargas',    icon: 'mynaui:download',      description: 'API Key de SteamGridDB para carátulas e imágenes de juegos' },
+    { id: 'interface', label: 'Interfaz',    icon: 'mynaui:monitor',      description: 'Personaliza la pantalla de inicio y carátulas (SteamGridDB)' },
 ]
 
 export const TAB_IDS = TABS.map(t => t.id)

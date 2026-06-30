@@ -8,11 +8,12 @@ interface InterfaceTabProps {
     interfaceSettings: InterfaceSettings | null
     interfaceDirty: boolean
     onApiKeyChange: (value: string) => void
+    onToggleSkipIntro: (value: boolean) => void
     onSave: () => void
     onReset: () => void
 }
 
-function InterfaceTab({ interfaceSettings, interfaceDirty, onApiKeyChange, onSave, onReset }: InterfaceTabProps) {
+function InterfaceTab({ interfaceSettings, interfaceDirty, onApiKeyChange, onToggleSkipIntro, onSave, onReset }: InterfaceTabProps) {
     return (
         <div className="cp-section">
             <div className="cp-form">
@@ -32,6 +33,24 @@ function InterfaceTab({ interfaceSettings, interfaceDirty, onApiKeyChange, onSav
                             <input id="int-sgdb-key" className="ag-field-input" type="password" placeholder="Tu API Key de SteamGridDB"
                                    value={interfaceSettings.sgdbApiKey ?? ''}
                                    onChange={e => onApiKeyChange(e.target.value || '')} />
+                        </div>
+                    </div>
+                )}
+
+                <div className="cp-form__title" style={{ marginTop: 24 }}>
+                    <Icon icon="mynaui:monitor" /> Pantallas de Carga
+                </div>
+                {interfaceSettings && (
+                    <div className="ag-field-row" style={{ cursor: 'pointer' }}
+                         onClick={() => onToggleSkipIntro(!interfaceSettings.skipIntroSplash)}>
+                        <Icon icon={interfaceSettings.skipIntroSplash ? 'mynaui:eye-slash' : 'mynaui:eye'} className="ag-field-icon" />
+                        <div className="ag-field-body">
+                            <div className="ag-field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                Desactivar pantallas de carga (al abrir app y al iniciar juegos)
+                                <div className={`ag-toggle ${interfaceSettings.skipIntroSplash ? 'active' : ''}`}>
+                                    <div className="ag-toggle-handle" />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}

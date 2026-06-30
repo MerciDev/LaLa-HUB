@@ -6,6 +6,7 @@ import { debugLog } from '../../utils/debug'
 import { showLoading, hideLoading } from '../loading/loading'
 import { startPlaySession, formatPlaytime } from '../../utils/playtime'
 import { pullSaveFromCloud } from '../../utils/cloudSaves'
+import { interfaceSettings } from '../../settings/interfaceSettings'
 
 let isLaunching = false
 
@@ -331,7 +332,9 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
             // 1. Hide the main app window IMMEDIATELY so it doesn't flash in front.
             // 2. Show loading AFTER hiding — avoids the race where loading appears but main window is still on top.
             appWindow?.hide()
-            showLoading(item)
+            if (!interfaceSettings.skipIntroSplash) {
+                showLoading(item)
+            }
 
             // Safety timeout: hide loading after 90s if process detection never succeeds
             const loadingTimeout = setTimeout(() => {

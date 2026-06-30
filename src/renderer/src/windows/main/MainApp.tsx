@@ -230,6 +230,9 @@ function MainApp(): React.JSX.Element {
             if (res) {
                 setInterfaceSettings(res)
                 applyThemeToDOM(res)
+                if (res.skipIntroSplash) {
+                    setShowIntro(false)
+                }
             }
         }).catch(console.error)
 
