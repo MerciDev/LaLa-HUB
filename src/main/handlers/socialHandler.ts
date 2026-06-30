@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, Notification } from 'electron'
 import { getSupabaseClient, getUserId } from '../utils/supabase'
 import { debugLog, debugError } from '../utils/debug'
 import { FriendProfile, PresenceState } from '../../shared/types'
@@ -7,10 +7,36 @@ import { getAuthState, generateRandomFriendCode } from './authHandler'
 let presenceChannel: any = null
 let presenceStates: Record<string, PresenceState> = {}
 
+let lastMyStatus: 'online' | 'away' | 'dnd' | 'offline' = 'online'
+let lastMyStatusText: string = 'Explorando el Hub'
+let isInitialPresenceSync = true
+
 let _setupPresence: (() => Promise<void>) | null = null
 
 export function triggerPresenceSetup(): void {
   if (_setupPresence) _setupPresence()
+}
+
+export async function updatePresenceInternal(status?: 'online' | 'away' | 'dnd' | 'offline', statusText?: string) {
+  const authState = getAuthState()
+  if (!presenceChannel || !authState.user) return false
+  const targetStatus = status || lastMyStatus || 'online'
+  const targetText = statusText !== undefined ? statusText : lastMyStatusText
+  try {
+    await presenceChannel.track({
+      username: authState.user.username,
+      status: targetStatus,
+      statusText: targetText
+    })
+    return true
+  } catch (err: any) {
+    debugError(`[Social] Error updating internal presence: ${err.message}`)
+    return false
+  }
+}
+
+export async function restorePresence() {
+  return await updatePresenceInternal(lastMyStatus, lastMyStatusText)
 }
 
 export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
@@ -21,6 +47,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
     if (!userId || !authState.user) return
 
     try {
+      isInitialPresenceSync = true
       const client = getSupabaseClient()
       if (presenceChannel) {
         client.removeChannel(presenceChannel)
@@ -37,33 +64,55 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
       presenceChannel
         .on('presence', { event: 'sync' }, () => {
           const state = presenceChannel.presenceState()
-          presenceStates = {}
+          const newPresenceStates: Record<string, PresenceState> = {}
           for (const key in state) {
             const userPresences = state[key] as any[]
             if (userPresences && userPresences.length > 0) {
               const latest = userPresences[userPresences.length - 1]
-              presenceStates[key] = {
+              const status = latest.status || 'online'
+              const statusText = latest.statusText || 'En línea'
+
+              newPresenceStates[key] = {
                 userId: key,
                 username: latest.username || 'Usuario',
-                status: latest.status || 'online',
-                statusText: latest.statusText || 'En línea'
+                status,
+                statusText
+              }
+
+              // Notification check for friends playing games
+              if (!isInitialPresenceSync && key !== userId && lastMyStatus !== 'dnd' && status !== 'offline') {
+                if (statusText.startsWith('Jugando a ')) {
+                  const oldState = presenceStates[key]
+                  if (!oldState || oldState.statusText !== statusText) {
+                    const gameName = statusText.replace(/^Jugando a /i, '')
+                    if (Notification.isSupported()) {
+                      new Notification({
+                        title: 'LaLa Hub',
+                        body: `${latest.username || 'Un amigo'} está jugando a ${gameName}`,
+                        silent: false
+                      }).show()
+                    }
+                  }
+                }
               }
             }
           }
+          presenceStates = newPresenceStates
+          isInitialPresenceSync = false
           console.log('[Social Debug] Usuarios online detectados en presencia:', Object.values(presenceStates).map(u => `${u.username} (${u.status})`))
-          mainWindow?.webContents.send('social-presence-update', Object.values(presenceStates))
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('social-presence-update', Object.values(presenceStates))
+          }
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, () => {
           console.log('[Social Debug] Cambio detectado en tabla friendships en tiempo real. Notificando a interfaz para refrescar amigos...')
-          mainWindow?.webContents.send('social-presence-update', Object.values(presenceStates))
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('social-presence-update', Object.values(presenceStates))
+          }
         })
         .subscribe(async (status: string) => {
           if (status === 'SUBSCRIBED') {
-            await presenceChannel.track({
-              username: authState.user?.username || 'Usuario',
-              status: 'online',
-              statusText: 'Explorando el Hub'
-            })
+            await updatePresenceInternal(lastMyStatus, lastMyStatusText)
             debugLog('[Social] Conectado exitosamente al canal de presencia Realtime')
           }
         })
@@ -80,18 +129,10 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
   }
 
   ipcMain.handle('social-update-presence', async (_, status: 'online' | 'away' | 'dnd' | 'offline', statusText: string) => {
-    const authState = getAuthState()
-    if (!presenceChannel || !authState.user) return { success: false }
-    try {
-      await presenceChannel.track({
-        username: authState.user.username,
-        status,
-        statusText
-      })
-      return { success: true }
-    } catch (err: any) {
-      return { success: false, error: err.message }
-    }
+    lastMyStatus = status
+    lastMyStatusText = statusText
+    const success = await updatePresenceInternal(status, statusText)
+    return success ? { success: true } : { success: false, error: 'Failed to update presence' }
   })
 
   ipcMain.handle('social-get-friends', async (): Promise<{ success: boolean; data?: FriendProfile[]; error?: string }> => {

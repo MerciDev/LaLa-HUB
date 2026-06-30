@@ -5,6 +5,7 @@ import { setActivity } from './discord'
 import { showMainWindow } from '../windows/main/main'
 import { pushSaveToCloud } from './cloudSaves'
 import { getAuthenticatedClient, getUserId, isOnline } from './supabase'
+import { updatePresenceInternal, restorePresence } from '../handlers/socialHandler'
 
 export interface PlaySession {
     slotId: string
@@ -29,11 +30,12 @@ export function startPlaySession(slotId: string, gameProcess: ChildProcess): voi
     activeSessions.set(slotId, session)
     debugLog(`[Playtime] Session started: ${slotId}`)
 
-    // Update Discord Presence
+    // Update Discord & LaLa Presence
     const slots = loadSlots()
     const slot = slots.find(s => s.id === slotId)
     if (slot) {
         setActivity(`Jugando: ${slot.label}`, `Empecé hace poco`)
+        updatePresenceInternal(undefined, `Jugando a ${slot.label}`)
     }
 
     gameProcess.on('close', () => {
@@ -54,8 +56,9 @@ function endPlaySession(slotId: string): void {
     activeSessions.delete(slotId)
     debugLog(`[Playtime] Session ended: ${slotId}, +${minutesPlayed} min`)
 
-    // Reset Discord Presence
+    // Reset Discord & LaLa Presence
     setActivity('En el Menú', 'Navegando por la colección')
+    restorePresence()
 
     persistPlaytime(slotId, minutesPlayed)
 
