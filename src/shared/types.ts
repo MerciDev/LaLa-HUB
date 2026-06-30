@@ -221,6 +221,7 @@ export interface InterfaceSettings {
   showGameBackground: boolean
   skipIntroSplash?: boolean
   sgdbApiKey?: string
+  downloadPath?: string
   activeTheme?: string
   customThemes?: AppTheme[]
 }
@@ -296,7 +297,12 @@ export interface DownloadTask {
   status: 'queued' | 'downloading' | 'completed' | 'error' | 'opened'
   progress: number
   speed: string
+  downloadedBytes?: number
+  totalBytes?: number
+  peers?: number
+  etaSeconds?: number
   error?: string
+  statusMessage?: string
   addedAt: string
   completedAt?: string
 }
@@ -306,7 +312,12 @@ export interface DownloadProgress {
   progress: number
   speed: string
   status: DownloadTask['status']
+  downloadedBytes?: number
+  totalBytes?: number
+  peers?: number
+  etaSeconds?: number
   error?: string
+  statusMessage?: string
 }
 
 // ─── Social & Friends Types ──────────────────────────────────────────────────

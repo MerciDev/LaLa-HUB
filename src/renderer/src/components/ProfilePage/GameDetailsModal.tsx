@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import ReactDOM from 'react-dom'
 import { Icon } from '@iconify/react'
 import { sfx } from '../../utils/audioManager'
+import { DownloadTask, DownloadProgress, DownloadEntry } from '../../../../shared/types'
+import { DownloadItem } from '../download/DownloadItem'
 
 interface GameDetailsModalProps {
     game: {
@@ -30,6 +32,11 @@ function GameDetailsModal({ game, onClose }: GameDetailsModalProps) {
     const [friendsPlayed, setFriendsPlayed] = useState<any[]>([])
     const [myPlaytimeMinutes, setMyPlaytimeMinutes] = useState<number>(0)
 
+    // Download States
+    const [downloadOptions, setDownloadOptions] = useState<{ sourceName: string; entry: DownloadEntry }[]>([])
+    const [isSearchingDownloads, setIsSearchingDownloads] = useState<boolean>(false)
+    const [activeTasks, setActiveTasks] = useState<DownloadTask[]>([])
+
     useEffect(() => {
         let isMounted = true
         async function fetchDetails() {
@@ -52,6 +59,58 @@ function GameDetailsModal({ game, onClose }: GameDetailsModalProps) {
         fetchDetails()
         return () => { isMounted = false }
     }, [game.gameName, game.slotId])
+
+    useEffect(() => {
+        let isMounted = true
+        async function fetchDownloads() {
+            setIsSearchingDownloads(true)
+            try {
+                if (window.api?.downloads?.searchGameInSources) {
+                    const res = await window.api.downloads.searchGameInSources(game.gameName)
+                    if (isMounted && res.success && res.data) {
+                        setDownloadOptions(res.data)
+                    }
+                }
+            } catch (err) {
+                console.error('[GameDetailsModal] Error loading download options:', err)
+            } finally {
+                if (isMounted) setIsSearchingDownloads(false)
+            }
+        }
+        fetchDownloads()
+        return () => { isMounted = false }
+    }, [game.gameName])
+
+    useEffect(() => {
+        if (!window.api?.downloads) return
+        window.api.downloads.getTasks().then(setActiveTasks)
+        const cleanup = window.api.downloads.onProgress((progress: DownloadProgress) => {
+            setActiveTasks((prev) => {
+                const exists = prev.find(t => t.id === progress.id)
+                if (exists) {
+                    return prev.map((t) =>
+                        t.id === progress.id
+                            ? {
+                                  ...t,
+                                  progress: progress.progress,
+                                  speed: progress.speed,
+                                  status: progress.status,
+                                  error: progress.error,
+                                  downloadedBytes: progress.downloadedBytes ?? t.downloadedBytes,
+                                  totalBytes: progress.totalBytes ?? t.totalBytes,
+                                  peers: progress.peers ?? t.peers,
+                                  etaSeconds: progress.etaSeconds ?? t.etaSeconds
+                              }
+                            : t
+                    )
+                } else {
+                    window.api.downloads.getTasks().then(setActiveTasks)
+                    return prev
+                }
+            })
+        })
+        return cleanup
+    }, [])
 
     useEffect(() => {
         if (!game.imageUrl) return
@@ -114,6 +173,30 @@ function GameDetailsModal({ game, onClose }: GameDetailsModalProps) {
     const handleClose = () => {
         sfx.cancel()
         onClose()
+    }
+
+    const handleDownload = async (opt: { sourceName: string; entry: DownloadEntry }) => {
+        if (!window.api?.downloads?.start) return
+        try {
+            const res = await window.api.downloads.start(opt.entry, opt.sourceName)
+            if (res.success && res.task) {
+                setActiveTasks(prev => [...prev, res.task!])
+            }
+        } catch (err) {
+            console.error('Error starting download:', err)
+        }
+    }
+
+    const handleCancelDownload = async (id: string) => {
+        await window.api?.downloads?.cancel(id)
+    }
+
+    const handleRemoveDownload = async (id: string) => {
+        await window.api?.downloads?.remove(id)
+    }
+
+    const handleRetryDownload = async (id: string) => {
+        await window.api?.downloads?.retry(id)
     }
 
     const releaseYear = gameInfo?.release_date ? new Date(gameInfo.release_date).getFullYear() : (gameInfo?.releaseDate ? new Date(gameInfo.releaseDate).getFullYear() : (gameInfo?.year || null))
@@ -299,6 +382,83 @@ function GameDetailsModal({ game, onClose }: GameDetailsModalProps) {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Download Options Section */}
+                    <div style={{ marginTop: '24px' }}>
+                        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Icon icon="mynaui:download" style={{ color: '#00aaff' }} />
+                            Opciones de Descarga
+                        </h3>
+                        {isSearchingDownloads ? (
+                            <div style={{ padding: '24px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                                <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                    <Icon icon="mynaui:spinner" className="animate-spin" />
+                                    Buscando fuentes de descarga...
+                                </div>
+                            </div>
+                        ) : downloadOptions.length === 0 ? (
+                            <div style={{ padding: '24px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                                <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)' }}>No se encontraron fuentes de descarga disponibles para este título.</div>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {downloadOptions.map((opt, i) => {
+                                    const activeTask = activeTasks.find((t) => t.title === opt.entry.title)
+                                    if (activeTask) {
+                                        return (
+                                            <div key={activeTask.id} style={{
+                                                padding: '16px', background: 'rgba(255,255,255,0.03)',
+                                                border: '1px solid rgba(0, 170, 255, 0.3)', borderRadius: '12px'
+                                            }}>
+                                                <DownloadItem 
+                                                    task={activeTask}
+                                                    onCancel={handleCancelDownload}
+                                                    onRemove={handleRemoveDownload}
+                                                    onRetry={handleRetryDownload}
+                                                />
+                                            </div>
+                                        )
+                                    }
+                                    
+                                    return (
+                                        <div key={i} style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                            padding: '16px', background: 'rgba(255,255,255,0.03)',
+                                            border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px',
+                                            transition: 'all 0.2s ease'
+                                        }}>
+                                            <div>
+                                                <div style={{ fontWeight: 600, fontSize: '14px', color: '#fff', marginBottom: '4px' }}>
+                                                    {opt.sourceName} <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 400 }}>- {opt.entry.title}</span>
+                                                </div>
+                                                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <Icon icon="mynaui:server" /> {opt.entry.fileSize || 'Tamaño desconocido'}
+                                                    {opt.entry.uploadDate && (
+                                                        <>
+                                                            <span style={{ opacity: 0.3 }}>|</span>
+                                                            <Icon icon="mynaui:calendar" /> {opt.entry.uploadDate}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={() => handleDownload(opt)}
+                                                style={{
+                                                    background: 'rgba(0, 170, 255, 0.1)', color: '#00aaff',
+                                                    border: '1px solid rgba(0, 170, 255, 0.2)', borderRadius: '8px', padding: '8px 16px',
+                                                    fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+                                                    display: 'flex', alignItems: 'center', gap: '6px',
+                                                    transition: 'all 0.2s ease'
+                                                }}>
+                                                <Icon icon="mynaui:download" />
+                                                Descargar
+                                            </button>
+                                        </div>
+                                    )
+                                })}
                             </div>
                         )}
                     </div>

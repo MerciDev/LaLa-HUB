@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Icon } from '@iconify/react'
-import { DownloadEntry } from '../../../../shared/types'
+import { DownloadEntry, DownloadTask } from '../../../../shared/types'
 import { sfx } from '../../utils/audioManager'
 import { searchGameByTitle, imageUrl, isConfigured } from './gameDetailCache'
 import { GameMetadata } from './types'
@@ -11,6 +11,7 @@ interface GameDetailProps {
   onDownload: (entry: DownloadEntry) => void
   onBack: () => void
   isDownloading: boolean
+  activeTask?: DownloadTask
 }
 
 function cleanTitle(title: string): string {
@@ -58,7 +59,8 @@ export function GameDetail({
   sourceName,
   onDownload,
   onBack,
-  isDownloading
+  isDownloading,
+  activeTask
 }: GameDetailProps): React.JSX.Element {
   const gameTitle = cleanTitle(entry.title)
   const version = entry.title.replace(gameTitle, '').trim()
@@ -191,11 +193,21 @@ export function GameDetail({
 
               <button
                 className="dl-detail__hero-dl"
-                disabled={isDownloading}
+                disabled={isDownloading || (activeTask && activeTask.status !== 'error')}
                 onClick={() => onDownload(entry)}
               >
-                <Icon icon={isDownloading ? 'mynaui:clock' : 'mynaui:download'} />
-                {isDownloading ? 'En cola...' : 'Descargar'}
+                <Icon icon={isDownloading || activeTask ? 'mynaui:clock' : 'mynaui:download'} />
+                {activeTask
+                  ? activeTask.status === 'downloading'
+                    ? activeTask.speed?.includes('Buscando') || activeTask.speed?.includes('Conectado')
+                      ? activeTask.speed
+                      : `Descargando (${activeTask.progress || 0}%)`
+                    : activeTask.status === 'completed' || activeTask.status === 'opened'
+                      ? 'Completado'
+                      : activeTask.status === 'error'
+                        ? 'Reintentar'
+                        : 'En cola...'
+                  : isDownloading ? 'En cola...' : 'Descargar'}
               </button>
             </div>
           </div>

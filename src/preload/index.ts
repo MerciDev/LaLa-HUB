@@ -203,6 +203,8 @@ const api = {
       ipcRenderer.invoke('download-get-sources-config'),
     fetchSource: (url: string): Promise<{ success: boolean; data?: import('../shared/types').DownloadSource; error?: string }> =>
       ipcRenderer.invoke('download-fetch-source', url),
+    searchGameInSources: (title: string): Promise<{ success: boolean; data?: { sourceName: string; entry: import('../shared/types').DownloadEntry }[]; error?: string }> =>
+      ipcRenderer.invoke('download-search-sources', title),
     getTasks: (): Promise<import('../shared/types').DownloadTask[]> =>
       ipcRenderer.invoke('download-get-tasks'),
     start: (entry: import('../shared/types').DownloadEntry, sourceName: string): Promise<{ success: boolean; task?: import('../shared/types').DownloadTask; error?: string }> =>

@@ -13,6 +13,7 @@ import EmulatorsTab from './tabs/EmulatorsTab'
 import ControlsTab from './tabs/ControlsTab'
 import GridTab from './tabs/GridTab'
 import InterfaceTab from './tabs/InterfaceTab'
+import DownloadsTab from './tabs/DownloadsTab'
 
 function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridConfigChange, onClearGrid, initialTab }: SettingsPanelProps): React.JSX.Element {
     const [tab, setTab] = useState<Tab>(initialTab || 'platforms')
@@ -823,9 +824,33 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
                         })
                     }}
                     onReset={() => {
-                        window.api.ui.getSettings().then(s => {
-                            setInterfaceSettings(s)
+                        window.api.ui.getSettings().then(res => {
+                            if (res) { setInterfaceSettings(res); setInterfaceDirty(false) }
+                            sfx.cancel()
+                        })
+                    }}
+                />
+            )}
+            {tab === 'downloads' && (
+                <DownloadsTab
+                    focusArea={focusArea}
+                    selectedIndex={selectedIndex}
+                    interfaceSettings={interfaceSettings}
+                    interfaceDirty={interfaceDirty}
+                    onApiKeyChange={(value) => { setInterfaceSettings(s => s ? { ...s, sgdbApiKey: value || undefined } : s); setInterfaceDirty(true) }}
+                    onDownloadPathChange={(value) => { setInterfaceSettings(s => s ? { ...s, downloadPath: value } : s); setInterfaceDirty(true) }}
+                    onSave={() => {
+                        if (!interfaceSettings) return
+                        window.api.ui.saveSettings(interfaceSettings).then(() => {
+                            invalidateProviderCache()
                             setInterfaceDirty(false)
+                            sfx.confirm()
+                        })
+                    }}
+                    onReset={() => {
+                        window.api.ui.getSettings().then(res => {
+                            if (res) { setInterfaceSettings(res); setInterfaceDirty(false) }
+                            sfx.cancel()
                         })
                     }}
                 />

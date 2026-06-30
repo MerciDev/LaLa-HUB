@@ -57,30 +57,39 @@ export function DownloadManager({ visible, onClose }: DownloadManagerProps): Rea
   useEffect(() => {
     if (!visible) return
     const cleanup = window.api.downloads.onProgress((progress: DownloadProgress) => {
-      setTasks((prev) =>
-        prev.map((t) =>
+      setTasks((prev) => {
+        const updated = prev.map((t) =>
           t.id === progress.id
             ? {
                 ...t,
                 progress: progress.progress,
                 speed: progress.speed,
                 status: progress.status,
-                error: progress.error
+                error: progress.error,
+                statusMessage: progress.statusMessage ?? t.statusMessage,
+                downloadedBytes: progress.downloadedBytes ?? t.downloadedBytes,
+                totalBytes: progress.totalBytes ?? t.totalBytes,
+                peers: progress.peers ?? t.peers,
+                etaSeconds: progress.etaSeconds ?? t.etaSeconds
               }
             : t
         )
-      )
-      if (
-        progress.status === 'completed' ||
-        progress.status === 'opened' ||
-        progress.status === 'error'
-      ) {
-        activeTitlesRef.current.delete(tasks.find((t) => t.id === progress.id)?.title || '')
-        setActiveTitles(new Set(activeTitlesRef.current))
-      }
+        if (
+          progress.status === 'completed' ||
+          progress.status === 'opened' ||
+          progress.status === 'error'
+        ) {
+          const doneTask = updated.find((t) => t.id === progress.id)
+          if (doneTask) {
+            activeTitlesRef.current.delete(doneTask.title)
+            setActiveTitles(new Set(activeTitlesRef.current))
+          }
+        }
+        return updated
+      })
     })
     return cleanup
-  }, [visible, tasks])
+  }, [visible])
 
   const openSource = async (url: string, _name: string) => {
     setLoading(true)
@@ -382,6 +391,7 @@ export function DownloadManager({ visible, onClose }: DownloadManagerProps): Rea
   // ─── Detail view ────────────────────────────────────────
 
   if (view === 'detail' && currentEntry && currentSource) {
+    const activeTask = tasks.find((t) => t.title === currentEntry.title)
     return (
       <GameDetail
         entry={currentEntry}
@@ -392,6 +402,7 @@ export function DownloadManager({ visible, onClose }: DownloadManagerProps): Rea
           setCurrentEntry(null)
         }}
         isDownloading={activeTitles.has(currentEntry.title)}
+        activeTask={activeTask}
       />
     )
   }

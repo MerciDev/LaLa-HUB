@@ -7,7 +7,7 @@ import { HomeSlot, Game } from '../../shared/types'
 export const USER_DATA_PATH = app.getPath('userData')
 
 export function ensureDirectory(dirName: string): string {
-    const dirPath = path.join(USER_DATA_PATH, dirName)
+    const dirPath = path.isAbsolute(dirName) ? dirName : path.join(USER_DATA_PATH, dirName)
 
     if (!fs.existsSync(dirPath)) {
         fs.mkdirSync(dirPath, { recursive: true })

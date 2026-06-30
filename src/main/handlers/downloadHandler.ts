@@ -10,12 +10,22 @@ import {
   retryDownload,
   clearCompleted,
   loadTasks,
-  setMainWindow
+  setMainWindow,
+  searchGameInSources
 } from '../utils/downloadManager'
 
 export function registerDownloadHandlers(mainWindow: BrowserWindow): void {
   setMainWindow(mainWindow)
   loadTasks()
+
+  ipcMain.handle('download-search-sources', async (_, title: string) => {
+    try {
+      const results = await searchGameInSources(title)
+      return { success: true, data: results }
+    } catch (error: any) {
+      return { success: false, error: error.message || String(error) }
+    }
+  })
 
   ipcMain.handle('download-get-sources-config', async () => {
     return getSourcesConfig()
