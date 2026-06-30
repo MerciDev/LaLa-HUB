@@ -476,7 +476,7 @@ export function toggleContextMenu(show?: boolean): void {
             if (!isIframe && !isVideo) {
                 const playtime = selectedElement.game?.playtimeMinutes ?? 0
                 const playtimeStr = playtime > 0 ? formatPlaytime(playtime) : 'No jugado'
-                options.push({ id: 'info', label: playtimeStr, icon: 'mdi:clock-outline', action: '' })
+                options.push({ id: 'info', label: playtimeStr, icon: 'mdi:clock-outline', action: 'show_game_details' })
             }
             
             options.push(
@@ -517,6 +517,10 @@ export function executeContextAction(action: string): void {
         setTimeout(() => changeInfoIsland(''), 2000)
     } else if (action === 'ASSIGN_GAME_FROM_LIBRARY') {
         appWindow?.webContents.send('dispatch-action', { type: 'OPEN_LIBRARY_PICKER' })
+        toggleContextMenu(false)
+        return
+    } else if (action === 'show_game_details' && selectedElement?.game) {
+        appWindow?.webContents.send('dispatch-action', { type: 'OPEN_GAME_DETAILS', payload: selectedElement })
         toggleContextMenu(false)
         return
     } else if (action === 'SHIFT_CONTENT' || action === 'MOVE_GAME' || action === 'RESIZE_GAME') {

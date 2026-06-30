@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom'
 import { Icon } from '@iconify/react'
 import { UserPublicProfile } from '../../../../../shared/types'
+import GameDetailsModal from './GameDetailsModal'
 
 interface UserProfileModalProps {
     user: {
@@ -34,6 +35,7 @@ function UserProfileModal({ user, onClose }: UserProfileModalProps) {
     })
     const [loading, setLoading] = useState(true)
     const [dominantColor, setDominantColor] = useState<string>('var(--accent-color, #e60012)')
+    const [selectedGame, setSelectedGame] = useState<any | null>(null)
 
     useEffect(() => {
         if (!profile.avatarUrl) return
@@ -224,10 +226,10 @@ function UserProfileModal({ user, onClose }: UserProfileModalProps) {
                         ) : (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
                                 {profile.playtimes.map((p, idx) => (
-                                    <div key={idx} style={{
+                                    <div key={idx} onClick={() => setSelectedGame(p)} style={{
                                         background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
                                         borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column',
-                                        transition: 'transform 0.2s, box-shadow 0.2s', position: 'relative'
+                                        transition: 'transform 0.2s, box-shadow 0.2s', position: 'relative', cursor: 'pointer'
                                     }} onMouseEnter={e => {
                                         e.currentTarget.style.transform = 'translateY(-4px)'
                                         e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.4)'
@@ -282,6 +284,10 @@ function UserProfileModal({ user, onClose }: UserProfileModalProps) {
                         )}
                     </div>
                 </div>
+            )}
+            
+            {selectedGame && (
+                <GameDetailsModal game={selectedGame} onClose={() => setSelectedGame(null)} />
             )}
         </div>
     )

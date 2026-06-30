@@ -354,6 +354,7 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
       }
 
       const combinedPlaytimes = (playtimes || []).map((p: any) => ({
+        slotId: p.slot_id || null,
         gameName: gameNamesMap[p.slot_id] || p.game_name || p.slot_id || 'Desconocido',
         platform: p.platform || 'PC',
         minutes: p.minutes || 0,
@@ -397,6 +398,103 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
       return { success: true, friendCode: newCode }
     } catch (err: any) {
       debugError(`[Social] Error renovando código de amigo: ${err.message}`)
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('social-get-game-modal-details', async (_, gameName: string, slotId?: string): Promise<{ success: boolean; data?: any; error?: string }> => {
+    const userId = getUserId()
+    if (!userId) return { success: false, error: 'No autenticado' }
+
+    try {
+      const client = getSupabaseClient()
+      
+      let foundGames: any[] | null = null
+      if (slotId) {
+        const { data } = await client.from('games').select('*').eq('id', slotId).limit(1)
+        foundGames = data
+      }
+      if (!foundGames || foundGames.length === 0) {
+        const { data } = await client.from('games').select('*').ilike('name', gameName).limit(1)
+        foundGames = data
+      }
+      if (!foundGames || foundGames.length === 0) {
+        const { data } = await client.from('games').select('*').or(`name.ilike.%${gameName}%,id.ilike.%${slotId || gameName}%`).limit(1)
+        foundGames = data
+      }
+
+      let gameData: any = null
+      if (foundGames && foundGames.length > 0) {
+        let rawData = foundGames[0].data
+        if (typeof rawData === 'string') {
+          try { rawData = JSON.parse(rawData) } catch {}
+        }
+        gameData = {
+          id: foundGames[0].id,
+          name: foundGames[0].name,
+          ...(typeof rawData === 'object' && rawData !== null ? rawData : {})
+        }
+      }
+
+      const { data: rels } = await client
+        .from('friendships')
+        .select('*')
+        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+        .eq('status', 'accepted')
+
+      const friendIds = (rels || []).map(r => r.user_id === userId ? r.friend_id : r.user_id)
+      const allTargetIds = Array.from(new Set([...friendIds, userId]))
+      
+      let myPlaytimeMinutes = 0
+      let friendsWhoPlayed: any[] = []
+
+      if (allTargetIds.length > 0) {
+        let friendPlaytimes: any[] = []
+        if (slotId) {
+          const { data } = await client.from('playtime').select('user_id, minutes, platform').in('user_id', allTargetIds).eq('slot_id', slotId)
+          friendPlaytimes = data || []
+        }
+        if (friendPlaytimes.length === 0) {
+          const { data } = await client.from('playtime').select('user_id, minutes, platform').in('user_id', allTargetIds).ilike('game_name', gameName)
+          friendPlaytimes = data || []
+        }
+
+        if (friendPlaytimes && friendPlaytimes.length > 0) {
+          // Calculamos el tiempo del usuario actual (perfil iniciado)
+          const myRows = friendPlaytimes.filter(p => p.user_id === userId)
+          myPlaytimeMinutes = myRows.reduce((sum, curr) => sum + (curr.minutes || 0), 0)
+
+          // Amigos (excluyendo al usuario actual)
+          const friendUserIds = Array.from(new Set(friendPlaytimes.map(p => p.user_id))).filter(id => id !== userId)
+          if (friendUserIds.length > 0) {
+            const { data: profiles } = await client.from('profiles').select('id, username, avatar_url').in('id', friendUserIds)
+
+            friendsWhoPlayed = friendUserIds.map(uid => {
+              const prof = profiles?.find(p => p.id === uid)
+              const totalMinutes = friendPlaytimes
+                .filter(p => p.user_id === uid)
+                .reduce((sum, curr) => sum + (curr.minutes || 0), 0)
+              return {
+                id: uid,
+                username: prof?.username || 'Amigo',
+                avatarUrl: prof?.avatar_url || '',
+                minutes: totalMinutes
+              }
+            }).filter(u => u.minutes > 0).sort((a, b) => b.minutes - a.minutes)
+          }
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          gameInfo: gameData,
+          myPlaytimeMinutes,
+          friendsWhoPlayed
+        }
+      }
+    } catch (err: any) {
+      debugError(`[Social] Error en social-get-game-modal-details: ${err.message}`)
       return { success: false, error: err.message }
     }
   })

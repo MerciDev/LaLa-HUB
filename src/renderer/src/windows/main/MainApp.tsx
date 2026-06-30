@@ -27,6 +27,7 @@ import LoginScreen from '../../components/LoginScreen'
 import ProfilePage from '../../components/ProfilePage'
 import BackgroundLayer from '../../components/BackgroundLayer'
 import ModeHUD from '../../components/ModeHUD'
+import GameDetailsModal from '../../components/ProfilePage/GameDetailsModal'
 
 function logSlots(label: string, items: HomeSlot[]) {
     console.log(`=== SLOTS ${label} ===`)
@@ -268,11 +269,11 @@ function MainApp(): React.JSX.Element {
     // --- Download Manager ---
     const [downloadManagerVisible, setDownloadManagerVisible] = useState(false)
 
-    // --- Profile Page & Picker ---
     const [profilePageVisible, setProfilePageVisible] = useState(false)
     const [profileInitialTab, setProfileInitialTab] = useState('overview')
     const [libraryPickerVisible, setLibraryPickerVisible] = useState(false)
     const [pickerTargetIndex, setPickerTargetIndex] = useState<number | null>(null)
+    const [gameDetailsModalData, setGameDetailsModalData] = useState<any | null>(null)
 
     // Iframe Modal State
     const [addIframeVisible, setAddIframeVisible] = useState(false)
@@ -858,6 +859,20 @@ function MainApp(): React.JSX.Element {
                     setSelectedSlotIndex(null)
                     window.api.movementControl.send('SET_SECTION', 'profile')
                     break
+                case 'OPEN_GAME_DETAILS': {
+                    const slot = a.payload
+                    if (slot && slot.game) {
+                        setGameDetailsModalData({
+                            slotId: slot.id,
+                            gameName: slot.game.name,
+                            platform: slot.game.platform,
+                            minutes: slot.game.playtimeMinutes || 0,
+                            imageUrl: slot.game.coverUrl || slot.game.backgroundUrl || null
+                        })
+                        window.api.movementControl.send('SET_SECTION', 'game-details')
+                    }
+                    break
+                }
                 case 'OPEN_LIBRARY_PICKER':
                     sfx.open()
                     pushRoute('library-picker')
@@ -1123,7 +1138,7 @@ function MainApp(): React.JSX.Element {
                         window.api.contextMenuControl.send('toggle', false)
                         break
                 }
-            } else if (section === 'add-game-modal' || section === 'settings' || section === 'profile' || section === 'library-picker' || section === 'shift-content-modal') {
+            } else if (section === 'add-game-modal' || section === 'settings' || section === 'profile' || section === 'library-picker' || section === 'shift-content-modal' || section === 'game-details') {
                 window.dispatchEvent(new CustomEvent('panel-move', { detail: action }))
             } else if (section === 'download-manager') {
                 if (action === 'back' || action === 'escape') { goBack(); return }
@@ -1498,6 +1513,16 @@ function MainApp(): React.JSX.Element {
                 selectedIndex={contextMenuSelectedIndex}
                 onOptionClick={handleContextOptionClick}
             />
+
+            {gameDetailsModalData && (
+                <GameDetailsModal 
+                    game={gameDetailsModalData} 
+                    onClose={() => {
+                        setGameDetailsModalData(null)
+                        window.api.movementControl.send('SET_SECTION', 'grid')
+                    }} 
+                />
+            )}
         </div>
     )
 
