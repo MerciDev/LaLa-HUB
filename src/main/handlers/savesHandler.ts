@@ -22,6 +22,38 @@ async function readDescription(savePath: string): Promise<string | undefined> {
     }
 }
 
+async function getSaveImage(savePath: string, isDirectory: boolean): Promise<string | undefined> {
+    try {
+        if (isDirectory) {
+            const files = await fs.readdir(savePath)
+            // Priority: screenshot, preview, thumb, then any image
+            let imgFile = files.find(f => f.toLowerCase() === 'screenshot.png' || f.toLowerCase() === 'screenshot.jpg')
+            if (!imgFile) imgFile = files.find(f => f.toLowerCase() === 'preview.png' || f.toLowerCase() === 'preview.jpg')
+            if (!imgFile) imgFile = files.find(f => f.toLowerCase().endsWith('.png') || f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.webp'))
+            
+            if (imgFile) {
+                const imgPath = path.join(savePath, imgFile)
+                const buffer = await fs.readFile(imgPath)
+                const ext = path.extname(imgPath).toLowerCase().slice(1)
+                return `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${buffer.toString('base64')}`
+            }
+        } else {
+            const dir = path.dirname(savePath)
+            const base = path.basename(savePath, path.extname(savePath))
+            const possibleNames = [`${base}.png`, `${base}.jpg`, `${base}.webp`]
+            for (const name of possibleNames) {
+                const imgPath = path.join(dir, name)
+                try {
+                    const buffer = await fs.readFile(imgPath)
+                    const ext = path.extname(imgPath).toLowerCase().slice(1)
+                    return `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${buffer.toString('base64')}`
+                } catch { }
+            }
+        }
+    } catch { }
+    return undefined
+}
+
 export function registerSavesHandlers(): void {
     ipcMain.handle('saves-push-cloud', async (_, slotId: string, overrides?: { savesPath?: string; savesExtension?: string }) => {
         const slots = loadSlots()
@@ -49,11 +81,19 @@ export function registerSavesHandlers(): void {
                 : []
 
             for (const entry of entries) {
-                if (!entry.isFile()) continue
+                if (!entry.isFile() && !entry.isDirectory()) continue
                 const filename = entry.name
                 if (filename.endsWith('_desc.txt')) continue
                 if (exts.length > 0) {
-                    const extMatch = exts.some(e => filename.toLowerCase().endsWith(e.startsWith('.') ? e : `.${e}`))
+                    let extMatch = exts.some(e => filename.toLowerCase().endsWith(e.startsWith('.') ? e : `.${e}`))
+                    if (!extMatch && entry.isDirectory()) {
+                        try {
+                            const subEntries = await fs.readdir(path.join(dirPath, filename), { withFileTypes: true })
+                            extMatch = subEntries.some(sub => sub.isFile() && exts.some(e => sub.name.toLowerCase().endsWith(e.startsWith('.') ? e : `.${e}`)))
+                        } catch {
+                            // Ignore read errors
+                        }
+                    }
                     if (!extMatch) continue
                 }
 
@@ -63,13 +103,15 @@ export function registerSavesHandlers(): void {
                     const d = new Date(stat.mtimeMs)
                     const formattedDate = `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                     const description = await readDescription(fullPath)
+                    const imageUrl = await getSaveImage(fullPath, entry.isDirectory())
                     files.push({
                         filename,
                         path: fullPath,
                         sizeBytes: stat.size,
                         modifiedTime: stat.mtimeMs,
                         formattedDate,
-                        description
+                        description,
+                        imageUrl
                     })
                 } catch {
                     // Ignore inaccessible files

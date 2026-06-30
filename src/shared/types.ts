@@ -128,6 +128,7 @@ export interface SaveFileInfo {
   modifiedTime: number
   formattedDate: string
   description?: string
+  imageUrl?: string
 }
 
 export interface HomeSlot {

@@ -285,7 +285,7 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                 iconPosition: editSlot.iconPosition ?? 'bottom-right',
                 iconSize: editSlot.iconSize ?? 64,
                 savesPath: editSlot.game?.savesPath ?? '',
-                savesExtension: editSlot.game?.savesExtension || '.sav',
+                savesExtension: editSlot.game?.savesExtension ?? '.sav',
                 cloudSyncEnabled: editSlot.game?.cloudSyncEnabled ?? false
             }
             setForm(data)
@@ -513,7 +513,7 @@ const q = importQuery.trim() ? encodeURIComponent(importQuery.trim()) : ''
             horizontalImage: imgs.horizontal ? normalize(imgs.horizontal) : p.horizontalImage,
             iconImage: imgs.icon ? normalize(imgs.icon) : p.iconImage,
             savesPath: currentPath ? resolveSavesPath(rawSavesPath, currentPath) : rawSavesPath || p.savesPath,
-            savesExtension: res.savesExtension || p.savesExtension,
+            savesExtension: res.savesExtension ?? p.savesExtension,
         }))
         setTab('general')
         setFocusArea('content')
@@ -1174,7 +1174,7 @@ const hasBtns = !!(r.current.editSlot && r.current.form.savesPath)
             setForm(p => ({
                 ...p,
                 savesPath: resolved,
-                savesExtension: gameData.savesExtension || p.savesExtension,
+                savesExtension: gameData.savesExtension ?? p.savesExtension,
             }))
             sfx.confirm()
             showToast('Ruta de guardados sincronizada', 'success')
@@ -2126,7 +2126,7 @@ const handleBrowseArtwork = useCallback(async () => {
                     <div 
                         id="ag-saves-ext"
                         className={`ag-field-row ${isFocused('content', 1) ? 'ag-field-row--focused' : ''} ${isInputEditing && isFocused('content', 1) ? 'ag-field-row--editing' : ''}`}
-                        onClick={() => { setFocusArea('content'); setContentIndex(1); setIsInputEditing(true) }}
+                        onClick={() => { setFocusArea('content'); setContentIndex(1); setIsInputEditing(true); document.getElementById('ag-saves-ext-input')?.focus() }}
                         style={{ marginBottom: 16 }}
                     >
                         <Icon icon="mynaui:file" className="ag-field-icon" />
@@ -2207,7 +2207,7 @@ const handleBrowseArtwork = useCallback(async () => {
 const hasBtns = !!(isEditing && form.savesPath)
                                     const cardIdx = 6 + i
                                     const isFoc = isFocused('content', cardIdx)
-                                    const imgUrl = form.squareImage || editSlot?.squareImage || form.coverImage || editSlot?.coverImage
+                                    const imgUrl = sf.imageUrl || form.squareImage || editSlot?.squareImage || form.coverImage || editSlot?.coverImage
                                     return (
                                         <div 
                                             key={sf.filename}

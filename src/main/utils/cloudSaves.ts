@@ -3,6 +3,14 @@ import path from 'path'
 import { HomeSlot, SaveFileInfo } from '../../shared/types'
 import { getAuthenticatedClient, getUserId } from './supabase'
 import { debugLog, debugError } from './debug'
+import { loadSlots } from './storage'
+
+import AdmZip from 'adm-zip'
+import os from 'os'
+
+function getSafeSlotId(slot: HomeSlot | undefined, fallbackId: string): string {
+    return slot?.game?.searchId || slot?.game?.id || fallbackId.replace(/\|/g, '-')
+}
 
 /** Helper to scan local save files matching extension */
 export async function scanLocalSaves(dirPath: string, extension?: string): Promise<SaveFileInfo[]> {
@@ -15,10 +23,18 @@ export async function scanLocalSaves(dirPath: string, extension?: string): Promi
             : []
 
         for (const entry of entries) {
-            if (!entry.isFile()) continue
+            if (!entry.isFile() && !entry.isDirectory()) continue
             const filename = entry.name
             if (exts.length > 0) {
-                const extMatch = exts.some(e => filename.toLowerCase().endsWith(e.startsWith('.') ? e : `.${e}`))
+                let extMatch = exts.some(e => filename.toLowerCase().endsWith(e.startsWith('.') ? e : `.${e}`))
+                if (!extMatch && entry.isDirectory()) {
+                    try {
+                        const subEntries = await fs.readdir(path.join(dirPath, filename), { withFileTypes: true })
+                        extMatch = subEntries.some(sub => sub.isFile() && exts.some(e => sub.name.toLowerCase().endsWith(e.startsWith('.') ? e : `.${e}`)))
+                    } catch {
+                        // Ignore read errors
+                    }
+                }
                 if (!extMatch) continue
             }
 
@@ -90,24 +106,47 @@ export async function pushSaveToCloud(slot: HomeSlot, overrides?: { savesPath?: 
             return { success: false, error: 'No se encontraron partidas locales para subir' }
         }
 
-        // Upload the newest file
-        const newestFile = localFiles[0]
-        const storagePath = `${userId}/${slot.id}/${newestFile.filename}`
-        debugLog(`[CloudSaves] Uploading ${newestFile.filename} to cloud`)
-        await uploadFile(client, storagePath, newestFile.path)
+        const safeSlotId = getSafeSlotId(slot, slot.id)
+        let count = 0
 
-        // Also upload description file if it exists
-        const descPath = getDescPath(newestFile.path)
-        try {
-            await fs.access(descPath)
-            const descStoragePath = `${userId}/${slot.id}/${path.basename(descPath)}`
-            debugLog(`[CloudSaves] Uploading description ${path.basename(descPath)} to cloud`)
-            await uploadFile(client, descStoragePath, descPath)
-        } catch {
-            // No description file, that's fine
+        for (const file of localFiles) {
+            const stat = await fs.stat(file.path)
+            const isDir = stat.isDirectory()
+            
+            let uploadPath = file.path
+            let storageFilename = file.filename
+            let tmpZipPath = ''
+
+            if (isDir) {
+                storageFilename = `${file.filename}.dir.zip`
+                tmpZipPath = path.join(os.tmpdir(), storageFilename)
+                const zip = new AdmZip()
+                zip.addLocalFolder(file.path)
+                zip.writeZip(tmpZipPath)
+                uploadPath = tmpZipPath
+            }
+
+            const storagePath = `${userId}/${safeSlotId}/${storageFilename}`
+            debugLog(`[CloudSaves] Uploading ${storageFilename} to cloud`)
+            await uploadFile(client, storagePath, uploadPath)
+
+            if (isDir && tmpZipPath) {
+                try { await fs.unlink(tmpZipPath) } catch {}
+            }
+
+            // Also upload description file if it exists
+            const descPath = getDescPath(file.path)
+            try {
+                await fs.access(descPath)
+                const descStoragePath = `${userId}/${safeSlotId}/${path.basename(descPath)}`
+                await uploadFile(client, descStoragePath, descPath)
+            } catch {
+                // No description file, that's fine
+            }
+            count++
         }
 
-        debugLog(`[CloudSaves] Successfully uploaded ${newestFile.filename} to cloud`)
+        debugLog(`[CloudSaves] Successfully uploaded ${count} files to cloud`)
         return { success: true }
     } catch (err: any) {
         debugError(`[CloudSaves] Push failed: ${err.message || err}`)
@@ -127,7 +166,8 @@ export async function pullSaveFromCloud(slot: HomeSlot, force = false, overrides
     }
 
     try {
-        const folderPath = `${userId}/${slot.id}`
+        const safeSlotId = getSafeSlotId(slot, slot.id)
+        const folderPath = `${userId}/${safeSlotId}`
         const { data: fileList, error: listError } = await client.storage.from('game-saves').list(folderPath)
 
         if (listError) throw listError
@@ -135,48 +175,57 @@ export async function pullSaveFromCloud(slot: HomeSlot, force = false, overrides
             return { success: false, error: 'No hay partidas en la nube para este juego' }
         }
 
-        // Sort remote files by updated_at or created_at (newest first)
-        fileList.sort((a, b) => {
-            const timeA = new Date(a.updated_at || a.created_at || 0).getTime()
-            const timeB = new Date(b.updated_at || b.created_at || 0).getTime()
-            return timeB - timeA
-        })
+        const mainFiles = fileList.filter(f => !f.name.endsWith('_desc.txt'))
+        let count = 0
 
-        const remoteFile = fileList[0]
-        const remoteTimestamp = new Date(remoteFile.updated_at || remoteFile.created_at || 0).getTime()
-        const localDestPath = path.join(savesPath, remoteFile.name)
+        for (const remoteFile of mainFiles) {
+            const remoteTimestamp = new Date(remoteFile.updated_at || remoteFile.created_at || 0).getTime()
+            const isDirZip = remoteFile.name.endsWith('.dir.zip')
+            
+            const originalName = isDirZip ? remoteFile.name.replace('.dir.zip', '') : remoteFile.name
+            const localDestPath = path.join(savesPath, originalName)
 
-        // Check local timestamp unless forced
-        if (!force) {
-            try {
-                const stat = await fs.stat(localDestPath)
-                if (stat.mtimeMs >= remoteTimestamp - 2000) {
-                    debugLog(`[CloudSaves] Local save is newer or equal to remote save. Skipping download.`)
-                    return { success: true }
+            if (!force) {
+                try {
+                    const stat = await fs.stat(localDestPath)
+                    if (stat.mtimeMs >= remoteTimestamp - 2000) {
+                        debugLog(`[CloudSaves] Local save ${originalName} is newer or equal. Skipping.`)
+                        continue
+                    }
+                } catch {
+                    // Local file doesn't exist, proceed with download
                 }
-            } catch {
-                // Local file doesn't exist, proceed with download
             }
+
+            await fs.mkdir(savesPath, { recursive: true })
+
+            const storagePath = `${folderPath}/${remoteFile.name}`
+            debugLog(`[CloudSaves] Downloading ${storagePath} from cloud...`)
+            
+            if (isDirZip) {
+                const tmpZipPath = path.join(os.tmpdir(), remoteFile.name)
+                await downloadFile(client, storagePath, tmpZipPath)
+                const zip = new AdmZip(tmpZipPath)
+                zip.extractAllTo(localDestPath, true)
+                try { await fs.unlink(tmpZipPath) } catch {}
+            } else {
+                await downloadFile(client, storagePath, localDestPath)
+            }
+
+            // Also download description file if it exists in cloud
+            const descFilename = `${path.basename(originalName, path.extname(originalName))}_desc.txt`
+            const descStoragePath = `${folderPath}/${descFilename}`
+            const descDestPath = path.join(savesPath, descFilename)
+            try {
+                await downloadFile(client, descStoragePath, descDestPath)
+                debugLog(`[CloudSaves] Downloaded description ${descFilename} from cloud`)
+            } catch {
+                // Description file doesn't exist in cloud, that's fine
+            }
+            count++
         }
 
-        await fs.mkdir(savesPath, { recursive: true })
-
-        const storagePath = `${folderPath}/${remoteFile.name}`
-        debugLog(`[CloudSaves] Downloading ${storagePath} from cloud...`)
-        await downloadFile(client, storagePath, localDestPath)
-
-        // Also download description file if it exists in cloud
-        const descFilename = `${path.basename(remoteFile.name, path.extname(remoteFile.name))}_desc.txt`
-        const descStoragePath = `${folderPath}/${descFilename}`
-        const descDestPath = path.join(savesPath, descFilename)
-        try {
-            await downloadFile(client, descStoragePath, descDestPath)
-            debugLog(`[CloudSaves] Downloaded description ${descFilename} from cloud`)
-        } catch {
-            // Description file doesn't exist in cloud, that's fine
-        }
-
-        debugLog(`[CloudSaves] Successfully downloaded cloud save to ${localDestPath}`)
+        debugLog(`[CloudSaves] Successfully downloaded ${count} cloud saves`)
         return { success: true }
     } catch (err: any) {
         debugError(`[CloudSaves] Pull failed: ${err.message || err}`)
@@ -193,8 +242,12 @@ export async function deleteSaveFromCloud(slotId: string, filename: string): Pro
     }
 
     try {
-        const basePath = `${userId}/${slotId}`
-        const pathsToDelete = [`${basePath}/${filename}`]
+        const slots = loadSlots()
+        const slot = slots.find(s => s.id === slotId)
+        const safeSlotId = getSafeSlotId(slot, slotId)
+        
+        const basePath = `${userId}/${safeSlotId}`
+        const pathsToDelete = [`${basePath}/${filename}`, `${basePath}/${filename}.dir.zip`]
 
         const base = path.basename(filename, path.extname(filename))
         pathsToDelete.push(`${basePath}/${base}_desc.txt`)
