@@ -92,6 +92,16 @@ export interface Platform {
   icon?: string
   image?: string
   company?: string
+  releaseDate?: string
+  consoleImage?: string
+  abbreviation?: string
+  nameImage?: string
+  iconImage?: string
+  romPath?: string
+  biosPath?: string
+  enableRichPresence?: boolean
+  defaultAppId?: string
+  apps?: any[]
 }
 
 export interface Game {

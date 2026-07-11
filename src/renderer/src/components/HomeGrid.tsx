@@ -37,6 +37,11 @@ function getBestSlotImage(item: HomeSlot, cSpan: number, rSpan: number): string 
     }
 }
 
+function getSlotLogoImage(item: HomeSlot): string | undefined {
+    const gameImgs = (item.game as any)?.data?.images || (item.game as any)?.images || {}
+    return item.logoImage || gameImgs.logo
+}
+
 
 function HomeGrid({
     homeGrid,
@@ -314,6 +319,8 @@ function HomeGrid({
                                         const offLblTransform = lblOff ? `translate(${lblOff.x}px, ${lblOff.y}px) scale(${lblOff.scale ?? 1})` : ''
                                         const finalLblTransform = `${baseLblTransform}${offLblTransform}`.trim() || undefined
 
+                                        const logoImg = getSlotLogoImage(item)
+
                                         return (
                                             <>
                                                 <div 
@@ -324,11 +331,11 @@ function HomeGrid({
                                                         top: labelPos === 'top' ? 0 : labelPos === 'center' ? '50%' : 'auto',
                                                         transform: finalLblTransform,
                                                         transition: 'transform 0.05s ease-out',
-                                                        background: (item.showLogo && item.logoImage) ? 'transparent' : (labelPos === 'top' ? 'linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%)' : labelPos === 'center' ? 'rgba(0,0,0,0.75)' : undefined)
+                                                        background: (item.showLogo && logoImg) ? 'transparent' : (labelPos === 'top' ? 'linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%)' : labelPos === 'center' ? 'rgba(0,0,0,0.75)' : undefined)
                                                     }}
                                                 >
-                                                    {(item.showLogo && item.logoImage) ? (
-                                                        <img src={item.logoImage} alt={item.label} style={{ maxWidth: '80%', maxHeight: '100%', objectFit: 'contain' }} draggable={false} />
+                                                    {(item.showLogo && logoImg) ? (
+                                                        <img src={logoImg} alt={item.label} style={{ maxWidth: '80%', maxHeight: '100%', objectFit: 'contain' }} draggable={false} />
                                                     ) : (
                                                         item.label
                                                     )}

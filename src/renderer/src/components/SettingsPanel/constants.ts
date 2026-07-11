@@ -44,4 +44,20 @@ export const TABS: ConsolePanelTab[] = [
 export const TAB_IDS = TABS.map(t => t.id)
 
 export const EMPTY_EMU: EmulatorForm = { name: '', path: '', args: '', platforms: [] }
-export const EMPTY_PLATFORM: PlatformForm = { id: '', name: '', icon: '', image: '', company: '' }
+export const EMPTY_PLATFORM: PlatformForm = {
+    id: '',
+    name: '',
+    icon: '',
+    image: '',
+    company: '',
+    releaseDate: '',
+    consoleImage: '',
+    abbreviation: '',
+    nameImage: '',
+    iconImage: '',
+    romPath: '',
+    biosPath: '',
+    enableRichPresence: true,
+    defaultAppId: '',
+    apps: []
+}

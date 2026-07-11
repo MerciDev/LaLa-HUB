@@ -248,7 +248,6 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
         window.api.emulators.getAll().then(setEmulators)
         window.api.platforms.getAll().then(setPlatforms)
         setTab('import')
-        setFocusArea('nav')
         setContentIndex(0)
         setContentSubIndex(0)
         setMediaTarget('coverImage')
@@ -271,13 +270,13 @@ function AddGamePanel({ visible, editSlot, onClose, authState }: AddGamePanelPro
                 emulatorId: editSlot.game?.emulator?.id ?? '',
                 platformId: editSlot.game?.platform?.id ?? '',
                 processName: editSlot.game?.processName ?? '',
-                squareImage: editSlot.squareImage ?? '',
-                logoImage: editSlot.logoImage ?? '',
-                verticalImage: editSlot.verticalImage ?? '',
-                horizontalImage: editSlot.horizontalImage ?? '',
-                iconImage: editSlot.iconImage ?? '',
-                backgroundImage: editSlot.backgroundImage ?? '',
-                coverImage: editSlot.coverImage ?? '',
+                squareImage: editSlot.squareImage || (editSlot.game as any)?.data?.images?.home || (editSlot.game as any)?.images?.home || '',
+                logoImage: editSlot.logoImage || (editSlot.game as any)?.data?.images?.logo || (editSlot.game as any)?.images?.logo || '',
+                verticalImage: editSlot.verticalImage || (editSlot.game as any)?.data?.images?.v_grid || (editSlot.game as any)?.images?.v_grid || '',
+                horizontalImage: editSlot.horizontalImage || (editSlot.game as any)?.data?.images?.h_grid || (editSlot.game as any)?.images?.h_grid || '',
+                iconImage: editSlot.iconImage || (editSlot.game as any)?.data?.images?.icon || (editSlot.game as any)?.images?.icon || '',
+                backgroundImage: editSlot.backgroundImage || (editSlot.game as any)?.data?.images?.background || (editSlot.game as any)?.images?.background || '',
+                coverImage: editSlot.coverImage || (editSlot.game as any)?.data?.images?.cover || (editSlot.game as any)?.images?.cover || '',
                 showLabel: editSlot.showLabel ?? false,
                 showLogo: editSlot.showLogo ?? false,
                 labelPosition: editSlot.labelPosition ?? 'bottom',
@@ -501,10 +500,29 @@ const q = importQuery.trim() ? encodeURIComponent(importQuery.trim()) : ''
         const rawSavesPath = res.savesPath || ''
         const currentPath = r.current.form.path
         
+        const webConsoleId = typeof res.console === 'string' ? res.console : res.console?.id || (Array.isArray(res.platforms) && (typeof res.platforms[0] === 'string' ? res.platforms[0] : res.platforms[0]?.id)) || ''
+        const matchingPlat = r.current.platforms.find(p => p.id === webConsoleId || p.name?.toLowerCase() === webConsoleId.toLowerCase() || p.abbreviation?.toLowerCase() === webConsoleId.toLowerCase())
+        const targetPlatId = matchingPlat ? matchingPlat.id : webConsoleId
+
+        let autoAppId = ''
+        if (matchingPlat) {
+            if (matchingPlat.defaultAppId && matchingPlat.apps?.some((a: any) => (typeof a === 'string' ? a : a.id) === matchingPlat.defaultAppId)) {
+                autoAppId = matchingPlat.defaultAppId
+            } else if (matchingPlat.apps && matchingPlat.apps.length > 0) {
+                const firstApp = matchingPlat.apps[0]
+                autoAppId = typeof firstApp === 'string' ? firstApp : firstApp.id
+            } else {
+                const matchingEmu = r.current.emulators.find(e => e.platforms?.includes(matchingPlat.id))
+                if (matchingEmu) autoAppId = matchingEmu.id
+            }
+        }
+
         setForm(p => ({
             ...p,
             name: res.name || '',
             searchId: res.id || '',
+            platformId: targetPlatId || p.platformId,
+            emulatorId: autoAppId || p.emulatorId,
             squareImage: imgs.square ? normalize(imgs.square) : p.squareImage,
             backgroundImage: imgs.background ? normalize(imgs.background) : p.backgroundImage,
             logoImage: imgs.logo ? normalize(imgs.logo) : p.logoImage,
@@ -693,38 +711,66 @@ const hasBtns = !!(editSlot && form.savesPath)
                 return 
             }
 
-            // ─ Sub-menu: Emulator Dropdown ─
-            if (isEmuMenuOpen) {
-                e.stopImmediatePropagation()
-                const emuOptions = [{ id: '', name: 'Nativo' }, ...r.current.emulators];
-                const currentHover = r.current.emuMenuHoverIndex
-                if (action === 'up') {
-                    if (currentHover > 0) { sfx.navigate(); setEmuMenuHoverIndex(currentHover - 1) }
-                } else if (action === 'down') {
-                    if (currentHover < emuOptions.length - 1) { sfx.navigate(); setEmuMenuHoverIndex(currentHover + 1) }
-                } else if (action === 'select') {
-                    sfx.confirm(); setForm(p => ({ ...p, emulatorId: emuOptions[currentHover].id, platformId: '', path: '' })); setIsEmuMenuOpen(false)
-                } else if (action === 'back') {
-                    sfx.cancel(); setIsEmuMenuOpen(false)
-                }
-                return
-            }
-
             // ─ Sub-menu: Platform Dropdown ─
             if (r.current.isPlatMenuOpen) {
                 e.stopImmediatePropagation()
+                const platOptions = [{ id: '', name: 'PC / Nativo (Sin Plataforma)' }, ...r.current.platforms.map(p => ({ id: p.id, name: p.name }))]
                 const currentHover = r.current.platMenuHoverIndex
-                const selectedEmulator = r.current.emulators.find(e => e.id === r.current.form.emulatorId)
-                const platOptions = r.current.platforms.filter(p => selectedEmulator?.platforms?.includes(p.id))
 
                 if (action === 'up') {
                     if (currentHover > 0) { sfx.navigate(); setPlatMenuHoverIndex(currentHover - 1) }
                 } else if (action === 'down') {
                     if (currentHover < platOptions.length - 1) { sfx.navigate(); setPlatMenuHoverIndex(currentHover + 1) }
                 } else if (action === 'select') {
-                    sfx.confirm(); setForm(p => ({ ...p, platformId: platOptions[currentHover].id })); setIsPlatMenuOpen(false); setIsInputEditing(false)
+                    sfx.confirm()
+                    const optId = platOptions[currentHover]?.id || ''
+                    const selectedPlat = r.current.platforms.find(p => p.id === optId)
+                    let nextEmuId = ''
+                    if (selectedPlat) {
+                        if (selectedPlat.defaultAppId && selectedPlat.apps?.some((a: any) => (typeof a === 'string' ? a : a.id) === selectedPlat.defaultAppId)) {
+                            nextEmuId = selectedPlat.defaultAppId
+                        } else if (selectedPlat.apps && selectedPlat.apps.length > 0) {
+                            const firstApp = selectedPlat.apps[0]
+                            nextEmuId = typeof firstApp === 'string' ? firstApp : firstApp.id
+                        } else {
+                            const matchEmu = r.current.emulators.find(e => e.platforms?.includes(selectedPlat.id))
+                            if (matchEmu) nextEmuId = matchEmu.id
+                        }
+                    }
+                    setForm(p => ({ ...p, platformId: optId, emulatorId: nextEmuId }))
+                    setIsPlatMenuOpen(false); setIsInputEditing(false)
                 } else if (action === 'back') {
                     sfx.cancel(); setIsPlatMenuOpen(false); setIsInputEditing(false)
+                }
+                return
+            }
+
+            // ─ Sub-menu: Emulator/App Dropdown ─
+            if (isEmuMenuOpen) {
+                e.stopImmediatePropagation()
+                const selectedPlat = r.current.platforms.find(p => p.id === r.current.form.platformId)
+                const emuOptions: { id: string, name: string }[] = [{ id: '', name: 'Nativo (Ejecutable Directo)' }]
+                if (selectedPlat && Array.isArray(selectedPlat.apps)) {
+                    selectedPlat.apps.forEach((a: any) => {
+                        const aId = typeof a === 'string' ? a : a.id
+                        const aName = typeof a === 'string' ? a : (a.name || a.id)
+                        if (aId) emuOptions.push({ id: aId, name: aName })
+                    })
+                }
+                r.current.emulators.forEach(e => {
+                    if (!r.current.form.platformId || e.platforms?.includes(r.current.form.platformId)) {
+                        if (!emuOptions.some(o => o.id === e.id)) emuOptions.push({ id: e.id, name: e.name })
+                    }
+                })
+                const currentHover = r.current.emuMenuHoverIndex
+                if (action === 'up') {
+                    if (currentHover > 0) { sfx.navigate(); setEmuMenuHoverIndex(currentHover - 1) }
+                } else if (action === 'down') {
+                    if (currentHover < emuOptions.length - 1) { sfx.navigate(); setEmuMenuHoverIndex(currentHover + 1) }
+                } else if (action === 'select') {
+                    sfx.confirm(); setForm(p => ({ ...p, emulatorId: emuOptions[currentHover]?.id || '' })); setIsEmuMenuOpen(false)
+                } else if (action === 'back') {
+                    sfx.cancel(); setIsEmuMenuOpen(false)
                 }
                 return
             }
@@ -908,22 +954,28 @@ const hasBtns = !!(editSlot && form.savesPath)
                             handleBrowseGame()
                         } else if (cIdx === 3) {
                             sfx.open()
-                            const emuOptions = [{ id: '', name: 'Nativo' }, ...r.current.emulators];
+                            const platOptions = [{ id: '', name: 'PC / Nativo' }, ...r.current.platforms.map(p => ({ id: p.id, name: p.name }))]
+                            const startIdx = platOptions.findIndex(o => o.id === r.current.form.platformId)
+                            setPlatMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
+                            setIsPlatMenuOpen(true)
+                        } else if (cIdx === 4) {
+                            sfx.open()
+                            const selectedPlat = r.current.platforms.find(p => p.id === r.current.form.platformId)
+                            const emuOptions: { id: string, name: string }[] = [{ id: '', name: 'Nativo (Ejecutable Directo)' }]
+                            if (selectedPlat && Array.isArray(selectedPlat.apps)) {
+                                selectedPlat.apps.forEach((a: any) => {
+                                    const aId = typeof a === 'string' ? a : a.id
+                                    if (aId) emuOptions.push({ id: aId, name: typeof a === 'string' ? a : (a.name || a.id) })
+                                })
+                            }
+                            r.current.emulators.forEach(e => {
+                                if (!r.current.form.platformId || e.platforms?.includes(r.current.form.platformId)) {
+                                    if (!emuOptions.some(o => o.id === e.id)) emuOptions.push({ id: e.id, name: e.name })
+                                }
+                            })
                             const startIdx = emuOptions.findIndex(o => o.id === r.current.form.emulatorId)
                             setEmuMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
                             setIsEmuMenuOpen(true)
-                        } else if (cIdx === 4) {
-                            const selectedEmulator = r.current.emulators.find(e => e.id === r.current.form.emulatorId)
-                            const platOptions = r.current.platforms.filter(p => selectedEmulator?.platforms?.includes(p.id))
-                            if (platOptions.length > 0) {
-                                sfx.open()
-                                const startIdx = platOptions.findIndex(o => o.id === r.current.form.platformId)
-                                setPlatMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
-                                setIsPlatMenuOpen(true)
-                            } else {
-                                sfx.error()
-                                showToast('Este emulador no tiene plataformas asociadas', 'warning')
-                            }
                         } else {
                             sfx.confirm()
                             setIsInputEditing(true)
@@ -1349,23 +1401,10 @@ const hasBtns = !!(r.current.editSlot && r.current.form.savesPath)
         }
     }, [selectedSaveFile, showToast])
 
-    // @ts-ignore
-const handleBrowseArtwork = useCallback(async () => {
-        const target = r.current.mediaTarget
-        const path = await window.api.browseFile({
-            title: 'Seleccionar Imagen',
-            filters: [{ name: 'Imágenes', extensions: ['jpg', 'png', 'webp'] }]
-        })
-        if (!path) return
-        const res = await window.api.artwork.import(path)
-        if (res.success && res.url) setForm(prev => ({ ...prev, [target]: res.url! }))
-        else { sfx.error(); setError('Error copiando imagen.') }
-    }, [])
-
     const handleSave = async () => {
         const f = r.current.form
-        const emus = r.current.emulators
         const slot = r.current.editSlot
+        const emus = r.current.emulators
 
         setError(null)
         if (!f.name.trim()) { sfx.error(); setError('Falta asignar un nombre.'); return }
@@ -1373,20 +1412,32 @@ const handleBrowseArtwork = useCallback(async () => {
         setIsSaving(true)
         try {
             const slotId = slot?.id ?? `game-${Date.now()}`
-            const selectedEmulator = emus.find(e => e.id === f.emulatorId)
-            const selectedPlatform = r.current.platforms.find(p => p.id === f.platformId)
+            const selectedPlatform = r.current.platforms.find(p => p.id === f.platformId) || (f.platformId ? { id: f.platformId, name: f.platformId.toUpperCase() } as any : undefined)
+            let selectedEmulator = emus.find(e => e.id === f.emulatorId)
+            if (!selectedEmulator && selectedPlatform && Array.isArray(selectedPlatform.apps)) {
+                const appConfig = selectedPlatform.apps.find((a: any) => (typeof a === 'string' ? a : a.id) === f.emulatorId)
+                if (appConfig && typeof appConfig === 'object') {
+                    selectedEmulator = {
+                        id: appConfig.id,
+                        name: appConfig.name,
+                        path: appConfig.executablePath || appConfig.path || '',
+                        args: appConfig.args || '',
+                        platforms: [selectedPlatform.id]
+                    }
+                }
+            }
             const newSlot: HomeSlot = {
                 ...(slot ?? {}),
                 id: slotId,
                 icon: selectedPlatform?.icon || 'mdi:controller',
                 label: f.name.trim(),
-                squareImage: f.squareImage || slot?.squareImage,
-                logoImage: f.logoImage || slot?.logoImage,
-                verticalImage: f.verticalImage || slot?.verticalImage,
-                horizontalImage: f.horizontalImage || slot?.horizontalImage,
-                iconImage: f.iconImage || slot?.iconImage,
-                backgroundImage: f.backgroundImage || slot?.backgroundImage,
-                coverImage: f.coverImage || slot?.coverImage,
+                squareImage: f.squareImage || slot?.squareImage || (slot?.game as any)?.data?.images?.home || (slot?.game as any)?.images?.home,
+                logoImage: f.logoImage || slot?.logoImage || (slot?.game as any)?.data?.images?.logo || (slot?.game as any)?.images?.logo,
+                verticalImage: f.verticalImage || slot?.verticalImage || (slot?.game as any)?.data?.images?.v_grid || (slot?.game as any)?.images?.v_grid,
+                horizontalImage: f.horizontalImage || slot?.horizontalImage || (slot?.game as any)?.data?.images?.h_grid || (slot?.game as any)?.images?.h_grid,
+                iconImage: f.iconImage || slot?.iconImage || (slot?.game as any)?.data?.images?.icon || (slot?.game as any)?.images?.icon,
+                backgroundImage: f.backgroundImage || slot?.backgroundImage || (slot?.game as any)?.data?.images?.background || (slot?.game as any)?.images?.background,
+                coverImage: f.coverImage || slot?.coverImage || (slot?.game as any)?.data?.images?.cover || (slot?.game as any)?.images?.cover,
                 showLabel: f.showLabel,
                 showLogo: f.showLogo,
                 labelPosition: f.labelPosition,
@@ -1778,97 +1829,54 @@ const handleBrowseArtwork = useCallback(async () => {
                         </div>
                     </div>
 
-                    {/* Emulator Selector */}
+                    {/* Platform Selector (cIdx === 3) */}
                     <div 
-                        className={`ag-field-row ${isFocused('content', 3) && !isEmuMenuOpen ? 'ag-field-row--focused' : ''} ${isEmuMenuOpen ? 'ag-field-row--menu-open' : ''} ${isPlatMenuOpen ? 'ag-media-content--dimmed' : ''}`}
+                        className={`ag-field-row ${isFocused('content', 3) && !isPlatMenuOpen ? 'ag-field-row--focused' : ''} ${isPlatMenuOpen ? 'ag-field-row--menu-open' : ''} ${isEmuMenuOpen ? 'ag-media-content--dimmed' : ''}`}
                         onClick={() => { 
                             setFocusArea('content'); 
                             setContentIndex(3); 
-                            if (!isEmuMenuOpen) {
-                                const emuOptions = [{ id: '', name: 'Nativo' }, ...emulators];
-                                const startIdx = emuOptions.findIndex(o => o.id === form.emulatorId)
-                                setEmuMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
+                            if (!isPlatMenuOpen) {
+                                const platOptions = [{ id: '', name: 'PC / Nativo' }, ...platforms.map(p => ({ id: p.id, name: p.name }))]
+                                const startIdx = platOptions.findIndex(o => o.id === form.platformId)
+                                setPlatMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
                             }
-                            setIsEmuMenuOpen(!isEmuMenuOpen) 
-                        }}
-                    >
-                        <Icon icon="mynaui:chip" className="ag-field-icon" />
-                        <div className="ag-field-body" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div className="ag-field-label" style={{ marginBottom: 0 }}>Emulador</div>
-                            
-                            <div className="ag-custom-select">
-                                <div className="ag-custom-select__value">
-                                    {emulators.find(e => e.id === form.emulatorId)?.name || 'Nativo'}
-                                    <Icon icon={isEmuMenuOpen ? 'mynaui:chevron-up' : 'mynaui:chevron-down'} />
-                                </div>
-
-                                {isEmuMenuOpen && (
-                                    <div className="ag-custom-select__dropdown" style={{ zIndex: 100 }}>
-                                        {[{ id: '', name: 'Nativo' }, ...emulators].map((opt, i) => (
-                                            <div 
-                                                key={opt.id} 
-                                                id={`ag-emu-opt-${i}`}
-                                                className={`ag-custom-select__option ${emuMenuHoverIndex === i ? 'active' : ''}`}
-                                                onMouseEnter={() => setEmuMenuHoverIndex(i)}
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    setForm(p => ({ ...p, emulatorId: opt.id, platformId: '', path: '' }))
-                                                    setIsEmuMenuOpen(false)
-                                                    sfx.confirm()
-                                                }}
-                                            >
-                                                {opt.name}
-                                                {emuMenuHoverIndex === i && <Icon icon="mynaui:check" />}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Platform Selector */}
-                    <div 
-                        className={`ag-field-row ${isFocused('content', 4) && !isPlatMenuOpen ? 'ag-field-row--focused' : ''} ${isPlatMenuOpen ? 'ag-field-row--menu-open' : ''} ${isEmuMenuOpen ? 'ag-media-content--dimmed' : ''}`}
-                        onClick={() => { 
-                            const selectedEmulator = emulators.find(e => e.id === form.emulatorId)
-                            const platOptions = platforms.filter(p => selectedEmulator?.platforms?.includes(p.id))
-                            
-                            if (platOptions.length > 0) {
-                                setFocusArea('content'); 
-                                setContentIndex(4); 
-                                if (!isPlatMenuOpen) {
-                                    const startIdx = platOptions.findIndex(o => o.id === form.platformId)
-                                    setPlatMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
-                                }
-                                setIsPlatMenuOpen(!isPlatMenuOpen)
-                            } else {
-                                sfx.error()
-                                showToast('Este emulador no tiene plataformas asociadas', 'warning')
-                            }
+                            setIsPlatMenuOpen(!isPlatMenuOpen)
                         }}
                     >
                         <Icon icon="mynaui:grid-nine" className="ag-field-icon" />
                         <div className="ag-field-body" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div className="ag-field-label" style={{ marginBottom: 0 }}>Plataforma</div>
+                            <div className="ag-field-label" style={{ marginBottom: 0 }}>Plataforma / Consola</div>
                             
                             <div className="ag-custom-select">
                                 <div className="ag-custom-select__value">
-                                    {platforms.find(p => p.id === form.platformId)?.name || 'Seleccionar...'}
+                                    {platforms.find(p => p.id === form.platformId)?.name || (form.platformId ? form.platformId.toUpperCase() : 'PC / Nativo')}
                                     <Icon icon={isPlatMenuOpen ? 'mynaui:chevron-up' : 'mynaui:chevron-down'} />
                                 </div>
 
                                 {isPlatMenuOpen && (
                                     <div className="ag-custom-select__dropdown" style={{ zIndex: 100 }}>
-                                        {platforms.filter(p => emulators.find(e => e.id === form.emulatorId)?.platforms?.includes(p.id)).map((opt, i) => (
+                                        {[{ id: '', name: 'PC / Nativo' }, ...platforms.map(p => ({ id: p.id, name: p.name, icon: p.icon }))].map((opt, i) => (
                                             <div 
-                                                key={opt.id} 
+                                                key={opt.id || 'nativo'} 
                                                 id={`ag-plat-opt-${i}`}
                                                 className={`ag-custom-select__option ${platMenuHoverIndex === i ? 'active' : ''}`}
                                                 onMouseEnter={() => setPlatMenuHoverIndex(i)}
                                                 onClick={(e) => {
                                                     e.stopPropagation()
-                                                    setForm(p => ({ ...p, platformId: opt.id }))
+                                                    const selectedPlat = platforms.find(p => p.id === opt.id)
+                                                    let nextEmuId = ''
+                                                    if (selectedPlat) {
+                                                        if (selectedPlat.defaultAppId && selectedPlat.apps?.some((a: any) => (typeof a === 'string' ? a : a.id) === selectedPlat.defaultAppId)) {
+                                                            nextEmuId = selectedPlat.defaultAppId
+                                                        } else if (selectedPlat.apps && selectedPlat.apps.length > 0) {
+                                                            const firstApp = selectedPlat.apps[0]
+                                                            nextEmuId = typeof firstApp === 'string' ? firstApp : firstApp.id
+                                                        } else {
+                                                            const matchEmu = emulators.find(e => e.platforms?.includes(selectedPlat.id))
+                                                            if (matchEmu) nextEmuId = matchEmu.id
+                                                        }
+                                                    }
+                                                    setForm(p => ({ ...p, platformId: opt.id, emulatorId: nextEmuId }))
                                                     setIsPlatMenuOpen(false)
                                                     sfx.confirm()
                                                 }}
@@ -1878,6 +1886,89 @@ const handleBrowseArtwork = useCallback(async () => {
                                                 {platMenuHoverIndex === i && <Icon icon="mynaui:check" />}
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* App de Ejecución / Emulador Selector (cIdx === 4) */}
+                    <div 
+                        className={`ag-field-row ${isFocused('content', 4) && !isEmuMenuOpen ? 'ag-field-row--focused' : ''} ${isEmuMenuOpen ? 'ag-field-row--menu-open' : ''} ${isPlatMenuOpen ? 'ag-media-content--dimmed' : ''}`}
+                        onClick={() => { 
+                            setFocusArea('content'); 
+                            setContentIndex(4); 
+                            if (!isEmuMenuOpen) {
+                                const selectedPlat = platforms.find(p => p.id === form.platformId)
+                                const emuOptions: { id: string, name: string }[] = [{ id: '', name: 'Nativo (Ejecutable Directo)' }]
+                                if (selectedPlat && Array.isArray(selectedPlat.apps)) {
+                                    selectedPlat.apps.forEach((a: any) => {
+                                        const aId = typeof a === 'string' ? a : a.id
+                                        if (aId) emuOptions.push({ id: aId, name: typeof a === 'string' ? a : (a.name || a.id) })
+                                    })
+                                }
+                                emulators.forEach(e => {
+                                    if (!form.platformId || e.platforms?.includes(form.platformId)) {
+                                        if (!emuOptions.some(o => o.id === e.id)) emuOptions.push({ id: e.id, name: e.name })
+                                    }
+                                })
+                                const startIdx = emuOptions.findIndex(o => o.id === form.emulatorId)
+                                setEmuMenuHoverIndex(startIdx >= 0 ? startIdx : 0)
+                            }
+                            setIsEmuMenuOpen(!isEmuMenuOpen) 
+                        }}
+                    >
+                        <Icon icon="mynaui:chip" className="ag-field-icon" />
+                        <div className="ag-field-body" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div className="ag-field-label" style={{ marginBottom: 0 }}>Aplicación de Ejecución</div>
+                            
+                            <div className="ag-custom-select">
+                                <div className="ag-custom-select__value">
+                                    {(() => {
+                                        const selectedPlat = platforms.find(p => p.id === form.platformId)
+                                        if (selectedPlat && Array.isArray(selectedPlat.apps)) {
+                                            const foundApp = selectedPlat.apps.find((a: any) => (typeof a === 'string' ? a : a.id) === form.emulatorId)
+                                            if (foundApp) return typeof foundApp === 'string' ? foundApp : (foundApp.name || foundApp.id)
+                                        }
+                                        return emulators.find(e => e.id === form.emulatorId)?.name || 'Nativo (Ejecutable Directo)'
+                                    })()}
+                                    <Icon icon={isEmuMenuOpen ? 'mynaui:chevron-up' : 'mynaui:chevron-down'} />
+                                </div>
+
+                                {isEmuMenuOpen && (
+                                    <div className="ag-custom-select__dropdown" style={{ zIndex: 100 }}>
+                                        {(() => {
+                                            const selectedPlat = platforms.find(p => p.id === form.platformId)
+                                            const emuOptions: { id: string, name: string }[] = [{ id: '', name: 'Nativo (Ejecutable Directo)' }]
+                                            if (selectedPlat && Array.isArray(selectedPlat.apps)) {
+                                                selectedPlat.apps.forEach((a: any) => {
+                                                    const aId = typeof a === 'string' ? a : a.id
+                                                    if (aId) emuOptions.push({ id: aId, name: typeof a === 'string' ? a : (a.name || a.id) })
+                                                })
+                                            }
+                                            emulators.forEach(e => {
+                                                if (!form.platformId || e.platforms?.includes(form.platformId)) {
+                                                    if (!emuOptions.some(o => o.id === e.id)) emuOptions.push({ id: e.id, name: e.name })
+                                                }
+                                            })
+                                            return emuOptions.map((opt, i) => (
+                                                <div 
+                                                    key={opt.id || `direct-${i}`} 
+                                                    id={`ag-emu-opt-${i}`}
+                                                    className={`ag-custom-select__option ${emuMenuHoverIndex === i ? 'active' : ''}`}
+                                                    onMouseEnter={() => setEmuMenuHoverIndex(i)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        setForm(p => ({ ...p, emulatorId: opt.id }))
+                                                        setIsEmuMenuOpen(false)
+                                                        sfx.confirm()
+                                                    }}
+                                                >
+                                                    {opt.name}
+                                                    {emuMenuHoverIndex === i && <Icon icon="mynaui:check" />}
+                                                </div>
+                                            ))
+                                        })()}
                                     </div>
                                 )}
                             </div>

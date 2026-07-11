@@ -9,12 +9,31 @@ export interface EmulatorForm {
     platforms: string[]
 }
 
+export interface AppConfig {
+    id: string
+    name: string
+    executablePath: string
+    args: string
+    downloadUrl?: string
+    useRetroarch?: boolean
+}
+
 export interface PlatformForm {
     id: string
     name: string
     icon: string
     image: string
     company: string
+    releaseDate: string
+    consoleImage: string
+    abbreviation: string
+    nameImage: string
+    iconImage: string
+    romPath: string
+    biosPath: string
+    enableRichPresence: boolean
+    defaultAppId: string
+    apps: any[]
 }
 
 export interface SettingsPanelProps {

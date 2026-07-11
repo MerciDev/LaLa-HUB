@@ -14,6 +14,7 @@ import ControlsTab from './tabs/ControlsTab'
 import GridTab from './tabs/GridTab'
 import InterfaceTab from './tabs/InterfaceTab'
 import DownloadsTab from './tabs/DownloadsTab'
+import PlatformEditModal from './PlatformEditModal'
 
 function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridConfigChange, onClearGrid, initialTab }: SettingsPanelProps): React.JSX.Element {
     const [tab, setTab] = useState<Tab>(initialTab || 'platforms')
@@ -34,7 +35,7 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
     const [editingPlatId, setEditingPlatId] = useState<string | null>(null)
     const [platError, setPlatError] = useState<string | null>(null)
     const [platSaving, setPlatSaving] = useState(false)
-    const [isPlatFormExpanded, setIsPlatFormExpanded] = useState(false)
+    const [isPlatformModalOpen, setIsPlatformModalOpen] = useState(false)
 
     const [keymaps, setKeymaps] = useState<Record<string, string | boolean>>({})
     const [listeningKey, setListeningKey] = useState<string | null>(null)
@@ -52,6 +53,7 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
     const [focusedPlatIdx, setFocusedPlatIdx] = useState(0)
     const [isEmuPlatMenuOpen, setIsEmuPlatMenuOpen] = useState(false)
     const [emuPlatMenuHoverIndex, setEmuPlatMenuHoverIndex] = useState(0)
+    const [isPlatFormExpanded, setIsPlatFormExpanded] = useState(false)
 
     const [interfaceSettings, setInterfaceSettings] = useState<InterfaceSettings | null>(null)
     const [interfaceDirty, setInterfaceDirty] = useState(false)
@@ -72,11 +74,11 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
         tab, controlsSubTab, focusArea, selectedIndex, isDeleteFocused, footerIndex,
         emulators, platforms: sortedPlatforms, keymaps, listeningKey, gamepadListeningKey, visible, onJumpToHeader,
         gridRows, gridCols, gridGap, gridAspect, hasUnsavedChanges,
-        isInputEditing, isPlatFormExpanded, editingPlatId, editingEmuId, platForm, emuForm,
-        focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex, onClearGrid, interfaceSettings, interfaceDirty
+        isInputEditing, editingPlatId, editingEmuId, platForm, emuForm,
+        focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex, onClearGrid, interfaceSettings, interfaceDirty, isPlatformModalOpen, isPlatFormExpanded
     })
     useEffect(() => {
-        r.current = { tab, controlsSubTab, focusArea, selectedIndex, isDeleteFocused, footerIndex, emulators, platforms: sortedPlatforms, keymaps, listeningKey, gamepadListeningKey, visible, onJumpToHeader, gridRows, gridCols, gridGap, gridAspect, hasUnsavedChanges, isInputEditing, isPlatFormExpanded, editingPlatId, editingEmuId, platForm, emuForm, focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex, onClearGrid, interfaceSettings, interfaceDirty }
+        r.current = { tab, controlsSubTab, focusArea, selectedIndex, isDeleteFocused, footerIndex, emulators, platforms: sortedPlatforms, keymaps, listeningKey, gamepadListeningKey, visible, onJumpToHeader, gridRows, gridCols, gridGap, gridAspect, hasUnsavedChanges, isInputEditing, editingPlatId, editingEmuId, platForm, emuForm, focusedPlatIdx, isEmuPlatMenuOpen, emuPlatMenuHoverIndex, onClearGrid, interfaceSettings, interfaceDirty, isPlatformModalOpen, isPlatFormExpanded }
     })
 
     useEffect(() => {
@@ -95,7 +97,7 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
         setFooterIndex(0)
         setListeningKey(null)
         setGamepadListeningKey(null)
-        setIsPlatFormExpanded(false)
+        setIsPlatformModalOpen(false)
         if (gridConfig) {
             setGridRows(gridConfig.rows)
             setGridCols(gridConfig.cols)
@@ -157,42 +159,52 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
         if (path) setEmuForm(p => ({ ...p, path }))
     }
 
-    const handleSavePlatform = async () => {
-        const currentForm = r.current.platForm
-        if (!currentForm.name.trim()) { setPlatError('El nombre es obligatorio'); return }
+    const handleSavePlatform = async (savedForm: PlatformForm) => {
         setPlatSaving(true)
         try {
-            const newId = currentForm.id.trim() || crypto.randomUUID()
+            const newId = savedForm.id.trim() || crypto.randomUUID()
             const originalId = r.current.editingPlatId
             if (originalId && originalId !== newId) {
                 await window.api.platforms.remove(originalId)
             }
-            const res = await window.api.platforms.save({ ...currentForm, id: newId })
+            const res = await window.api.platforms.save({ ...savedForm, id: newId })
             if (res.success) {
                 setPlatforms(await window.api.platforms.getAll())
                 resetPlatForm()
                 sfx.confirm()
-                setTimeout(() => {
-                    const container = document.querySelector('.console-panel__content-body')
-                    if (container) container.scrollTo({ top: 0, behavior: 'instant' })
-                    setSelectedIndex(0)
-                }, 10)
             }
         } catch (e) {
-            setPlatError('Error al guardar')
+            console.error('Error al guardar plataforma:', e)
         } finally {
             setPlatSaving(false)
         }
     }
 
     const resetPlatForm = () => {
-        setPlatForm(EMPTY_PLATFORM); setEditingPlatId(null); setPlatError(null); setIsPlatFormExpanded(false)
+        setPlatForm(EMPTY_PLATFORM); setEditingPlatId(null); setIsPlatformModalOpen(false)
     }
 
     const handleEditPlatform = (plat: Platform) => {
-        setPlatForm({ id: plat.id, name: plat.name, icon: plat.icon || '', image: plat.image || '', company: plat.company || '' })
-        setEditingPlatId(plat.id); setPlatError(null); sfx.confirm()
-        setIsPlatFormExpanded(true)
+        setPlatForm({ 
+            id: plat.id, 
+            name: plat.name, 
+            icon: plat.icon || '', 
+            image: plat.image || '', 
+            company: plat.company || '',
+            releaseDate: plat.releaseDate || '',
+            consoleImage: plat.consoleImage || '',
+            abbreviation: plat.abbreviation || '',
+            nameImage: plat.nameImage || '',
+            iconImage: plat.iconImage || '',
+            romPath: plat.romPath || '',
+            biosPath: plat.biosPath || '',
+            enableRichPresence: plat.enableRichPresence ?? true,
+            defaultAppId: plat.defaultAppId || '',
+            apps: plat.apps || []
+        })
+        setEditingPlatId(plat.id)
+        setIsPlatformModalOpen(true)
+        sfx.confirm()
     }
 
     const handleRemovePlatform = async (id: string) => {
@@ -252,6 +264,37 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
             actions: [
                 { label: 'Fusionar', variant: 'secondary', onClick: () => executeSync(false) },
                 { label: 'Sobreescribir', variant: 'danger', onClick: () => executeSync(true) },
+                { label: 'Cancelar', variant: 'ghost', onClick: () => {} }
+            ]
+        })
+    }
+
+    const handleRemoveAllPlatforms = () => {
+        showDialog({
+            title: 'Eliminar todas las plataformas',
+            message: '¿Estás seguro de que quieres eliminar todas las plataformas? Esta acción no se puede deshacer.',
+            icon: 'mynaui:trash',
+            actions: [
+                {
+                    label: 'Eliminar todo',
+                    variant: 'danger',
+                    onClick: async () => {
+                        setPlatSyncing(true)
+                        try {
+                            for (const plat of sortedPlatforms) {
+                                await window.api.platforms.remove(plat.id)
+                            }
+                            setPlatforms([])
+                            sfx.cancel()
+                            setSelectedIndex(0)
+                        } catch (err) {
+                            setPlatError('Error al eliminar plataformas')
+                            sfx.error()
+                        } finally {
+                            setPlatSyncing(false)
+                        }
+                    }
+                },
                 { label: 'Cancelar', variant: 'ghost', onClick: () => {} }
             ]
         })
@@ -713,6 +756,7 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
     }
 
     return (
+        <>
         <SidePanel
             visible={visible}
             tabs={TABS}
@@ -736,7 +780,7 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
                             onClick={handleResetKeymaps} disabled={keymapSaving}>
                         <Icon icon="mynaui:refresh" /> Recargar
                     </button>
-                    <button id="btn-save-keymaps"
+                            <button id="btn-save-keymaps"
                             className={`cp-btn cp-btn--primary ${focusArea === 'footer' && footerIndex === 1 ? 'cp-btn--focused' : ''}`}
                             onClick={handleSaveKeymaps} disabled={!keymapDirty || keymapSaving}>
                         <Icon icon="mynaui:check" /> {keymapSaving ? 'Guardando…' : 'Guardar'}
@@ -746,19 +790,26 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
         >
             {tab === 'platforms' && (
                 <PlatformsTab
-                    focusArea={focusArea} selectedIndex={selectedIndex} isFocused={isFocused}
-                    platForm={platForm} editingPlatId={editingPlatId}
-                    platSaving={platSaving} platSyncing={platSyncing} platError={platError}
-                    platforms={platforms} sortedPlatforms={sortedPlatforms}
-                    isPlatFormExpanded={isPlatFormExpanded} isDeleteFocused={isDeleteFocused}
-                    onSyncPlatforms={(e) => handleSyncPlatforms(e)}
-                    onToggleExpand={() => { setIsPlatFormExpanded(!isPlatFormExpanded) }}
-                    onPlatFieldChange={(field, value) => setPlatForm(p => ({ ...p, [field]: value }))}
-                    onBrowsePlatImage={handleBrowsePlatImage}
-                    onSavePlatform={handleSavePlatform}
+                    focusArea={focusArea}
+                    selectedIndex={selectedIndex}
+                    isFocused={isFocused}
+                    platForm={platForm}
+                    editingPlatId={editingPlatId}
+                    platSaving={platSaving}
+                    platSyncing={platSyncing}
+                    platError={platError}
+                    platforms={platforms}
+                    sortedPlatforms={sortedPlatforms}
+                    isDeleteFocused={isDeleteFocused}
+                    onSyncPlatforms={handleSyncPlatforms}
+                    onToggleExpand={() => { resetPlatForm(); setIsPlatformModalOpen(true) }}
+                    onPlatFieldChange={(f, v) => setPlatForm(p => ({ ...p, [f]: v }))}
+                    onBrowsePlatImage={() => {}}
+                    onSavePlatform={() => handleSavePlatform(platForm)}
                     onResetForm={resetPlatForm}
                     onEditPlatform={handleEditPlatform}
                     onRemovePlatform={handleRemovePlatform}
+                    onRemoveAllPlatforms={handleRemoveAllPlatforms}
                     onFocusDelete={setIsDeleteFocused}
                 />
             )}
@@ -856,6 +907,25 @@ function SettingsPanel({ visible, onClose, onJumpToHeader, gridConfig, onGridCon
                 />
             )}
         </SidePanel>
+        <PlatformEditModal 
+            visible={isPlatformModalOpen}
+            platform={platForm}
+            onClose={() => setIsPlatformModalOpen(false)}
+            onSave={handleSavePlatform}
+            onBrowseImage={async (callback) => {
+                const path = await window.api.browseFile({ filters: [{ name: 'Imágenes', extensions: ['png', 'jpg', 'jpeg', 'webp'] }] })
+                if (path) callback(path)
+            }}
+            onBrowseFolder={async (callback) => {
+                const path = await window.api.browseFolder()
+                if (path) callback(path)
+            }}
+            onBrowseFile={async (callback) => {
+                const path = await window.api.browseFile({ filters: [{ name: 'Ejecutables / Archivos', extensions: ['exe', 'app', 'sh', 'bat', 'bin', '*'] }] })
+                if (path) callback(path)
+            }}
+        />
+        </>
     )
 }
 

@@ -254,16 +254,13 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
                     console.error('[Launch] RetroArch path not configured or settings missing')
                 }
             }
-            // 2. Is an emulated game (External Emulator)
-            else if (gameEmulator) {
+            // 2. Is an emulated game (External Emulator or App)
+            else if (gameEmulator && (gameEmulator.path || gameEmulator.executablePath)) {
                 const { existsSync } = require('fs')
+                const emuPath = gameEmulator.path || gameEmulator.executablePath
 
-                if (!gameEmulator?.path) {
-                    console.error(`[Launch] Error: No emulator configured for "${gameName}"`)
-                    return
-                }
-                if (!existsSync(gameEmulator.path)) {
-                    console.error(`[Launch] Error: Emulator not found at "${gameEmulator.path}"`)
+                if (!existsSync(emuPath)) {
+                    console.error(`[Launch] Error: Emulator not found at "${emuPath}"`)
                     return
                 }
                 if (!gamePath || !existsSync(gamePath)) {
@@ -271,12 +268,13 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
                     return
                 }
 
-                debugLog(`Running game: ${gamePath} with emulator: ${gameEmulator.path}`)
+                debugLog(`Running game: ${gamePath} with emulator/app: ${emuPath}`)
                 const quotedPath = gamePath.includes(' ') ? `"${gamePath}"` : gamePath
-                const emulatorArgs = (gameArgs || '-f -g {roms}').replace(/{roms}/g, quotedPath).replace(/{rom}/g, quotedPath)
+                const rawArgs = gameEmulator.args || gameArgs || '-f -g {roms}'
+                const emulatorArgs = rawArgs.replace(/{roms}/g, quotedPath).replace(/{rom}/g, quotedPath)
                 debugLog(`Emulator args: ${emulatorArgs}`)
 
-                const fullCommand = `"${gameEmulator.path}" ${emulatorArgs}`
+                const fullCommand = `"${emuPath}" ${emulatorArgs}`
                 gameProcess = spawn(fullCommand, [], {
                     shell: true,
                     detached: true,

@@ -83,7 +83,9 @@ export async function fetchFromTable<T>(
   table: string
 ): Promise<T[]> {
   let client: any = null
-  try { client = await getAuthenticatedClient() } catch {}
+  try { client = await getAuthenticatedClient() } catch (err) {
+    require('fs').writeFileSync(require('path').join(require('os').tmpdir(), 'lala-hub-supabase-err.txt'), String(err))
+  }
   if (!client) return []
 
   const { data, error } = await client
@@ -91,7 +93,8 @@ export async function fetchFromTable<T>(
     .select('*')
 
   if (error) {
-    debugError(`[SupabaseData] Error fetching ${table}: ${error}`)
+    debugError(`[SupabaseData] Error fetching ${table}: ${JSON.stringify(error)}`)
+    require('fs').writeFileSync(require('path').join(require('os').tmpdir(), 'lala-hub-supabase-err2.txt'), JSON.stringify(error))
     return []
   }
 
