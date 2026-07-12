@@ -41,6 +41,7 @@ import { registerAuthHandlers, getAuthState } from './handlers/authHandler'
 import { registerSyncHandlers } from './handlers/syncHandler'
 import { registerSocialHandlers } from './handlers/socialHandler'
 import { registerSavesHandlers } from './handlers/savesHandler'
+import { registerAppInstallHandlers } from './handlers/appInstallHandler'
 import { initSyncEngine } from './utils/syncEngine'
 import { initDiscordRPC } from './utils/discord'
 import { loadInterfaceSettings } from './settings/interfaceSettings'
@@ -310,6 +311,7 @@ async function main(): Promise<void> {
   registerMetadataHandlers()
   registerGameApiHandlers()
   registerSavesHandlers()
+  registerAppInstallHandlers()
 
   await app.whenReady()
 

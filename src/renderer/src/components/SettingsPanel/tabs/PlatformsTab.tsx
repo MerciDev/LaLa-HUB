@@ -122,6 +122,20 @@ function PlatformsTab({
                                         <div className="cp-list__item-sub" style={{ opacity: 0.7, fontSize: '0.9rem' }}>{plat.releaseDate || plat.company || 'Sin año'}</div>
                                     </div>
                                 </div>
+
+                                {(() => {
+                                    if (!plat.apps || !Array.isArray(plat.apps)) return null;
+                                    const defApp = plat.apps.find((a: any) => typeof a === 'object' && a.id === plat.defaultAppId) || (typeof plat.apps[0] === 'object' ? plat.apps[0] : null);
+                                    if (defApp && !defApp.executablePath) {
+                                        return (
+                                            <div style={{ position: 'absolute', top: '8px', left: '8px', zIndex: 10, background: 'rgba(0,0,0,0.6)', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', backdropFilter: 'blur(4px)', border: '1px solid rgba(245, 158, 11, 0.4)' }} title="Ejecutable por defecto no configurado">
+                                                <Icon icon="mynaui:danger-triangle" fontSize={20} color="#f59e0b" />
+                                            </div>
+                                        )
+                                    }
+                                    return null;
+                                })()}
+
                                 <button
                                     className={`cp-list-delete-btn ${rowFocused && isDeleteFocused ? 'focused' : ''}`}
                                     style={{ position: 'absolute', top: '8px', right: '8px', margin: 0, borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', zIndex: 10, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}

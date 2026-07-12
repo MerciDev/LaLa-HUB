@@ -31,7 +31,9 @@
     "framer-motion": "^12.38.0",
     "uuid": "^13.0.0",
     "webtorrent": "^3.0.16",
-    "adm-zip": "^0.5.16"
+    "adm-zip": "^0.5.16",
+    "7zip-bin": "^5.2.0",
+    "node-7z": "^3.0.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

@@ -138,6 +138,15 @@ const api = {
       ipcRenderer.invoke('platforms-sync', options)
   },
 
+  /** App Installation (Auto-Installer) */
+  installApp: (url: string, appName: string): Promise<{ success: boolean; executablePath?: string; error?: string }> =>
+    ipcRenderer.invoke('install-app', url, appName),
+  onInstallProgress: (callback: (data: { status: string; appName: string }) => void) => {
+    const fn = (_, data) => callback(data)
+    ipcRenderer.on('install-app-progress', fn)
+    return () => ipcRenderer.removeListener('install-app-progress', fn)
+  },
+
   /** Playtime queries (read-only from renderer side). */
   playtime: {
     get: (slotId: string): Promise<{ minutes: number; formatted: string }> =>

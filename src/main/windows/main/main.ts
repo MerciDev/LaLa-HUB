@@ -261,17 +261,19 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
 
                 if (!existsSync(emuPath)) {
                     console.error(`[Launch] Error: Emulator not found at "${emuPath}"`)
+                    isLaunching = false
                     return
                 }
                 if (!gamePath || !existsSync(gamePath)) {
                     console.error(`[Launch] Error: Game file not found at "${gamePath}"`)
+                    isLaunching = false
                     return
                 }
 
                 debugLog(`Running game: ${gamePath} with emulator/app: ${emuPath}`)
                 const quotedPath = gamePath.includes(' ') ? `"${gamePath}"` : gamePath
                 const rawArgs = gameEmulator.args || gameArgs || '-f -g {roms}'
-                const emulatorArgs = rawArgs.replace(/{roms}/g, quotedPath).replace(/{rom}/g, quotedPath)
+                const emulatorArgs = rawArgs.replace(/{roms}/g, quotedPath).replace(/{rom}/g, quotedPath).replace(/{file}/gi, quotedPath)
                 debugLog(`Emulator args: ${emulatorArgs}`)
 
                 const fullCommand = `"${emuPath}" ${emulatorArgs}`
@@ -287,6 +289,7 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
 
                 if (!existsSync(gamePath)) {
                     console.error(`[Launch] Error: Game executable not found at "${gamePath}"`)
+                    isLaunching = false
                     return
                 }
 
@@ -302,10 +305,12 @@ export function gridItemControl(actionId: string, item: HomeSlot): void {
                         stdio: 'ignore'
                     })
                 } else {
-                    // On Windows, use shell: true so paths with spaces and special
-                    // characters are handled correctly (same as the emulator path above).
+                    // Use shell ONLY for batch scripts or shortcuts on Windows.
+                    // For standard .exe files, shell: false is faster, direct, and gives the true PID.
                     const nativeArgs = gameArgs ? gameArgs.split(' ') : []
-                    const useShell = process.platform === 'win32'
+                    const lowerPath = gamePath.toLowerCase()
+                    const isScript = lowerPath.endsWith('.bat') || lowerPath.endsWith('.cmd') || lowerPath.endsWith('.lnk')
+                    const useShell = process.platform === 'win32' && isScript
                     const spawnPath = useShell
                         ? `"${gamePath}"` // quote the path for shell execution
                         : gamePath

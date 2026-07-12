@@ -1198,10 +1198,8 @@ const hasBtns = !!(r.current.editSlot && r.current.form.savesPath)
         const emuList = r.current.emulators
         const isRom = !!emuList.find(e => e.id === emuId)
         const path = await window.api.browseFile({
-            title: isRom ? 'Seleccionar ROM' : 'Seleccionar Ejecutable',
-            filters: isRom
-                ? [{ name: 'ROMs', extensions: ['iso', 'wux', 'nsp', 'xci', 'rvz', 'wbfs', 'gcm', 'cue', 'chd', 'nro', 'nes', 'sfc'] }, { name: 'Todos', extensions: ['*'] }]
-                : [{ name: 'Ejecutables', extensions: ['exe', 'app', 'sh'] }, { name: 'Todos', extensions: ['*'] }]
+            title: 'Seleccionar Archivo de Juego',
+            filters: [{ name: 'Todos los Archivos', extensions: ['*'] }]
         })
         if (path) setForm(prev => ({ ...prev, path, name: prev.name || path.split('\\').pop()?.replace(/\.[^/.]+$/, '') || '' }))
     }, [])

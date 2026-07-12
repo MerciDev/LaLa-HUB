@@ -27,6 +27,51 @@ export default function PlatformEditModal({
     const [formData, setFormData] = useState<PlatformForm>(EMPTY_PLATFORM)
     const [activeTab, setActiveTab] = useState<ModalTab>('general')
     const [activeAppId, setActiveAppId] = useState<string>('')
+    const [installStatus, setInstallStatus] = useState<Record<string, { loading: boolean, message: string }>>({})
+
+    useEffect(() => {
+        const cleanup = window.api.onInstallProgress?.((data) => {
+            const { status, appName } = data
+            setInstallStatus(prev => {
+                const current = prev[appName] || { loading: true }
+                let msg = 'Instalando...'
+                if (status === 'downloading') msg = 'Descargando...'
+                else if (status === 'extracting') msg = 'Extrayendo...'
+                else if (status === 'configuring') msg = 'Configurando...'
+                return { ...prev, [appName]: { ...current, message: msg } }
+            })
+        })
+        return () => {
+            if (cleanup) cleanup()
+        }
+    }, [])
+
+    const handleInstallApp = async (appId: string, url: string, name: string) => {
+        if (!url) return
+        setInstallStatus(prev => ({ ...prev, [name]: { loading: true, message: 'Iniciando...' } }))
+        const res = await window.api.installApp(url, name)
+        setInstallStatus(prev => ({ ...prev, [name]: { loading: false, message: res.success ? '¡Listo!' : 'Error' } }))
+        
+        if (res.success && res.executablePath) {
+            handleAppChange(appId, 'executablePath', res.executablePath)
+            setTimeout(() => {
+                setInstallStatus(prev => {
+                    const next = { ...prev }
+                    delete next[name]
+                    return next
+                })
+            }, 3000)
+        } else {
+            console.error('Install error:', res.error)
+            setTimeout(() => {
+                setInstallStatus(prev => {
+                    const next = { ...prev }
+                    delete next[name]
+                    return next
+                })
+            }, 5000)
+        }
+    }
 
     useEffect(() => {
         if (visible) {
@@ -454,6 +499,9 @@ export default function PlatformEditModal({
                                             >
                                                 <Icon icon="mynaui:chip" fontSize={18} />
                                                 {app.name || 'Sin nombre'}
+                                                {!app.executablePath && (
+                                                    <Icon icon="mynaui:danger-triangle" fontSize={16} color="#f59e0b" style={{ marginLeft: '4px' }} title="Ejecutable sin configurar" />
+                                                )}
                                                 {formData.defaultAppId === app.id && (
                                                     <span style={{ display: 'flex', alignItems: 'center', color: '#34d399', background: 'rgba(16,185,129,0.15)', padding: '2px 6px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }} title="Aplicación por defecto para esta plataforma">
                                                         <Icon icon="mynaui:check" /> Defecto
@@ -534,6 +582,23 @@ export default function PlatformEditModal({
                                                             placeholder="C:\Emulators\app.exe"
                                                         />
                                                     </div>
+                                                    
+                                                    {activeApp.downloadUrl && !activeApp.executablePath && (
+                                                        <button
+                                                            type="button"
+                                                            className="cp-btn cp-btn--primary"
+                                                            disabled={installStatus[activeApp.name]?.loading}
+                                                            onClick={() => handleInstallApp(activeApp.id, activeApp.downloadUrl!, activeApp.name)}
+                                                            style={{ padding: '6px 14px', borderRadius: '10px', flexShrink: 0, background: 'var(--accent, #3a86ff)', border: 'none', color: '#fff' }}
+                                                        >
+                                                            {installStatus[activeApp.name]?.loading ? (
+                                                                <><Icon icon="eos-icons:loading" /> {installStatus[activeApp.name].message}</>
+                                                            ) : (
+                                                                <><Icon icon="mynaui:download" /> Instalar Auto.</>
+                                                            )}
+                                                        </button>
+                                                    )}
+
                                                     <button
                                                         type="button"
                                                         className="cp-btn cp-btn--secondary"

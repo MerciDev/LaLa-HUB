@@ -97,7 +97,35 @@ export function registerPlatformHandlers(): void {
         for (const plat of apiPlatforms) {
           const idx = settings.platforms.findIndex(p => p.id === plat.id)
           if (idx >= 0) {
-            settings.platforms[idx] = { ...settings.platforms[idx], ...plat }
+            const localPlat = settings.platforms[idx]
+            
+            // Deep merge apps: keep local executable paths but update remote URLs
+            const mergedApps = [...(plat.apps || [])].map((remoteApp: any) => {
+              const localApp = (localPlat.apps || []).find((a: any) => a.id === remoteApp.id || a.name === remoteApp.name)
+              if (localApp) {
+                return { 
+                  ...remoteApp, 
+                  executablePath: localApp.executablePath || remoteApp.executablePath || '', 
+                  args: localApp.args || remoteApp.args || '' 
+                }
+              }
+              return remoteApp
+            })
+            // Add any local apps that are not present in remote
+            for (const localApp of (localPlat.apps || [])) {
+              if (!mergedApps.find((a: any) => a.id === localApp.id || a.name === localApp.name)) {
+                mergedApps.push(localApp)
+              }
+            }
+
+            settings.platforms[idx] = { 
+              ...localPlat, 
+              ...plat,
+              romPath: localPlat.romPath || plat.romPath,
+              biosPath: localPlat.biosPath || plat.biosPath,
+              apps: mergedApps,
+              defaultAppId: localPlat.defaultAppId || plat.defaultAppId
+            }
           } else {
             settings.platforms.push(plat)
           }
