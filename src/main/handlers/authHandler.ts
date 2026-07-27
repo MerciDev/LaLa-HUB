@@ -1,6 +1,6 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { getSupabaseClient, getAuthenticatedClient, setSession, getCurrentSession, getUserId } from '../utils/supabase'
-import { debugLog } from '../utils/debug'
+import { debugLog, debugError } from '../utils/debug'
 import { readJson, saveJson, checkFileExists, USER_DATA_PATH } from '../utils/storage'
 import { AuthState, LoginCredentials, RegisterCredentials, UserProfile } from '../../shared/types'
 import * as fs from 'fs'
@@ -35,42 +35,63 @@ function loadStoredSession(): void {
       if (stored.refreshToken) {
         // Defer getSupabaseClient() until after app is ready and env vars are loaded
         Promise.resolve().then(() => {
-          try {
-            const client = getSupabaseClient()
-            debugLog('[Auth] Solicitando refreshSession a Supabase...')
-            const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout de 10s en refreshSession')), 10000))
-            return Promise.race([client.auth.refreshSession({ refresh_token: stored.refreshToken }), timeout])
-              .then((result: any) => {
-                const { data } = result
-                debugLog('[Auth] Respuesta de refreshSession recibida.')
-                if (data?.session) {
-                  setSession(data.session)
-                  persistSession(stored.user) // Update token on disk if it changed
-                  debugLog('[Auth] Sesión de Supabase restaurada con token')
-
-                  try {
-                    import('../utils/syncEngine').then(({ triggerSync }) => triggerSync()).catch(() => {})
-                  } catch { }
-
-                  try {
-                    import('../utils/playtime').then(({ syncAllPlaytimesToCloud }) => syncAllPlaytimesToCloud()).catch(() => {})
-                  } catch { }
-
-                  try {
-                    import('./socialHandler').then(({ triggerPresenceSetup }) => triggerPresenceSetup()).catch(() => {})
-                  } catch { }
-                }
-              })
-              .catch(err => debugLog(`[Auth] Fallo restaurando token en Supabase: ${err.message}`))
-          } catch (err: any) {
-            debugLog(`[Auth] Supabase no configurado al restaurar sesión: ${err.message}`)
-          }
+          attemptSessionRefresh(stored.refreshToken, stored.user, 0)
         })
       }
     }
   } catch (err: any) {
     debugLog(`[Auth] Error cargando sesión local: ${err.message}`)
   }
+}
+
+const MAX_REFRESH_RETRIES = 5
+const RETRY_DELAY = 30000 // 30 seconds
+
+async function attemptSessionRefresh(refreshToken: string, user: UserProfile, attempt: number): Promise<void> {
+  try {
+    const client = getSupabaseClient()
+    debugLog(`[Auth] Solicitando refreshSession a Supabase (intento ${attempt + 1}/${MAX_REFRESH_RETRIES})...`)
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout de 10s en refreshSession')), 10000))
+    const result: any = await Promise.race([client.auth.refreshSession({ refresh_token: refreshToken }), timeout])
+    const { data } = result
+    debugLog('[Auth] Respuesta de refreshSession recibida.')
+    if (data?.session) {
+      setSession(data.session)
+      persistSession(user) // Update token on disk if it changed
+      debugLog('[Auth] Sesión de Supabase restaurada con token')
+
+      try {
+        import('../utils/syncEngine').then(({ triggerSync }) => triggerSync()).catch(() => {})
+      } catch { }
+
+      try {
+        import('../utils/playtime').then(({ syncAllPlaytimesToCloud }) => syncAllPlaytimesToCloud()).catch(() => {})
+      } catch { }
+
+      try {
+        import('./socialHandler').then(({ triggerPresenceSetup }) => triggerPresenceSetup()).catch(() => {})
+      } catch { }
+    } else {
+      debugLog('[Auth] refreshSession no devolvió sesión válida')
+      if (attempt < MAX_REFRESH_RETRIES - 1) {
+        scheduleRetry(refreshToken, user, attempt)
+      }
+    }
+  } catch (err: any) {
+    debugLog(`[Auth] Fallo restaurando token en Supabase (intento ${attempt + 1}): ${err.message}`)
+    if (attempt < MAX_REFRESH_RETRIES - 1) {
+      scheduleRetry(refreshToken, user, attempt)
+    } else {
+      debugError('[Auth] Máximo de reintentos alcanzado, sesión no restaurada')
+    }
+  }
+}
+
+function scheduleRetry(refreshToken: string, user: UserProfile, attempt: number): void {
+  debugLog(`[Auth] Reintentando refresh en ${RETRY_DELAY / 1000}s...`)
+  setTimeout(() => {
+    attemptSessionRefresh(refreshToken, user, attempt + 1)
+  }, RETRY_DELAY)
 }
 
 function persistSession(user: UserProfile): void {

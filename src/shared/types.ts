@@ -306,10 +306,12 @@ export interface DownloadTask {
   title: string
   source: string
   uri: string
+  uris?: string[]
   fileSize: string
-  status: 'queued' | 'downloading' | 'completed' | 'error' | 'opened'
+  status: 'queued' | 'downloading' | 'paused' | 'completed' | 'error' | 'opened'
   progress: number
   speed: string
+  speedBytes?: number
   downloadedBytes?: number
   totalBytes?: number
   peers?: number
@@ -324,6 +326,7 @@ export interface DownloadProgress {
   id: string
   progress: number
   speed: string
+  speedBytes?: number
   status: DownloadTask['status']
   downloadedBytes?: number
   totalBytes?: number

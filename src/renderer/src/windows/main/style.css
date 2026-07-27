@@ -3870,16 +3870,21 @@ select:focus {
 .dl-list {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 12px;
+  padding: 24px 36px;
+  max-width: 1500px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .dl-list__divider {
-  padding: 16px 16px 8px;
-  font-size: 0.7rem;
-  font-weight: 700;
+  padding: 24px 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 16px;
 }
 
 /* ── Download Item ───────────────────────────────────── */

@@ -2,7 +2,7 @@ import { ChildProcess } from 'child_process'
 import { loadSlots, saveSlots } from './storage'
 import { debugLog } from './debug'
 import { setActivity } from './discord'
-import { showMainWindow } from '../windows/main/main'
+import { showMainWindow, notifyRendererGameStatus } from '../windows/main/main'
 import { pushSaveToCloud } from './cloudSaves'
 import { getAuthenticatedClient, getUserId, isOnline } from './supabase'
 import { updatePresenceInternal, restorePresence } from '../handlers/socialHandler'
@@ -36,6 +36,7 @@ export function startPlaySession(slotId: string, gameProcess: ChildProcess): voi
     if (slot) {
         setActivity(`Jugando: ${slot.label}`, `Empecé hace poco`)
         updatePresenceInternal(undefined, `Jugando a ${slot.label}`)
+        notifyRendererGameStatus(slot.label)
     }
 
     gameProcess.on('close', () => {
@@ -59,6 +60,7 @@ function endPlaySession(slotId: string): void {
     // Reset Discord & LaLa Presence
     setActivity('En el Menú', 'Navegando por la colección')
     restorePresence()
+    notifyRendererGameStatus(null)
 
     persistPlaytime(slotId, minutesPlayed)
 

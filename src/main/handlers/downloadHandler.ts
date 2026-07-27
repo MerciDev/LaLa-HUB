@@ -11,12 +11,17 @@ import {
   clearCompleted,
   loadTasks,
   setMainWindow,
-  searchGameInSources
+  searchGameInSources,
+  checkUriStatus
 } from '../utils/downloadManager'
 
 export function registerDownloadHandlers(mainWindow: BrowserWindow): void {
   setMainWindow(mainWindow)
   loadTasks()
+
+  ipcMain.handle('download-check-uri-status', async (_, uri: string) => {
+    return checkUriStatus(uri)
+  })
 
   ipcMain.handle('download-search-sources', async (_, title: string) => {
     try {

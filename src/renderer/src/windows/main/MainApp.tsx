@@ -154,6 +154,25 @@ function MainApp(): React.JSX.Element {
     }, [])
 
     useEffect(() => {
+        const unsub = window.api.social.onGameStatusChanged((gameName) => {
+            if (gameName) {
+                const newPresence = { status: 'online', statusText: `Jugando a ${gameName}` }
+                setUserPresence(newPresence)
+                try {
+                    localStorage.setItem('lala_user_presence', JSON.stringify(newPresence))
+                } catch {}
+            } else {
+                const newPresence = { status: 'online', statusText: 'Explorando el Hub' }
+                setUserPresence(newPresence)
+                try {
+                    localStorage.setItem('lala_user_presence', JSON.stringify(newPresence))
+                } catch {}
+            }
+        })
+        return unsub
+    }, [])
+
+    useEffect(() => {
         setPersonalIcons(prev => prev.map(icon => {
             if (icon.id === 'profile') {
                 return {

@@ -115,6 +115,8 @@ export interface API {
   downloads: {
     getSourcesConfig: () => Promise<Array<{ name: string; url: string }>>
     fetchSource: (url: string) => Promise<{ success: boolean; data?: DownloadSource; error?: string }>
+    searchGameInSources: (title: string) => Promise<{ success: boolean; data?: { sourceName: string; entry: DownloadEntry }[]; error?: string }>
+    checkUriStatus: (uri: string) => Promise<boolean>
     getTasks: () => Promise<DownloadTask[]>
     start: (entry: DownloadEntry, sourceName: string) => Promise<{ success: boolean; task?: DownloadTask; error?: string }>
     cancel: (id: string) => Promise<{ success: boolean }>
@@ -169,6 +171,7 @@ export interface API {
     getGameModalDetails: (gameName: string, slotId?: string) => Promise<{ success: boolean; data?: any; error?: string }>
     updatePresence: (status: 'online' | 'away' | 'dnd' | 'offline', statusText: string) => Promise<{ success: boolean; error?: string }>
     onPresenceUpdate: (callback: (presence: import('../shared/types').PresenceState[]) => void) => () => void
+    onGameStatusChanged: (callback: (gameName: string | null) => void) => () => void
   }
 }
 

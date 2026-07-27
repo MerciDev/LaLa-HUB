@@ -212,6 +212,8 @@ const api = {
       ipcRenderer.invoke('download-get-sources-config'),
     fetchSource: (url: string): Promise<{ success: boolean; data?: import('../shared/types').DownloadSource; error?: string }> =>
       ipcRenderer.invoke('download-fetch-source', url),
+    checkUriStatus: (uri: string): Promise<boolean> => 
+      ipcRenderer.invoke('download-check-uri-status', uri),
     searchGameInSources: (title: string): Promise<{ success: boolean; data?: { sourceName: string; entry: import('../shared/types').DownloadEntry }[]; error?: string }> =>
       ipcRenderer.invoke('download-search-sources', title),
     getTasks: (): Promise<import('../shared/types').DownloadTask[]> =>
@@ -313,6 +315,11 @@ const api = {
       const fn = (_, presence) => callback(presence)
       ipcRenderer.on('social-presence-update', fn)
       return () => { ipcRenderer.removeListener('social-presence-update', fn) }
+    },
+    onGameStatusChanged: (callback: (gameName: string | null) => void): (() => void) => {
+      const fn = (_, gameName) => callback(gameName)
+      ipcRenderer.on('game-status-changed', fn)
+      return () => { ipcRenderer.removeListener('game-status-changed', fn) }
     }
   }
 }

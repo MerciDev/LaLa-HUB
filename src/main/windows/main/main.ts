@@ -50,6 +50,10 @@ export function showMainWindow(): void {
     }
 }
 
+export function notifyRendererGameStatus(gameName: string | null): void {
+    appWindow?.webContents.send('game-status-changed', gameName)
+}
+
 export function changeInfoIsland(text: string): void {
     appWindow?.webContents.send('dispatch-action', { type: 'CHANGE_INFO_ISLAND', payload: text })
 }

@@ -6,6 +6,9 @@ let SUPABASE_ANON_KEY = process.env['SUPABASE_ANON_KEY'] || ''
 
 let supabase: SupabaseClient | null = null
 let currentSession: Session | null = null
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+const SESSION_REFRESH_INTERVAL = 45 * 60 * 1000 // 45 minutes
+const SESSION_REFRESH_RETRY_DELAY = 30 * 1000 // 30 seconds between retries
 
 export function getSupabaseClient(): SupabaseClient {
   if (!supabase) {
@@ -46,6 +49,37 @@ export function setSession(session: Session | null): void {
   const client = getSupabaseClient()
   if (session) {
     client.auth.setSession(session).catch(() => {})
+    startRefreshTimer()
+  } else {
+    stopRefreshTimer()
+  }
+}
+
+function startRefreshTimer(): void {
+  stopRefreshTimer()
+  if (!currentSession) return
+
+  refreshTimer = setInterval(async () => {
+    debugLog('[Supabase] Periodic session refresh triggered')
+    const success = await refreshSession()
+    if (!success) {
+      debugLog('[Supabase] Periodic refresh failed, will retry in 30s')
+      setTimeout(async () => {
+        const retrySuccess = await refreshSession()
+        if (!retrySuccess) {
+          debugError('[Supabase] Session refresh retry also failed, session may be expired')
+        }
+      }, SESSION_REFRESH_RETRY_DELAY)
+    }
+  }, SESSION_REFRESH_INTERVAL)
+
+  debugLog(`[Supabase] Refresh timer started (interval: ${SESSION_REFRESH_INTERVAL / 1000}s)`)
+}
+
+function stopRefreshTimer(): void {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
   }
 }
 
@@ -86,7 +120,16 @@ export async function getAuthenticatedClient(): Promise<SupabaseClient | null> {
     const now = Date.now()
     const expiresAt = currentSession.expires_at ? currentSession.expires_at * 1000 : 0
     if (expiresAt > 0 && now >= expiresAt - 60000) {
-      await refreshSession()
+      debugLog('[Supabase] Session expiring soon, attempting refresh...')
+      let refreshed = await refreshSession()
+      if (!refreshed) {
+        debugLog('[Supabase] First refresh attempt failed, retrying once...')
+        await new Promise(r => setTimeout(r, 2000))
+        refreshed = await refreshSession()
+      }
+      if (!refreshed) {
+        debugError('[Supabase] Session refresh failed after retry, session may be invalid')
+      }
     }
     if (currentSession) {
       await client.auth.setSession(currentSession).catch(() => {})

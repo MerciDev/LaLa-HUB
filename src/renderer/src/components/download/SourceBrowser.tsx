@@ -4,7 +4,7 @@ import { DownloadSource, DownloadEntry } from '../../../../shared/types'
 import { sfx } from '../../utils/audioManager'
 import { searchGameByTitle, imageUrl } from './gameDetailCache'
 
-const PAGE_SIZE = 30
+const PAGE_SIZE = 10
 
 interface SourceBrowserProps {
   source: DownloadSource
@@ -62,9 +62,6 @@ export function SourceBrowser({
 
   const pageStart = page * PAGE_SIZE
   const pageEntries = filtered.slice(pageStart, pageStart + PAGE_SIZE)
-  const COLS = 5
-  const ROWS = Math.ceil(pageEntries.length / COLS)
-  const totalCells = ROWS * COLS
 
   const [thumbnails, setThumbnails] = useState<Record<string, string | null>>({})
   const thumbnailsRef = useRef(thumbnails)
@@ -72,7 +69,7 @@ export function SourceBrowser({
 
   useEffect(() => {
     const indices = new Set<number>()
-    for (let d = -6; d <= 6; d++) {
+    for (let d = -4; d <= 4; d++) {
       const i = focusIndex + d
       if (i >= 0 && i < pageEntries.length) indices.add(i)
     }
@@ -80,7 +77,7 @@ export function SourceBrowser({
       const entry = pageEntries[i]
       if (!entry || thumbnailsRef.current[entry.title] !== undefined) continue
       searchGameByTitle(entry.title).then((meta) => {
-        const url = imageUrl(meta?.coverImage || meta?.backgroundImage)
+        const url = imageUrl(meta?.horizontalImage || meta?.coverImage || meta?.backgroundImage)
         if (url !== thumbnailsRef.current[entry.title]) {
           setThumbnails((prev) => ({ ...prev, [entry.title]: url ?? null }))
         }
@@ -114,25 +111,25 @@ export function SourceBrowser({
 
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        sfx.navigate()
-        const next = Math.min(focusIndex + COLS, pageEntries.length - 1)
-        onFocusChange(next)
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        sfx.navigate()
-        const prev = Math.max(focusIndex - COLS, 0)
-        onFocusChange(prev)
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault()
         if (focusIndex < pageEntries.length - 1) {
           sfx.navigate()
           onFocusChange(focusIndex + 1)
         }
-      } else if (e.key === 'ArrowLeft') {
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault()
         if (focusIndex > 0) {
           sfx.navigate()
           onFocusChange(focusIndex - 1)
+        }
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        if (page < totalPages - 1) {
+          goNext()
+        }
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        if (page > 0) {
+          goPrev()
         }
       } else if (e.key === 'Enter') {
         e.preventDefault()
@@ -143,7 +140,7 @@ export function SourceBrowser({
         }
       }
     },
-    [focusIndex, pageEntries, goNext, goPrev, onBack, onSelect, onFocusChange]
+    [focusIndex, pageEntries, page, totalPages, goNext, goPrev, onBack, onSelect, onFocusChange]
   )
 
   useEffect(() => {
@@ -198,7 +195,7 @@ export function SourceBrowser({
         </div>
       </div>
 
-      <div className="dl-browser__grid-wrap">
+      <div className="dl-browser__grid-wrap" style={{ padding: '0' }}>
         {pageEntries.length === 0 ? (
           <div className="dl-empty">
             <Icon icon="mynaui:search" className="dl-empty__icon" style={{ fontSize: 40, marginBottom: 8 }} />
@@ -206,18 +203,14 @@ export function SourceBrowser({
           </div>
         ) : (
           <div
-            className="dl-browser__grid"
+            className="dl-browser__list"
             style={{
-              gridTemplateColumns: `repeat(${COLS}, 1fr)`,
-              gridTemplateRows: `repeat(${ROWS}, auto)`
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0,
             }}
           >
-            {Array.from({ length: totalCells }, (_, cellIdx) => {
-              const entry = pageEntries[cellIdx]
-              if (!entry) {
-                return <div key={`empty-${cellIdx}`} className="dl-browser__grid-cell dl-browser__grid-cell--empty" />
-              }
-
+            {pageEntries.map((entry, cellIdx) => {
               const isDownloading = activeDownloads.has(entry.title)
               const isFocused = focusIndex === cellIdx
               const thumb = thumbnails[entry.title]
@@ -225,7 +218,7 @@ export function SourceBrowser({
               return (
                 <div
                   key={pageStart + cellIdx}
-                  className={`dl-browser__grid-cell ${isFocused ? 'dl-browser__grid-cell--focused' : ''} ${isDownloading ? 'dl-browser__grid-cell--active' : ''}`}
+                  className={`dl-browser__list-item ${isFocused ? 'dl-browser__list-item--focused' : ''} ${isDownloading ? 'dl-browser__list-item--active' : ''}`}
                   data-focused={isFocused ? 'true' : undefined}
                   data-dl-idx={cellIdx}
                   onClick={() => {
@@ -234,44 +227,78 @@ export function SourceBrowser({
                     onSelect(entry)
                   }}
                   onMouseEnter={() => onFocusChange(cellIdx)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '8px 16px',
+                    background: isFocused ? 'rgba(58, 134, 255, 0.1)' : cellIdx % 2 === 0 ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)',
+                    borderLeft: `4px solid ${isFocused ? '#1a9fff' : 'transparent'}`,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
                 >
-                  <div className="dl-browser__grid-cover">
+                  <div className="dl-browser__list-cover" style={{ width: 120, height: 56, position: 'relative', overflow: 'hidden', borderRadius: 4, background: '#16202d', flexShrink: 0 }}>
                     {thumb ? (
                       <img
-                        className="dl-browser__grid-img"
+                        className="dl-browser__list-img"
                         src={thumb}
                         alt={cleanTitle(entry.title)}
                         loading="lazy"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                     ) : (
-                      <div className="dl-browser__grid-placeholder">
-                        <Icon icon="mynaui:package" />
+                      <div className="dl-browser__list-placeholder" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'rgba(255,255,255,0.1)' }}>
+                        <Icon icon="mynaui:package" fontSize={24} />
                       </div>
                     )}
                     {isDownloading && (
-                      <div className="dl-browser__grid-badge">
-                        <Icon icon="mynaui:clock" />
+                      <div className="dl-browser__list-badge" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a9fff' }}>
+                        <Icon icon="mynaui:clock" fontSize={24} />
                       </div>
                     )}
                   </div>
-                  <div className="dl-browser__grid-info">
-                    <div className="dl-browser__grid-title" title={cleanTitle(entry.title)}>
+                  
+                  <div className="dl-browser__list-info" style={{ flex: 1, minWidth: 0, marginLeft: 20 }}>
+                    <div className="dl-browser__list-title" style={{ fontSize: '15px', fontWeight: 600, color: isFocused ? '#ffffff' : '#abb6c4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cleanTitle(entry.title)}>
                       {cleanTitle(entry.title)}
                     </div>
-                    <div className="dl-browser__grid-meta">
-                      <span>{entry.fileSize}</span>
+                    <div className="dl-browser__list-meta" style={{ fontSize: '12px', color: '#67707b', marginTop: 4, fontWeight: 500 }}>
+                      <span>TAMAÑO DE LA DESCARGA: <strong style={{ color: '#8b929a' }}>{entry.fileSize}</strong></span>
                     </div>
                   </div>
+
                   <button
-                    className={`dl-browser__grid-dl ${isFocused ? 'dl-browser__grid-dl--visible' : ''}`}
+                    className={`dl-browser__list-dl`}
                     onClick={(e) => {
                       e.stopPropagation()
                       sfx.confirm()
-                      onDownload(entry)
+                      if (entry.uris && entry.uris.length > 1) {
+                        onSelect(entry)
+                      } else {
+                        onDownload(entry)
+                      }
                     }}
                     disabled={isDownloading}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      height: 36,
+                      padding: '0 16px',
+                      background: isDownloading ? '#2a3648' : '#1a9fff',
+                      color: isDownloading ? '#abb6c4' : '#ffffff',
+                      border: isDownloading ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                      borderRadius: 4,
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: isDownloading ? 'default' : 'pointer',
+                      opacity: isFocused || isDownloading ? 1 : 0.8,
+                      transition: 'all 0.15s ease',
+                      marginLeft: 16
+                    }}
                   >
-                    <Icon icon={isDownloading ? 'mynaui:clock' : 'mynaui:download'} />
+                    <Icon icon={isDownloading ? 'mynaui:clock' : entry.uris && entry.uris.length > 1 ? 'mynaui:list' : 'mynaui:download'} fontSize={18} />
+                    {isDownloading ? 'AÑADIDO' : entry.uris && entry.uris.length > 1 ? 'ELEGIR ENLACE' : 'AÑADIR'}
                   </button>
                 </div>
               )

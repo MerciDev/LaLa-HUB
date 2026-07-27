@@ -32,6 +32,13 @@ export async function updatePresenceInternal(status?: 'online' | 'away' | 'dnd' 
     return true
   } catch (err: any) {
     debugError(`[Social] Error updating internal presence: ${err.message}`)
+    // If tracking fails, the channel might be disconnected - try to reconnect
+    debugLog('[Social] Presence track failed, attempting to re-setup presence channel')
+    setTimeout(() => {
+      if (getUserId()) {
+        triggerPresenceSetup()
+      }
+    }, 5000)
     return false
   }
 }
@@ -223,10 +230,24 @@ export function registerSocialHandlers(mainWindow: BrowserWindow | null): void {
             mainWindow.webContents.send('social-presence-update', Object.values(presenceStates))
           }
         })
+        .on('system', { event: 'error' }, (err: any) => {
+          debugError(`[Social] Realtime channel error: ${err?.message || err}`)
+        })
+        .on('system', { event: 'close' }, () => {
+          debugLog('[Social] Realtime channel closed, will attempt reconnect on next presence update')
+        })
         .subscribe(async (status: string) => {
           if (status === 'SUBSCRIBED') {
             await updatePresenceInternal(lastMyStatus, lastMyStatusText)
             debugLog('[Social] Conectado exitosamente al canal de presencia Realtime')
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            debugLog(`[Social] Realtime subscription status: ${status}, will retry in 30s`)
+            setTimeout(() => {
+              if (getUserId()) {
+                debugLog('[Social] Retrying Realtime presence setup...')
+                setupPresence()
+              }
+            }, 30000)
           }
         })
     } catch (err: any) {

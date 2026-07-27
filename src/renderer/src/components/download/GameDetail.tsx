@@ -66,6 +66,37 @@ export function GameDetail({
   const version = entry.title.replace(gameTitle, '').trim()
 
   const [meta, setMeta] = useState<GameMetadata | null | 'loading' | 'nokey'>('loading')
+  const [linkStatuses, setLinkStatuses] = useState<Record<string, 'checking' | 'up' | 'down'>>({})
+
+  useEffect(() => {
+    let cancelled = false
+
+    const checkLinks = async () => {
+      // Set all to checking initially
+      const initialStatuses: Record<string, 'checking'> = {}
+      entry.uris.forEach(uri => { initialStatuses[uri] = 'checking' })
+      setLinkStatuses(initialStatuses)
+
+      for (const uri of entry.uris) {
+        if (cancelled) break
+        
+        try {
+          const isUp = await window.api.downloads.checkUriStatus(uri)
+          if (!cancelled) {
+            setLinkStatuses(prev => ({ ...prev, [uri]: isUp ? 'up' : 'down' }))
+          }
+        } catch (e) {
+          if (!cancelled) {
+            setLinkStatuses(prev => ({ ...prev, [uri]: 'down' }))
+          }
+        }
+      }
+    }
+
+    checkLinks()
+
+    return () => { cancelled = true }
+  }, [entry.uris])
 
   useEffect(() => {
     let cancelled = false
@@ -194,9 +225,16 @@ export function GameDetail({
               <button
                 className="dl-detail__hero-dl"
                 disabled={isDownloading || (activeTask && activeTask.status !== 'error')}
-                onClick={() => onDownload(entry)}
+                onClick={() => {
+                  if (!activeTask && !isDownloading && entry.uris && entry.uris.length > 1) {
+                    const el = document.getElementById('download-links')
+                    if (el) el.scrollIntoView({ behavior: 'smooth' })
+                  } else {
+                    onDownload(entry)
+                  }
+                }}
               >
-                <Icon icon={isDownloading || activeTask ? 'mynaui:clock' : 'mynaui:download'} />
+                <Icon icon={isDownloading || activeTask ? 'mynaui:clock' : entry.uris && entry.uris.length > 1 ? 'mynaui:list' : 'mynaui:download'} />
                 {activeTask
                   ? activeTask.status === 'downloading'
                     ? activeTask.speed?.includes('Buscando') || activeTask.speed?.includes('Conectado')
@@ -207,7 +245,7 @@ export function GameDetail({
                       : activeTask.status === 'error'
                         ? 'Reintentar'
                         : 'En cola...'
-                  : isDownloading ? 'En cola...' : 'Descargar'}
+                  : isDownloading ? 'En cola...' : entry.uris && entry.uris.length > 1 ? `Elegir enlace (${entry.uris.length})` : 'Descargar'}
               </button>
             </div>
           </div>
@@ -227,7 +265,7 @@ export function GameDetail({
           )}
 
           {/* Download Links */}
-          <div className="dl-detail__section">
+          <div className="dl-detail__section" id="download-links">
             <h3 className="dl-detail__section-title">
               <Icon icon="mynaui:link" />
               Enlaces de descarga
@@ -243,22 +281,48 @@ export function GameDetail({
                       ? uri.substring(0, 50) + '...' + uri.slice(-30)
                       : uri
 
+                  const status = linkStatuses[uri]
+                  const isBlocked = status === 'down'
+                  const isChecking = status === 'checking'
+
+                  const handleLinkDownload = () => {
+                    const newEntry = {
+                      ...entry,
+                      uris: [uri, ...entry.uris.filter(u => u !== uri)]
+                    }
+                    onDownload(newEntry)
+                  }
+
                   return (
-                    <div key={idx} className="dl-detail__link-row">
+                    <div key={idx} className="dl-detail__link-row" style={{ opacity: isBlocked ? 0.5 : 1 }}>
                       <div className="dl-detail__link-badge" style={{ backgroundColor: uriType.color + '20', color: uriType.color }}>
                         <Icon icon={uriType.icon} />
                         <span>{uriType.label}</span>
                       </div>
-                      <div className="dl-detail__link-uri" title={uri}>
+                      <div className="dl-detail__link-uri" title={uri} style={{ textDecoration: isBlocked ? 'line-through' : 'none' }}>
                         {truncated}
                       </div>
-                      <button
-                        className="dl-detail__dl-btn"
-                        disabled={isDownloading}
-                        onClick={() => onDownload(entry)}
-                      >
-                        <Icon icon={isDownloading ? 'mynaui:clock' : 'mynaui:download'} />
-                      </button>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {/* Status Icon */}
+                        {isChecking ? (
+                          <Icon icon="mynaui:spinner" className="ag-spin" style={{ color: '#8b929a' }} title="Comprobando enlace..." />
+                        ) : status === 'up' ? (
+                          <Icon icon="mynaui:check-circle" style={{ color: '#5ccb5f' }} title="Enlace activo" />
+                        ) : status === 'down' ? (
+                          <Icon icon="mynaui:x-circle" style={{ color: '#ff5c5c' }} title="Enlace caído" />
+                        ) : null}
+
+                        <button
+                          className="dl-detail__dl-btn"
+                          disabled={isDownloading || isBlocked || isChecking}
+                          onClick={handleLinkDownload}
+                          title={isBlocked ? "Enlace no disponible" : "Descargar usando este enlace"}
+                          style={{ cursor: isBlocked || isChecking ? 'not-allowed' : 'pointer' }}
+                        >
+                          <Icon icon={isDownloading ? 'mynaui:clock' : 'mynaui:download'} />
+                        </button>
+                      </div>
                     </div>
                   )
                 })

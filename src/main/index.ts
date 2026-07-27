@@ -42,6 +42,7 @@ import { registerSyncHandlers } from './handlers/syncHandler'
 import { registerSocialHandlers } from './handlers/socialHandler'
 import { registerSavesHandlers } from './handlers/savesHandler'
 import { registerAppInstallHandlers } from './handlers/appInstallHandler'
+import { setMainWindow } from './utils/downloadManager'
 import { initSyncEngine } from './utils/syncEngine'
 import { initDiscordRPC } from './utils/discord'
 import { loadInterfaceSettings } from './settings/interfaceSettings'
@@ -104,6 +105,7 @@ function createWindow(): void {
 
   appWindow.maximize()
   mainApp.setAppWindow(appWindow)
+  setMainWindow(appWindow)
 
   debugLog('Main Window created.')
 
@@ -331,6 +333,7 @@ async function main(): Promise<void> {
 
   refreshGlobalShortcuts()
   createWindow()
+  setMainWindow(appWindow)
 
   // Register auth/sync handlers with the window reference
   registerAuthHandlers(appWindow)
